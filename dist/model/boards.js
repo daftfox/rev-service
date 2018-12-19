@@ -1,22 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
+const board_1 = require("../domain/board");
+const operators_1 = require("rxjs/operators");
+const Subject_1 = require("rxjs/internal/Subject");
 class Boards extends events_1.EventEmitter {
     constructor() {
         super();
-        this.boards = [];
+        this.boards$ = new Subject_1.Subject();
+        this.boardDisconnected$ = new Subject_1.Subject();
     }
-    boardConnected(port, board) {
-        this.boards[port] = board;
-        this.emit('board-connected', port);
+    get boards() {
+        return this.boards$.pipe(operators_1.filter(board => board !== null), operators_1.distinctUntilChanged(), operators_1.share());
     }
-    boardDisconnected(port) {
-        this.boards.splice(port, 1);
-        this.emit('board-disconnected', port);
+    get getAllBoards() {
+        return this.boards.pipe(operators_1.scan((acc, cur) => [...acc, cur], []), operators_1.map(boards => boards.filter(board => board.status !== board_1.BoardStatus.DISCONNECTED)));
     }
-    runProgramOnBoard(board, program) {
-        // todo: run program on board and set status to busy
+    getBoardById(id) {
+        return this.boards.pipe(operators_1.filter(board => board !== null), operators_1.scan((acc, cur) => [...acc, cur], []), operators_1.map(boards => boards.find(board => board.id === id)));
+    }
+    get boardDisconnected() {
+        return this.boardDisconnected$.asObservable();
+    }
+    addBoard(board) {
+        this.boards$.next(board);
+    }
+    removeBoard(board) {
+        this.boardDisconnected$.next(board);
     }
 }
-exports.boards = new Boards();
+exports.default = Boards;
 //# sourceMappingURL=boards.js.map

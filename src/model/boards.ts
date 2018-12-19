@@ -1,27 +1,53 @@
 import { EventEmitter } from 'events';
-import Board from 'firmata';
+import Board, {BoardStatus} from '../domain/board';
+import { Observable } from "rxjs/internal/Observable";
+import {distinctUntilChanged, filter, map, scan, share, tap} from "rxjs/operators";
+import {Subject} from "rxjs/internal/Subject";
 
 class Boards extends EventEmitter {
-    boards: Board[];
+    private boards$: Subject<Board>;
+    private boardDisconnected$: Subject<Board>;
 
     constructor() {
         super();
-        this.boards = [];
+        this.boards$ = new Subject<Board>();
+        this.boardDisconnected$ = new Subject<Board>();
     }
 
-    boardConnected(port: string, board: Board) {
-        this.boards[port] = board;
-        this.emit('board-connected', port);
+    public get boards(): Observable<Board> {
+        return this.boards$.pipe(
+            filter( board => board !== null ),
+            distinctUntilChanged(),
+            share()
+        )
     }
 
-    boardDisconnected(port) {
-        this.boards.splice(port, 1);
-        this.emit('board-disconnected', port);
+    public get getAllBoards(): Observable<Board[]> {
+        return this.boards.pipe(
+            scan( ( acc: Board[], cur: Board ) => [...acc, cur], [] ),
+            map( boards => boards.filter( board => board.status !== BoardStatus.DISCONNECTED ) ), // filter out disconnected boards
+        );
     }
 
-    runProgramOnBoard(board, program) {
-        // todo: run program on board and set status to busy
+    public getBoardById( id: string ): Observable<Board> {
+        return this.boards.pipe(
+            filter( board => board !== null ),
+            scan( ( acc: Board[], cur: Board ) => [...acc, cur], [] ),
+            map( boards => boards.find( board => board.id === id ) ),
+        );
+    }
+
+    public get boardDisconnected(): Observable<Board> {
+        return this.boardDisconnected$.asObservable();
+    }
+
+    public addBoard( board: Board ): void {
+        this.boards$.next( board );
+    }
+
+    public removeBoard( board: Board ): void {
+        this.boardDisconnected$.next( board );
     }
 }
 
-export let boards = new Boards();
+export default Boards;
