@@ -10,6 +10,7 @@ import {Subscription} from "rxjs/internal/Subscription";
 import {withLatestFrom} from "rxjs/operators";
 import Logger from "../service/logger";
 import HttpService from "../service/http-service";
+import {Command} from "../interface/command";
 
 class MainController {
     private static namespace = `main`;
@@ -26,9 +27,11 @@ class MainController {
     private execReceived:           Subscription;
 
     constructor () {
-        Logger.info( MainController.namespace, 'Initializing Rev...' );
-
         this.options = Config.parseOptions( process.argv );
+
+        Logger.info( MainController.namespace, 'Starting REV' );
+
+        process.env.verbose = this.options.verbose ? 'true' : '';
 
         this.startServices();
     }
@@ -48,7 +51,7 @@ class MainController {
 
         this.subscribeToEvents();
 
-        process.on('uncaughtException', MainController.handleError );
+        process.on('uncaughtException', this.handleError );
     }
 
     private broadcastNewBoard( board: Board ): void {
@@ -66,34 +69,44 @@ class MainController {
     private subscribeToEvents(): void {
         this.boardsUpdated = this.model.boards.subscribe(
             this.broadcastNewBoard.bind( this ),
-            MainController.handleError
+            this.handleError
         );
 
         this.newClientConnected = this.socketService.newClient.pipe(
             withLatestFrom( this.model.getAllBoards )
         ).subscribe(
             this.updateAllBoardsForClient.bind( this ),
-            MainController.handleError
+            this.handleError
         );
 
         this.boardDisconnected = this.model.boardDisconnected.subscribe(
             this.broadcastDisconnectedBoard.bind( this ),
-            MainController.handleError
+            this.handleError
         );
 
         this.execReceived = this.socketService.newExec.subscribe(
             this.handleExecReceived.bind( this ),
-            MainController.handleError
+            this.handleError
         )
     }
 
-    private handleExecReceived( exec: { id: string, command: string, parameter?: string } ): void {
-        this.model.executeOnBoard( exec );
+    private handleExecReceived( command: Command ): void {
+        this.model.executeOnBoard( command );
     }
 
-    private static handleError ( error: Error ): void {
-        //Logger.error( MainController.namespace, error );
-        Logger.stack( MainController.namespace, error );
+    private handleError ( error: Error ): void {
+        switch( error.constructor.name ) {
+            case 'NotFoundError':
+                Logger.warn( MainController.namespace, error.message );
+                break;
+            case 'Error':
+                Logger.stack( MainController.namespace, error );
+                break;
+            case 'BoardError':
+            default:
+                Logger.error( MainController.namespace, error );
+        }
+        // Logger.error( MainController.namespace, error );
     }
 }
 

@@ -1,24 +1,26 @@
 import { EventEmitter } from 'events';
 import Board from '../domain/board';
 import { Observable } from "rxjs/internal/Observable";
-import { concatMap, distinctUntilChanged, filter, map, scan, share } from "rxjs/operators";
+import {concatMap, distinctUntilChanged, filter, map, scan, share, tap} from "rxjs/operators";
 import {Subject} from "rxjs/internal/Subject";
 import {BoardStatus} from "../interface/discrete-board";
 import {BehaviorSubject} from "rxjs/internal/BehaviorSubject";
+import {Command} from "../interface/command";
+import NotFoundError from "../domain/not-found-error";
 
 class Boards extends EventEmitter {
     private boards$: BehaviorSubject<Board>;
     private boardDisconnected$: Subject<Board>;
-    private exec$: Subject<{ id: string, command: string, parameter?: string }>;
+    private exec$: Subject<Command>;
     private executeOnBoard$: Observable<Board>;
 
     constructor() {
         super();
         this.boards$ = new BehaviorSubject<Board>(null);
         this.boardDisconnected$ = new Subject<Board>();
-        this.exec$ = new Subject<{id: string, command: string, parameter?: string}>();
+        this.exec$ = new Subject<Command>();
         this.executeOnBoard$ = this.exec$.pipe(
-            concatMap( exec => this.getBoardById( exec.id ))
+            concatMap( command => this.getBoardById( command.boardId ))
         );
     }
 
@@ -57,11 +59,14 @@ class Boards extends EventEmitter {
         this.boardDisconnected$.next( board );
     }
 
-    public executeOnBoard( exec: { id: string, command: string, parameter?: string } ): void {
+    public executeOnBoard( command: Command ): void {
         this.executeOnBoard$.subscribe(
-            board => board.executeCommand( exec.command, exec.parameter )
+            board => {
+                if ( !board ) throw new NotFoundError( `Board not found` );
+                board.executeCommand( command );
+            }
         );
-        this.exec$.next( exec );
+        this.exec$.next( command );
     }
 }
 

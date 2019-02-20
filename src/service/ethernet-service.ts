@@ -45,10 +45,7 @@ class EthernetService extends BoardService{
                 Logger.info( EthernetService.namespace, `A device attempts to connect at port ${port}.` );
                 this.connectToBoard(
                     this.connections[ port ],
-                    ( board ) => { // boardConnectedCallback
-
-                        //board.executeCommand( 'BLINKON' );
-
+                    ( board ) => {
                         // is there actually something I need to do here?
                     },
                     () => {

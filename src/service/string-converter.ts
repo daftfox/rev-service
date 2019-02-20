@@ -14,7 +14,7 @@
  * ASCII code contains anything that isn't a digit.
  *
  * Therefore I have decided that implementing a service that is able to convert all possible characters required by the
- * Freematics OBD II Emulator AT-command set.
+ * Freematics OBD II Emulator AT-method set.
  *
  * Enjoy this ugly bastard.
  */

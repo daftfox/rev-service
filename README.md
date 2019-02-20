@@ -43,4 +43,3 @@ After which you will be able to start the service, regardless of what folder you
 rev
 ```
 
-## Development

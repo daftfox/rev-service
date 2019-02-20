@@ -212,7 +212,7 @@ class MajorTom extends Board {
     /**
      * Writes a character byte-array to MajorTom's physical serial UART interface.
      * This interface is directly connected to the emulator to allow control using AT-commands.
-     * @param {number[]} charArray - AT-command to send, encoded as a hexadecimal byte-array
+     * @param {number[]} charArray - AT-method to send, encoded as a hexadecimal byte-array
      */
     private serialWriteToEmulator( charArray: number[] ): void {
         this.firmataBoard.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.HW_SERIAL0, charArray );

@@ -6,11 +6,11 @@ class Logger {
     private static namespace = `rev`;
 
     public static debug( namespace: string, message: string ): void {
-        console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ Logger.formatMessage( namespace, message ) }` )
+        if ( process.env.verbose !== '' ) console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ Logger.formatMessage( namespace, message ) }` )
     }
 
     public static info( namespace: string, message: string ): void {
-        console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
+        if ( process.env.verbose !== '' ) console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
     }
 
     public static warn( namespace: string, message: string ): void {
@@ -18,12 +18,12 @@ class Logger {
     }
 
     public static error( namespace: string, error: Error ): void {
-        const errorMessage = error.message.replace( /Error: /g, '' );
+        const errorMessage = error.message.replace( /Error: /g, '' ); // No need to say error three times
         console.error( `${ Chalk.black.bgRed( 'ERROR' ) } ${ Logger.formatMessage( namespace, errorMessage ) }` );
     }
 
     public static stack( namespace: string, error: Error ): void {
-        const stack = error.stack.replace( /Error: /g, '' );
+        const stack = error.stack.replace( /Error: /g, '' ); // No need to say error three times
         console.log( `${ Chalk.black.bgRed( 'ERROR' ) } ${ Logger.formatMessage( namespace, stack ) }` );
     }
 

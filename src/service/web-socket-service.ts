@@ -6,18 +6,19 @@ import {Observable} from "rxjs/internal/Observable";
 import {Subject} from "rxjs/internal/Subject";
 import Logger from "./logger";
 import {AddressInfo} from "net";
+import {Command} from "../interface/command";
 
 class WebSocketService {
     private httpServer:      Server;
     private webSocketServer: WebSocket.server;
-    private execs$:          Subject<{ id: string, command: string, parameter?: string }>;
+    private execs$:          Subject<Command>;
     private connections$:    Subject<WebSocket.connection>;
     private static namespace = `web-socket`;
 
     constructor( httpServer: Server ) {
         this.httpServer = httpServer;
         this.connections$ = new Subject<WebSocket.connection>();
-        this.execs$ = new Subject<{ id: string, command: string, parameter?: string }>();
+        this.execs$ = new Subject<Command>();
 
         this.createWebSocketServer();
     }
@@ -58,9 +59,9 @@ class WebSocketService {
         );
     }
 
-    public get newExec(): Observable<{ id: string, command: string, parameter?: string }> {
+    public get newExec(): Observable<Command> {
         return this.execs$.pipe(
-            filter( ( exec: { id: string, command: string, parameter?: string } ) => exec.command !== null ),
+            filter( ( exec: Command ) => exec.method !== null ),
             distinctUntilChanged()
         );
     }

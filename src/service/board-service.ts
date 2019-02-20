@@ -82,7 +82,7 @@ class BoardService {
          * I try to capture disconnected in a different way
          */
         firmataBoard.on( 'disconnect', () => {
-            console.log( "BOARD DISCONNECTED" );
+            // console.log( "BOARD DISCONNECTED" );
             this.model.removeBoard( board );
             boardDisconnectedCallback()
         } );
@@ -91,7 +91,7 @@ class BoardService {
          * The same goes for this one.
          */
         firmataBoard.on('close', () => {
-            console.log( "BOARD CLOSED CONNECTION" );
+            // console.log( "BOARD CLOSED CONNECTION" );
             this.model.removeBoard( board );
             boardDisconnectedCallback()
         } );

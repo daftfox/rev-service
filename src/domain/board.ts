@@ -1,6 +1,9 @@
 import * as FirmataBoard from 'firmata';
 import { BoardStatus, DiscreteBoard } from "../interface/discrete-board";
 import Logger from "../service/logger";
+import {Command} from "../interface/command";
+import BoardError from "./board-error";
+import CommandError from "./command-error";
 
 /**
  * Represents a board
@@ -17,33 +20,6 @@ class Board implements DiscreteBoard {
     protected namespace: string;
     protected readyListener;
     protected firmataBoard: FirmataBoard;
-
-    // constructor( port: string );
-    // constructor( port: EtherPort ) {
-    //     this.port = port;
-    //     this.firmataBoard = new FirmataBoard( port, { skipCapabilities: false } );
-    //
-    //     if ( typeof port === "object" ) {
-    //         this.id = port.path.split(': ')[ 1 ]; // extract port address
-    //     } else {
-    //         this.id = port;
-    //     }
-    //     this.namespace = `board - ${ this.id }`;
-    //
-    //     this.firmataBoard.on( 'ready', () => {
-    //         Logger.info( this.namespace, 'Ready to rumble' );
-    //         this.status = BoardStatus.AVAILABLE;
-    //     } );
-    //
-    //     this.firmataBoard.on( 'queryfirmware', () => {
-    //         this.type = this.firmataBoard.firmware.name.replace( '.ino', '' );
-    //     } );
-    //
-    //     this.firmataBoard.on( 'disconnect', () => {
-    //         Logger.info( this.namespace, 'Disconnected' );
-    //         this.status = BoardStatus.DISCONNECTED;
-    //     } )
-    // }
 
     constructor( firmataBoard: FirmataBoard, id: string ) {
         this.firmataBoard = firmataBoard;
@@ -73,12 +49,12 @@ class Board implements DiscreteBoard {
         return boards.map( Board.toDiscrete  );
     }
 
-    public executeCommand( command: string, param?: string ) {
-        if (!this.isAvailableCommand( command )) throw new Error(`'${ command }' is not a valid command.`);
+    public executeCommand( command: Command ) {
+        if (!this.isAvailableCommand( command.method )) throw new CommandError(`'${ command.method }' is not a valid command.`);
         try {
-            this.AVAILABLE_COMMANDS[command](param)
+            this.AVAILABLE_COMMANDS[ command.method ]( command.parameter );
         } catch ( err ) {
-            throw new Error( err ) ;
+            throw new BoardError( err ) ;
         }
     }
 
