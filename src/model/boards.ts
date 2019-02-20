@@ -1,17 +1,25 @@
 import { EventEmitter } from 'events';
-import Board, {BoardStatus} from '../domain/board';
+import Board from '../domain/board';
 import { Observable } from "rxjs/internal/Observable";
-import {distinctUntilChanged, filter, map, scan, share, tap} from "rxjs/operators";
+import { concatMap, distinctUntilChanged, filter, map, scan, share } from "rxjs/operators";
 import {Subject} from "rxjs/internal/Subject";
+import {BoardStatus} from "../interface/discrete-board";
+import {BehaviorSubject} from "rxjs/internal/BehaviorSubject";
 
 class Boards extends EventEmitter {
-    private boards$: Subject<Board>;
+    private boards$: BehaviorSubject<Board>;
     private boardDisconnected$: Subject<Board>;
+    private exec$: Subject<{ id: string, command: string, parameter?: string }>;
+    private executeOnBoard$: Observable<Board>;
 
     constructor() {
         super();
-        this.boards$ = new Subject<Board>();
+        this.boards$ = new BehaviorSubject<Board>(null);
         this.boardDisconnected$ = new Subject<Board>();
+        this.exec$ = new Subject<{id: string, command: string, parameter?: string}>();
+        this.executeOnBoard$ = this.exec$.pipe(
+            concatMap( exec => this.getBoardById( exec.id ))
+        );
     }
 
     public get boards(): Observable<Board> {
@@ -31,9 +39,9 @@ class Boards extends EventEmitter {
 
     public getBoardById( id: string ): Observable<Board> {
         return this.boards.pipe(
-            filter( board => board !== null ),
             scan( ( acc: Board[], cur: Board ) => [...acc, cur], [] ),
-            map( boards => boards.find( board => board.id === id ) ),
+            filter( board => board !== null ),
+            map( boards => boards.find( board => board.id === id ) )
         );
     }
 
@@ -47,6 +55,13 @@ class Boards extends EventEmitter {
 
     public removeBoard( board: Board ): void {
         this.boardDisconnected$.next( board );
+    }
+
+    public executeOnBoard( exec: { id: string, command: string, parameter?: string } ): void {
+        this.executeOnBoard$.subscribe(
+            board => board.executeCommand( exec.command, exec.parameter )
+        );
+        this.exec$.next( exec );
     }
 }
 

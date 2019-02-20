@@ -7,7 +7,7 @@ class WebSocketEvent {
         this.payload = payload;
     }
 
-    public toString() {
+    public toString(): string {
         return JSON.stringify( {
             type: this.type,
             payload: this.payload

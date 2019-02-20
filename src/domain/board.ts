@@ -1,62 +1,90 @@
-import * as Firmata from 'firmata';
-import * as EtherPort from 'etherport';
-import Debugger from "debug";
+import * as FirmataBoard from 'firmata';
+import { BoardStatus, DiscreteBoard } from "../interface/discrete-board";
+import Logger from "../service/logger";
 
-class Board extends Firmata {
-    id:        string;
-    vendorId:  string;
-    productId: string;
-    port:      any;
-    status:    BoardStatus;
-    debug:     Debugger;
+/**
+ * Represents a board
+ */
+class Board implements DiscreteBoard {
+    public id:        string;
+    public vendorId:  string;
+    public productId: string;
+    public status:    BoardStatus;
+    public type:      string;
 
-    constructor( port: string );
-    constructor( port: EtherPort ) {
-        super( port );
+    protected AVAILABLE_COMMANDS = {};
 
-        if ( typeof port === "object" ) {
-            this.id = port; // todo: Check what the EtherPort object looks like. Need wifi enabled MCU for this
-        } else {
-            this.id = port;
-        }
+    protected namespace: string;
+    protected readyListener;
+    protected firmataBoard: FirmataBoard;
 
-        this.debug = new Debugger.debug( `Board - ${this.id}` );
-        this.on( 'ready', () => {
-            this.debug( 'Ready to rumble' );
+    // constructor( port: string );
+    // constructor( port: EtherPort ) {
+    //     this.port = port;
+    //     this.firmataBoard = new FirmataBoard( port, { skipCapabilities: false } );
+    //
+    //     if ( typeof port === "object" ) {
+    //         this.id = port.path.split(': ')[ 1 ]; // extract port address
+    //     } else {
+    //         this.id = port;
+    //     }
+    //     this.namespace = `board - ${ this.id }`;
+    //
+    //     this.firmataBoard.on( 'ready', () => {
+    //         Logger.info( this.namespace, 'Ready to rumble' );
+    //         this.status = BoardStatus.AVAILABLE;
+    //     } );
+    //
+    //     this.firmataBoard.on( 'queryfirmware', () => {
+    //         this.type = this.firmataBoard.firmware.name.replace( '.ino', '' );
+    //     } );
+    //
+    //     this.firmataBoard.on( 'disconnect', () => {
+    //         Logger.info( this.namespace, 'Disconnected' );
+    //         this.status = BoardStatus.DISCONNECTED;
+    //     } )
+    // }
+
+    constructor( firmataBoard: FirmataBoard, id: string ) {
+        this.firmataBoard = firmataBoard;
+        this.id = id;
+
+        this.namespace = `board - ${ this.id }`;
+
+        this.readyListener = () => {
+            Logger.info( this.namespace, 'Ready to rumble' );
             this.status = BoardStatus.AVAILABLE;
-        } );
+        };
 
-        this.on( 'disconnect', () => {
-            this.status = BoardStatus.DISCONNECTED;
-        } )
+        this.firmataBoard.on( 'ready', this.readyListener );
     }
 
-    public static minify( board: Board ): object {
+    public static toDiscrete( board: Board ): DiscreteBoard {
         return {
             id: board.id,
             vendorId: board.vendorId,
             productId: board.productId,
-            state: board.status
+            status: board.status,
+            type: board.type
         };
     }
 
-    public static minifyArray( boards: Board[] ) : object[] {
-        return boards.map( board => {
-            return {
-                id: board.id,
-                vendorId: board.vendorId,
-                productId: board.productId,
-                state: board.status
-            }
-        }  )
+    public static toDiscreteArray( boards: Board[] ): DiscreteBoard[] {
+        return boards.map( Board.toDiscrete  );
     }
-}
 
-export enum BoardStatus {
-    AVAILABLE,
-    OCCUPIED,
-    ERROR,
-    DISCONNECTED
+    public executeCommand( command: string, param?: string ) {
+        if (!this.isAvailableCommand( command )) throw new Error(`'${ command }' is not a valid command.`);
+        try {
+            this.AVAILABLE_COMMANDS[command](param)
+        } catch ( err ) {
+            throw new Error( err ) ;
+        }
+    }
+
+    protected isAvailableCommand( command: string ): boolean {
+        return Object.keys(this.AVAILABLE_COMMANDS).indexOf( command ) >= 0;
+    }
 }
 
 export default Board;

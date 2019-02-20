@@ -3,12 +3,12 @@ import * as args from 'args';
 export default class Config {
     private static flags = args
         .option( 'port',       'Port at which the websocket service will be served.',     80 )
-        .option( 'start-port', 'The starting port in the port-range for Firmata boards.', 3030 )
-        .option( 'end-port',   'The end port in the port-range for Firmata boards.',      3030 )
+        .option( 'start-port', 'The starting port in the port-range for FirmataBoard boards.', 3030 )
+        .option( 'end-port',   'The end port in the port-range for FirmataBoard boards.',      3039 )
         .option( 'serial',     'Enable serial interface.',                                false )
         .option( 'ethernet',   'Enable ethernet interface.',                              false );
 
-    public static parseFlags( flags: any ): Flags {
+    public static parseOptions(flags: any ): Flags {
         return Config.flags.parse( flags )
     }
 }
