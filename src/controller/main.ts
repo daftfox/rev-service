@@ -96,6 +96,7 @@ class MainController {
 
     private handleError ( error: Error ): void {
         switch( error.constructor.name ) {
+            case 'CommandError':
             case 'NotFoundError':
                 Logger.warn( MainController.namespace, error.message );
                 break;

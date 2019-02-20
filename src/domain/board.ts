@@ -50,7 +50,7 @@ class Board implements DiscreteBoard {
     }
 
     public executeCommand( command: Command ) {
-        if (!this.isAvailableCommand( command.method )) throw new CommandError(`'${ command.method }' is not a valid command.`);
+        if (!this.isAvailableCommand( command.method )) throw new CommandError( `'${ command.method }' is not a valid command.` );
         try {
             this.AVAILABLE_COMMANDS[ command.method ]( command.parameter );
         } catch ( err ) {
@@ -59,7 +59,7 @@ class Board implements DiscreteBoard {
     }
 
     protected isAvailableCommand( command: string ): boolean {
-        return Object.keys(this.AVAILABLE_COMMANDS).indexOf( command ) >= 0;
+        return Object.keys( this.AVAILABLE_COMMANDS ).indexOf( command ) >= 0;
     }
 }
 
