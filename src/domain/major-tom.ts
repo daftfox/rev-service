@@ -23,7 +23,7 @@ class MajorTom extends Board {
     // -------- Do not alter the values above --------
 
     /*
-     * Map available methods so we can easily call them from elsewhere
+     * Map available methods so we can easily validate and call them from elsewhere
      */
     protected AVAILABLE_COMMANDS = {
         BLINKON: () => { this.enableBlinkLed( true ) },
@@ -35,8 +35,8 @@ class MajorTom extends Board {
         SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
         SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
         CLEARDTCS: () => { this.clearAllDTCs() },
-        DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
-        DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
+        // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
+        // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
         SETVIN: ( vin: string ) => { this.setVIN( vin ) },
     };
     private static DEFAULT_POWER_DIP_DURATION = 1500;  // Default power dip duration when 'starting the engine'
@@ -83,6 +83,7 @@ class MajorTom extends Board {
             this.blinkInterval = setInterval( this.toggleLED.bind( this ), 1000);
         } else {
             clearInterval( this.blinkInterval );
+            this.blinkInterval = null;
             this.firmataBoard.digitalWrite( MajorTom.LED_PIN, FirmataBoard.PIN_STATE.HIGH ); // high === low???
         }
     }
@@ -101,7 +102,7 @@ class MajorTom extends Board {
      * @param {number} mode - The mode at which the DTC should be set
      */
     private setDTC( dtc: string, mode: string ): void {
-        if ( !MajorTom.isValidDTC( dtc ) ) throw `${ dtc } is not a valid DTC.`;
+        if ( !MajorTom.isValidDTC( dtc ) ) throw new Error( `${ dtc } is not a valid DTC.` );
 
         let _mode: string;
         switch ( mode ) {
@@ -160,7 +161,7 @@ class MajorTom extends Board {
      * @param {number} voltage
      */
     private setSupplyVoltage( voltage: number ): void {
-        if ( voltage > 600 ) throw `Better not play with fire.`;
+        if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
         this.firmataBoard.analogWrite( MajorTom.POWER_PIN, voltage );
     }
 

@@ -47,6 +47,8 @@ class MainController {
         }
 
         this.subscribeToEvents();
+
+        process.on('uncaughtException', MainController.handleError );
     }
 
     private broadcastNewBoard( board: Board ): void {
@@ -64,24 +66,24 @@ class MainController {
     private subscribeToEvents(): void {
         this.boardsUpdated = this.model.boards.subscribe(
             this.broadcastNewBoard.bind( this ),
-            this.handleError
+            MainController.handleError
         );
 
         this.newClientConnected = this.socketService.newClient.pipe(
             withLatestFrom( this.model.getAllBoards )
         ).subscribe(
             this.updateAllBoardsForClient.bind( this ),
-            this.handleError
+            MainController.handleError
         );
 
         this.boardDisconnected = this.model.boardDisconnected.subscribe(
             this.broadcastDisconnectedBoard.bind( this ),
-            this.handleError
+            MainController.handleError
         );
 
         this.execReceived = this.socketService.newExec.subscribe(
             this.handleExecReceived.bind( this ),
-            this.handleError
+            MainController.handleError
         )
     }
 
@@ -89,8 +91,9 @@ class MainController {
         this.model.executeOnBoard( exec );
     }
 
-    private handleError ( message: Error ): void {
-        Logger.error( MainController.namespace, message );
+    private static handleError ( error: Error ): void {
+        //Logger.error( MainController.namespace, error );
+        Logger.stack( MainController.namespace, error );
     }
 }
 
