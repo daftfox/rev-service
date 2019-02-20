@@ -2,8 +2,6 @@ import BoardService from "./board-service";
 import * as EtherPort from 'etherport';
 import Boards from '../model/boards';
 import Logger from "./logger";
-import Board from "../domain/board";
-import MajorTom from "../domain/major-tom";
 
 /**
  * @classdesc An ethernet service that open up a number of ports between in a given port-range
