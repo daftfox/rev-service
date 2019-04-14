@@ -1,8 +1,7 @@
-
-class CommandError extends Error {
+class BoardError extends Error {
     constructor( message: string ) {
         super( message );
     }
 }
 
-export default CommandError;
+export default BoardError;
