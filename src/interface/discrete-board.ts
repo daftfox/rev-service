@@ -7,8 +7,8 @@ export interface DiscreteBoard {
 }
 
 export enum BoardStatus {
-    AVAILABLE,
-    OCCUPIED,
+    READY,
+    BUSY,
     ERROR,
     DISCONNECTED
 }

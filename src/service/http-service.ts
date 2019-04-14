@@ -1,27 +1,36 @@
-import {createServer, Server} from 'http';
+import { createServer, Server } from 'http';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import Logger from "./logger";
+import Logger from './logger';
 
 /**
- * @classdesc A basic HTTP static files server serving files at a given port
+ * @classdesc A basic HTTP static files server serving static files at a given port
+ * @namespace HttpService
  */
 class HttpService {
 
-    /** @access private */
+    /**
+     * @type {http.Server}
+     * @access private
+     */
     private server: Server;
 
-    /** @access private */
+    /**
+     * @type {number}
+     * @access private
+     */
     private port: number;
 
     /**
+     * @type {string}
      * @access private
      * @static
      */
     private static namespace = 'http';
 
     /**
+     * @type {Object}
      * @access private
      * @static
      */
@@ -42,7 +51,7 @@ class HttpService {
 
     /**
      * @constructor
-     * @param {number} port - Port on which to listen for HTTP requests.
+     * @param {number} port Port on which to listen for HTTP requests.
      */
     constructor( port: number ) {
         this.port = port;
@@ -52,6 +61,7 @@ class HttpService {
 
     /**
      * Get the Server object.
+     * @access public
      * @returns {module:http.Server}
      */
     public getServer(): Server {
@@ -60,10 +70,11 @@ class HttpService {
 
     /**
      * Handles HTTP requests and serves the requested file(s) where possible.
+     * @access private
      * @param request
      * @param response
      */
-    private handleRequest( request, response ): void {
+    private handleRequest( request: Request, response ): void {
         const parsedUrl = url.parse( request.url );
         let pathname = `${parsedUrl.pathname}`;
         const extension = path.parse( pathname ).ext;

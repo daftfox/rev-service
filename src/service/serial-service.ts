@@ -3,37 +3,66 @@ import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import Logger from "./logger";
 
+/**
+ * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
+ * @namespace SerialService
+ */
 class SerialService extends BoardService {
-    private static namespace       = `serial`;
-    private connections:           string[];
+
+    /**
+     * Namespace for logging purposes
+     * @access private
+     * @static
+     * @type {string}
+     */
+    private static namespace = `serial`;
+
+    /**
+     * A list of port IDs in which an unsupported device is plugged in.
+     * @access private
+     * @type {string[]}
+     */
     private unsupportedDevices: string[];
 
+    /**
+     * @constructor
+     * @param {Boards} model
+     */
     constructor( model: Boards ) {
-        super(model);
+        super( model );
 
-        this.connections           = [];
+        this.connections = [];
         this.unsupportedDevices = [];
         Logger.info( SerialService.namespace, `Listening on serial ports.` );
         this.startListening();
     }
 
+    /**
+     * Scans the host's ports every 10 seconds.
+     * @access private
+     */
     private startListening(): void {
-        setInterval(this.scanSerialPorts.bind(this), 10000)     // check for new devices every ten seconds
+        setInterval( this.scanSerialPorts.bind( this ), 10000 );
     }
 
+    /**
+     * Scans serial ports and automatically connects to all compatible devices.
+     * @access private
+     */
     private scanSerialPorts(): void {
         Serialport.list( ( error: any, ports: SerialPort[] ) => {       // list all connected serial devices
 
             const port = ports
                 .filter( port => port.manufacturer !== undefined )
                 .find( port => port.manufacturer.startsWith( "Arduino" ) );      // only allow devices produced by Arduino for now
+                                                                                 // todo: fix this shite
 
-            // don't connect to the same device twice, also ignore devices that don't support FirmataBoard
+            // don't connect to the same device twice, also ignore devices that don't support Firmata
             if ( port && !this.isConnected( port.comName ) && !this.isUnsupported( port.comName ) ) {
                 this.connectToBoard(
                     port.comName,
-                    ( successFullyConnectedToBoard ) => {
-                        if ( successFullyConnectedToBoard ) {
+                    ( connected: boolean ) => {
+                        if ( connected ) {
                             this.connections.push( port.comName );
                         } else {
                             this.unsupportedDevices.push( port.comName );
@@ -46,16 +75,24 @@ class SerialService extends BoardService {
         } );
     }
 
+    /**
+     * Returns true if a device has already connected on a specific port or false if not.
+     * @access private
+     * @param {string} port
+     * @return {boolean}
+     */
     private isConnected( port: string ): boolean {
         return this.connections.indexOf( port ) >= 0;
     }
 
+    /**
+     * Returns true if a device is present in the list of unsupported devices.
+     * @access private
+     * @param {string} port
+     * @return {boolean}
+     */
     private isUnsupported( port: string ): boolean {
         return this.unsupportedDevices.indexOf( port ) >= 0;
-    }
-
-    private removeConnection( port: string ): void {
-        this.connections.splice( this.connections.indexOf( port ), 1 );
     }
 }
 

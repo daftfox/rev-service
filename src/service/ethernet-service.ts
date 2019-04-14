@@ -1,19 +1,18 @@
-import BoardService from "./board-service";
+import BoardService from './board-service';
 import * as EtherPort from 'etherport';
 import Boards from '../model/boards';
-import Logger from "./logger";
+import Logger from './logger';
 
 /**
  * @classdesc An ethernet service that open up a number of ports between in a given port-range
  * and attempts to connect to boards that knock on the proverbial door.
+ * @namespace EthernetService
  */
 class EthernetService extends BoardService{
-    /** @access private */
-    private connections: EtherPort[];
-
     /**
      * @access private
      * @static
+     * @type {string}
      */
     private static namespace = `ethernet`;
 
@@ -54,10 +53,6 @@ class EthernetService extends BoardService{
                 );
             } );
         }
-    }
-
-    private removeConnection( port: EtherPort ): void {
-        this.connections.splice( this.connections.indexOf( port ), 1 );
     }
 }
 

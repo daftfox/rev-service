@@ -8,11 +8,20 @@ import * as FirmataBoard from 'firmata';
 /**
  * A basic board-service that implements a connectToBoard method
  * @classdesc // todo
+ * @namespace BoardService
  */
 class BoardService {
-
-    /** @access private */
+    /**
+     * @access private
+     * @type {Boards}
+     */
     private model: Boards;
+
+    /**
+     * @access protected
+     * @type {string[] | EtherPort[]}
+     */
+    protected connections: string[] | EtherPort[];
 
     /**
      * @constructor
@@ -20,17 +29,21 @@ class BoardService {
      */
     constructor( model: Boards ) {
         this.model = model;
+
+        this.model.boardDisconnected.subscribe(
+            board => this.removeConnection( board.getPort() )
+        )
     }
 
     /**
      * Sets up a connection to a board.
-     *
      * @param {EtherPort | string} port - An EtherPort object or serial port address
-     * @param {function(boolean):void} boardConnectedCallback - Callback for when device successfully connects.
-     * @param {function():void} boardDisconnectedCallback
+     * @param {function(boolean):void} connected - Callback for when device successfully connects.
+     * @param {function():void} disconnected
      */
-    protected connectToBoard( port: EtherPort | string, boardConnectedCallback?: ( boolean ) => void, boardDisconnectedCallback?: () => void ): void {
+    protected connectToBoard( port: EtherPort | string, connected?: ( boolean ) => void, disconnected?: () => void ): void {
         let board: Board;
+
         const firmataBoard = new FirmataBoard( port );
         const id = ( typeof port === "object" ? port.path.split( ': ' )[ 1 ] : port );
 
@@ -42,7 +55,7 @@ class BoardService {
             Logger.warn( '' ,'Timeout connecting to board' );
             board = null;
             firmataBoard.removeAllListeners(); // "What do we say to the God of memory leaks? Not today."
-            boardConnectedCallback( false );
+            connected( false );
         }, 10000) ;
 
         /*
@@ -65,6 +78,7 @@ class BoardService {
                 default:
                     board = new Board( firmataBoard, id );
             }
+            board.setPort( port );
         } );
 
         /*
@@ -72,7 +86,7 @@ class BoardService {
          */
         firmataBoard.on( 'ready', () => {
             this.model.addBoard( board );
-            boardConnectedCallback( board );
+            connected( true );
             clearTimeout( connectionTimeout );
         } );
 
@@ -84,7 +98,7 @@ class BoardService {
         firmataBoard.on( 'disconnect', () => {
             // console.log( "BOARD DISCONNECTED" );
             this.model.removeBoard( board );
-            boardDisconnectedCallback()
+            disconnected();
         } );
 
         /*
@@ -93,8 +107,21 @@ class BoardService {
         firmataBoard.on('close', () => {
             // console.log( "BOARD CLOSED CONNECTION" );
             this.model.removeBoard( board );
-            boardDisconnectedCallback()
+            disconnected();
         } );
+    }
+
+    /**
+     * Removes connection from list of stored connections
+     * @access protected
+     * @param {EtherPort | string} port
+     */
+    protected removeConnection( port: EtherPort | string ): void {
+        if ( typeof port === 'object' ) {
+            this.connections.splice( this.connections.findIndex( ( connection: EtherPort ) => connection.path.split( ': ' )[ 1 ] ), 1 );
+        } else {
+            this.connections.splice( this.connections.indexOf( port ), 1 );
+        }
     }
 }
 

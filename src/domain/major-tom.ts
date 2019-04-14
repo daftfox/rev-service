@@ -5,25 +5,137 @@ import Logger from "../service/logger";
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
+/**
+ * MajorTom is an extension of the default Board class, allowing for more specific control over its behaviour. Since we
+ * know and design the physical properties and abilities of the 'Major Tom' device, we are able to define methods that
+ * allow us to seamlessly execute these abilities.
+ *
+ * @classdesc
+ * @namespace MajorTom
+ */
 class MajorTom extends Board {
 
-    // -------- Do not alter the values below --------
+    /**
+     * Analog values that represent certain voltage levels the device is able to supply.
+     * HIGH     ~13.5v
+     * GOOD     ~12.6v
+     * LOW      ~11.5v
+     * CRITICAL ~10.6v
+     *
+     * @type {Object}
+     * @access private
+     * @namespace SUPPLY_VOLTAGE
+     */
     private static SUPPLY_VOLTAGE = {
-        HIGH: 550,                               // ~13.5v
-        GOOD: 410,                               // ~12.6v
-        LOW: 240,                                // ~11.5v
-        CRITICAL: 0                              // ~10.6v
+        HIGH: 550,
+        GOOD: 410,
+        LOW: 240,
+        CRITICAL: 0
     };
-    private static LED_PIN              = 2;     // GPIO16 / D0
-    private static FAN_PIN              = 16;    // GPIO16 / D0
-    private static POWER_PIN            = 14;    // GPIO14 / D5
-    // private static RX_PIN          = 13;    // GPIO13 / D7
-    // private static TX_PIN          = 15;    // GPIO15 / D8
-    private static EMULATOR_BAUD        = 38400; // Emulator baud rate (should be 38400 baud)
-    // -------- Do not alter the values above --------
 
-    /*
-     * Map available methods so we can easily validate and call them from elsewhere
+    /**
+     * The pin connected to the builtin LED
+     * ESP8266:         GPIO2
+     * Wemos D1 Mini:   D4
+     *
+     * @type {number}
+     * @access private
+     */
+    private static LED_PIN = 2;
+
+    /**
+     * The pin connected to the unbalanced fan
+     * ESP8266:         GPIO16
+     * Wemos D1 Mini:   D0
+     *
+     * @type {number}
+     * @access private
+     */
+    private static FAN_PIN = 16;
+
+    /**
+     * The pin connected to the variable power supply
+     * ESP8266:         GPIO14
+     * Wemos D1 Mini:   D5
+     *
+     * @type {number}
+     * @access private
+     */
+    private static POWER_PIN = 14;
+
+    /**
+     * Microcontroller pin designated for receiving serial communication
+     * ESP8266:         GPIO13
+     * Wemos D1 Mini:   D7
+     *
+     * @type {number}
+     * @access private
+     */
+    private static RX_PIN = 13;
+
+    /**
+     * The pin designated for transmitting serial communication
+     * ESP8266:         GPIO15
+     * Wemos D1 Mini:   D8
+     *
+     * @type {number}
+     * @access private
+     */
+    private static TX_PIN = 15;
+
+    /**
+     * The baud rate at which the Freematics OBD II emulator communicates over UART
+     * This is 38400 baud by default
+     *
+     * @type {number}
+     * @access private
+     */
+    private static EMULATOR_BAUD = 38400;
+
+    /**
+     * The default duration of the power dip that's executed on engine ignition.
+     *
+     * @type {number}
+     * @access private
+     */
+    private static DEFAULT_POWER_DIP_DURATION = 1500;
+
+    /**
+     * The default duration of a shake interval. Eg. the length of time the fan spins before taking a little break.
+     *
+     * @type {number}
+     * @access private
+     */
+    private static DEFAULT_SHAKE_DURATION = 10000; // Default shake interval duration
+
+    /**
+     * The ID of the interval that's executed when we turn on the engine.
+     *
+     * @access private
+     */
+    private shakeInterval;
+
+    /**
+     * The ID of the interval that's executed when we blink the builtin LED.
+     *
+     * @access private
+     */
+    private blinkInterval;
+
+    /**
+     * Indicator for whether the engine is running or not.
+     *
+     * @type {boolean}
+     * @access private
+     */
+    private engineOn = false;
+
+    /**
+     * The AVAILABLE_COMMANDS property is used to map available methods to string representations so we can easily
+     * validate and call them from elsewhere. The mapping should be obvious.
+     *
+     * @type {Object}
+     * @access protected
      */
     protected AVAILABLE_COMMANDS = {
         BLINKON: () => { this.enableBlinkLed( true ) },
@@ -37,14 +149,8 @@ class MajorTom extends Board {
         CLEARDTCS: () => { this.clearAllDTCs() },
         // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
         // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-        SETVIN: ( vin: string ) => { this.setVIN( vin ) },
+        SETVIN: ( vin: string ) => { this.setVIN( vin ) }
     };
-    private static DEFAULT_POWER_DIP_DURATION = 1500;  // Default power dip duration when 'starting the engine'
-    private static DEFAULT_SHAKE_DURATION     = 10000; // Default shake interval duration
-
-    private shakeInterval;
-    private blinkInterval;
-    private engineOn = false;
 
     /**
      * @constructor
@@ -60,6 +166,7 @@ class MajorTom extends Board {
 
     /**
      * Initializes Major Tom by setting its pins in the correct state and configuring the physical serial UART interface
+     * @access private
      */
     private initializeMajorTom(): void {
         this.namespace = `Major Tom - ${ this.id }`;
@@ -77,6 +184,12 @@ class MajorTom extends Board {
         this.firmataBoard.serialConfig( serialOptions );
     }
 
+    /**
+     * Enable or disable the builtin LED blinking
+     *
+     * @param {boolean} enable
+     * @access private
+     */
     private enableBlinkLed( enable: boolean ) {
         if ( enable ) {
             if ( this.blinkInterval ) throw new Error( `LED blink is already enabled.` );
@@ -91,6 +204,7 @@ class MajorTom extends Board {
     /**
      * Enable or disable the emulator's ignition
      * @param {boolean} enable
+     * @access private
      */
     private enableEmulatorIgnition( enable: boolean ): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATACC${ enable ? 1 : 0 }` ) );
@@ -98,8 +212,9 @@ class MajorTom extends Board {
 
     /**
      * Validate the given DTC (Diagnostic Trouble Code) and set to the emulator
-     * @param {string} dtc - A DTC code as per this site: https://www.obd-codes.com/trouble_codes/
-     * @param {number} mode - The mode at which the DTC should be set
+     * @param {string} dtc A DTC code as per this site: https://www.obd-codes.com/trouble_codes/
+     * @param {number} mode The mode at which the DTC should be set
+     * @access private
      */
     private setDTC( dtc: string, mode: string ): void {
         if ( !MajorTom.isValidDTC( dtc ) ) throw new Error( `${ dtc } is not a valid DTC.` );
@@ -119,6 +234,7 @@ class MajorTom extends Board {
 
     /**
      * Clear all DTCs from the emulator
+     * @access private
      */
     private clearAllDTCs(): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATCLR DTC` ) );
@@ -126,7 +242,8 @@ class MajorTom extends Board {
 
     /**
      * Sets the emulator RPM (Rotations Per Minute)
-     * @param {number} rpm - RPM
+     * @param {number} rpm RPM
+     * @access private
      */
     private setRPM( rpm: string ): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET 010C=${ rpm }` ) );
@@ -134,7 +251,8 @@ class MajorTom extends Board {
 
     /**
      * Sets the emulator speed
-     * @param {number} speed - Speed in km/h
+     * @param {number} speed Speed in km/h
+     * @access private
      */
     private setSpeed( speed: string ): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET 0113=${ speed }` ) );
@@ -143,6 +261,7 @@ class MajorTom extends Board {
     /**
      * Enable or disable the emulator's debug mode
      * @param {boolean} enable
+     * @access private
      */
     private enableEmulatorDebugMode( enable: boolean ): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATINF${ enable ? 1 : 0 }` ) );
@@ -151,6 +270,7 @@ class MajorTom extends Board {
     /**
      * Sets the emulator's VIN (Vehicle Identification Number)
      * @param {string} vin
+     * @access private
      */
     private setVIN( vin: string ): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET VIN=${ vin }` ) );
@@ -159,6 +279,7 @@ class MajorTom extends Board {
     /**
      * Voltage should be between 0 - 600. This is not the actual voltage. Refer to MajorTom.SUPPLY_VOLTAGE
      * @param {number} voltage
+     * @access private
      */
     private setSupplyVoltage( voltage: number ): void {
         if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
@@ -169,6 +290,7 @@ class MajorTom extends Board {
      * Turn the engine on.
      * This will turn the emulator engine ignition on, dip the power supply and run the (unbalanced) fan
      * The engine will remain running until stopEngine() is called.
+     * @access private
      */
     private startEngine(): void {
         if ( this.engineOn ) throw new Error( `Engine has already been started.` );
@@ -180,6 +302,7 @@ class MajorTom extends Board {
 
     /**
      * Turn the engine off.
+     * @access private
      */
     private stopEngine(): void {
         this.engineOn = false;
@@ -189,6 +312,7 @@ class MajorTom extends Board {
 
     /**
      * Enable or disable the emulator's character echo feature
+     * @access private
      * @param {boolean} enable
      */
     private enableEmulatorCharacterEcho( enable: boolean ): void {
@@ -197,6 +321,7 @@ class MajorTom extends Board {
 
     /**
      * Initialize the emulator, or whatever that means
+     * @access private
      */
     private initializeEmulator(): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATZ` ) );
@@ -204,6 +329,7 @@ class MajorTom extends Board {
 
     /**
      * Reset the emulator
+     * @access private
      */
     private resetEmulator(): void {
         this.serialWriteToEmulator( StringConverter.toCharArray( `ATR` ) );
@@ -212,12 +338,16 @@ class MajorTom extends Board {
     /**
      * Writes a character byte-array to MajorTom's physical serial UART interface.
      * This interface is directly connected to the emulator to allow control using AT-commands.
-     * @param {number[]} charArray - AT-method to send, encoded as a hexadecimal byte-array
+     * @access private
+     * @param {number[]} charArray AT-method to send, encoded as a hexadecimal byte-array
      */
     private serialWriteToEmulator( charArray: number[] ): void {
         this.firmataBoard.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.HW_SERIAL0, charArray );
     }
 
+    /**
+     * @access private
+     */
     private toggleLED(): void {
         this.firmataBoard.digitalWrite( MajorTom.LED_PIN, this.firmataBoard.pins[ MajorTom.LED_PIN ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
     }
@@ -226,6 +356,7 @@ class MajorTom extends Board {
      * Turns on the (unbalanced) fan for 10 seconds, after which the fan remains turned off for 1 second.
      * It will do so indefinitely or until the stopEngine() method is called.
      * NOTE: This method should not be used anywhere besides the startEngine() method.
+     * @access private
      */
     private shake(): void {
         this.shakeInterval = setInterval( () => {
@@ -240,6 +371,7 @@ class MajorTom extends Board {
     /**
      * Enable or disable the fan
      * @param {boolean} enable
+     * @access private
      */
     private enableFan( enable: boolean ): void {
         this.firmataBoard.digitalWrite( MajorTom.FAN_PIN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
@@ -249,6 +381,7 @@ class MajorTom extends Board {
      * Sharply dip the power supply to ~11.6v and ramp the voltage up to ~12.5v (linear)
      * NOTE: latency should be tested properly when connecting using EtherPort instance.
      * @param {number} dipDuration - Dip duration in ms with a minimum of 1000. Defaults to 1500
+     * @access private
      */
     private dipPowerSupply( dipDuration: number ): void {
         let ramped = 0;
@@ -268,6 +401,7 @@ class MajorTom extends Board {
     /**
      * Validates a DTC
      * @param {string} dtc - DTC to validate
+     * @access private
      * @returns {boolean}
      */
     private static isValidDTC( dtc: string ): boolean {

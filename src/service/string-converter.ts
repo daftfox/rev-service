@@ -1,5 +1,5 @@
 /**
- * This class shouldn't exist, but here we are eh?
+ * @classdesc This class shouldn't exist, but here we are eh?
  * JavaScript doesn't allow you to parse a character to a hexadecimal value of its ASCII code, without turning it
  * into a string.
  * For example:
@@ -11,12 +11,13 @@
  * parseInt("4a") => 4
  *
  * That leaves us with only half of what we need in all cases where the hexadecimal representation of the character's
- * ASCII code contains anything that isn't a digit.
+ * ASCII code contains anything that isn't a ten-based digit.
  *
  * Therefore I have decided that implementing a service that is able to convert all possible characters required by the
  * Freematics OBD II Emulator AT-method set.
  *
  * Enjoy this ugly bastard.
+ * @namespace StringConverter
  */
 class StringConverter {
     private static CHARACTERS = {
@@ -62,6 +63,7 @@ class StringConverter {
 
     /**
      * Converts the supplied string to a hexadecimal byte-array
+     *
      * @param {string} str
      * @returns {number[]} A hexadecimal byte-array
      */
