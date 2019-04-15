@@ -5,12 +5,10 @@
     "outDir": "dist",
     "sourceMap": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "types": ["mocha"]
   },
   "include": [
     "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
   ]
 }

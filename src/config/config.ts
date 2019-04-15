@@ -10,12 +10,13 @@ export default class Config {
 
     /** @access private */
     private static flags = args
-        .option( 'port',       'Port at which the websocket service will be served.',          80 )
-        .option( 'start-port', 'The starting port in the port-range for FirmataBoard boards.', 3030 )
-        .option( 'end-port',   'The end port in the port-range for FirmataBoard boards.',      3039 )
-        .option( 'verbose',    'Enable verbose logging.',                                      false )
-        .option( 'serial',     'Enable serial interface.',                                     false )
-        .option( 'ethernet',   'Enable ethernet interface.',                                   false );
+        .option( 'wsPort', 'Port from which the WebSocket service will be served.', 80 )
+        .option( 'ethPort', 'Port from which the ethernet service will be served.', 9000 )
+        .option( 'startPort', 'The first port in the range of ports you want to make available for the ethernet service.', 3000 )
+        .option( 'endPort', 'The last port in the range of ports you want to make available for the ethernet service.', 3100 )
+        .option( 'verbose', 'Enable verbose logging.', false )
+        .option( 'serial', 'Enable serial interface.', false )
+        .option( 'ethernet', 'Enable ethernet interface.', false );
 
     /** @access public */
     public static parseOptions( flags: any ): Flags {
@@ -28,15 +29,11 @@ export default class Config {
  * @namespace Flags
  */
 export interface Flags {
-    startPort: number;
-    s:         number;              // startPort alias
-    endPort:   number;
-    e:         number;              // endPort alias
-    serial:    boolean;
-    S:         boolean;             // serial alias
-    verbose:   boolean;
-    ethernet:  boolean;
-    E:         boolean;             // ethernet alias
-    port:      number;
-    p:         number;              // port alias
+    startPort: number; // first port in range of available ports for the ethernet service
+    endPort: number; // last port in range of available ports for the ethernet service
+    serial: boolean; // enable/disable the serial service
+    verbose: boolean; // enable/disable verbose mode
+    ethernet: boolean; // enable/disable the ethernet service
+    wsPort: number; // port to bind the WebSocket service to
+    ethPort: number; // port to bind the ethernet service to
 }

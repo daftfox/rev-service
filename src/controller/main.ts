@@ -11,6 +11,10 @@ import Board from "../domain/board";
 import {Command} from "../interface/command";
 import WebSocketEvent, {WebSocketEventType} from "../interface/web-socket-event";
 import Boards from "../model/boards";
+import CommandError from "../error/command-error";
+import NoAvailablePortError from "../error/no-available-port-error";
+import NotFoundError from "../error/not-found-error";
+import BoardError from "../error/board-error";
 
 /**
  * Main controller
@@ -103,12 +107,17 @@ class MainController {
      * @access private
      */
     private startServices(): void {
-        this.staticFileService = new HttpService( this.options.port );
+        this.staticFileService = new HttpService( this.options.wsPort );
         this.socketService     = new WebSocketService( this.staticFileService.getServer() );
         this.model             = new Boards();
 
         if ( this.options.ethernet ) {
-            this.ethernetService = new EthernetService( this.model, this.options.startPort, this.options.endPort );
+            this.ethernetService = new EthernetService( this.model,
+                {
+                    listenPort: this.options.ethPort,
+                    startPort: this.options.startPort,
+                    endPort: this.options.endPort,
+                } );
         }
 
         if ( this.options.serial ) {
@@ -190,16 +199,17 @@ class MainController {
      * @access private
      * @param {Error} error
      */
-    private handleError ( error: Error ): void {
-        switch( error.constructor.name ) {
-            case 'CommandError':
-            case 'NotFoundError':
+    private handleError( error: Error ): void {
+        switch( error.constructor ) {
+            case CommandError:
+            case NoAvailablePortError:
+            case NotFoundError:
                 Logger.warn( MainController.namespace, error.message );
                 break;
-            case 'Error':
+            case Error:
                 Logger.stack( MainController.namespace, error );
                 break;
-            case 'BoardError':
+            case BoardError:
             default:
                 Logger.error( MainController.namespace, error );
         }

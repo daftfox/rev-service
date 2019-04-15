@@ -2,6 +2,7 @@ import BoardService from "./board-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import Logger from "./logger";
+import EthernetService from "./ethernet-service";
 
 /**
  * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
@@ -61,8 +62,9 @@ class SerialService extends BoardService {
             if ( port && !this.isConnected( port.comName ) && !this.isUnsupported( port.comName ) ) {
                 this.connectToBoard(
                     port.comName,
-                    ( connected: boolean ) => {
-                        if ( connected ) {
+                    ( compatible: boolean ) => {
+                        if ( compatible ) {
+                            Logger.info( SerialService.namespace, `A new compatible device connected on: ${port.comName}.` );
                             this.connections.push( port.comName );
                         } else {
                             this.unsupportedDevices.push( port.comName );

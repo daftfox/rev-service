@@ -1,7 +1,6 @@
 import * as EtherPort from 'etherport';
 import Boards from "../model/boards";
 import Board from "../domain/board";
-import Logger from "./logger";
 import MajorTom from "../domain/major-tom";
 import * as FirmataBoard from 'firmata';
 
@@ -41,21 +40,20 @@ class BoardService {
      * @param {function(boolean):void} connected - Callback for when device successfully connects.
      * @param {function():void} disconnected
      */
-    protected connectToBoard( port: EtherPort | string, connected?: ( boolean ) => void, disconnected?: () => void ): void {
+    protected connectToBoard( port: EtherPort | string, connected?: ( boolean? ) => void, disconnected?: ( id: string ) => void ): void {
         let board: Board;
 
         const firmataBoard = new FirmataBoard( port );
-        const id = ( typeof port === "object" ? port.path.split( ': ' )[ 1 ] : port );
+        const id = ( typeof port === "object" ? port.path.toString( 10 ) : port );
 
         /*
          * Set a 10 second timeout.
          * The device is deemed unsupported if a connection could not be made within that period.
          */
         const connectionTimeout = setTimeout( _ => {
-            Logger.warn( '' ,'Timeout connecting to board' );
             board = null;
             firmataBoard.removeAllListeners(); // "What do we say to the God of memory leaks? Not today."
-            connected( false );
+            disconnected( id );
         }, 10000) ;
 
         /*
@@ -86,7 +84,7 @@ class BoardService {
          */
         firmataBoard.on( 'ready', () => {
             this.model.addBoard( board );
-            connected( true );
+            connected();
             clearTimeout( connectionTimeout );
         } );
 
@@ -96,18 +94,16 @@ class BoardService {
          * I try to capture disconnected in a different way
          */
         firmataBoard.on( 'disconnect', () => {
-            // console.log( "BOARD DISCONNECTED" );
             this.model.removeBoard( board );
-            disconnected();
+            disconnected( id );
         } );
 
         /*
          * The same goes for this one.
          */
         firmataBoard.on('close', () => {
-            // console.log( "BOARD CLOSED CONNECTION" );
             this.model.removeBoard( board );
-            disconnected();
+            disconnected( id );
         } );
     }
 
@@ -116,12 +112,8 @@ class BoardService {
      * @access protected
      * @param {EtherPort | string} port
      */
-    protected removeConnection( port: EtherPort | string ): void {
-        if ( typeof port === 'object' ) {
-            this.connections.splice( this.connections.findIndex( ( connection: EtherPort ) => connection.path.split( ': ' )[ 1 ] ), 1 );
-        } else {
-            this.connections.splice( this.connections.indexOf( port ), 1 );
-        }
+    protected removeConnection( port: string ): void {
+        this.connections.splice( this.connections.indexOf( port ), 1 );
     }
 }
 
