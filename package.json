@@ -44,7 +44,6 @@
     "json2typescript": "^1.0.6",
     "moment": "^2.23.0",
     "node-fetch": "^2.3.0",
-    "node-pretty-log": "^1.1.0",
     "nodemon": "^1.18.8",
     "npm": "^6.5.0",
     "rxjs": "^6.3.3",

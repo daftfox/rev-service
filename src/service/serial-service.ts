@@ -62,19 +62,28 @@ class SerialService extends BoardService {
             if ( port && !this.isConnected( port.comName ) && !this.isUnsupported( port.comName ) ) {
                 this.connectToBoard(
                     port.comName,
-                    ( compatible: boolean ) => {
-                        if ( compatible ) {
-                            Logger.info( SerialService.namespace, `A new compatible device connected on: ${port.comName}.` );
-                            this.connections.push( port.comName );
-                        } else {
-                            this.unsupportedDevices.push( port.comName );
-                        }
-                    }, () => {
-                        this.removeConnection( port.comName );
-                    }
+                    this.handleConnected.bind( this ),
+                    this.handleDisconnected.bind( this )
                 );
             }
         } );
+    }
+
+    /**
+     * Handles a connected board.
+     * @param {string} boardId
+     */
+    private handleConnected( boardId: string ): void {
+        Logger.info( SerialService.namespace, `A new compatible device connected on: ${boardId}.` );
+        this.connections.push( boardId );
+    }
+
+    /**
+     * Handles a disconnected board.
+     * @param {string} boardId
+     */
+    private handleDisconnected( boardId: string ): void {
+        this.removeConnection( boardId );
     }
 
     /**

@@ -40,7 +40,7 @@ class BoardService {
      * @param {function(boolean):void} connected - Callback for when device successfully connects.
      * @param {function():void} disconnected
      */
-    protected connectToBoard( port: EtherPort | string, connected?: ( boolean? ) => void, disconnected?: ( id: string ) => void ): void {
+    protected connectToBoard( port: EtherPort | string, connected?: ( boardId: string ) => void, disconnected?: ( boardId: string ) => void ): void {
         let board: Board;
 
         const firmataBoard = new FirmataBoard( port );
@@ -84,7 +84,7 @@ class BoardService {
          */
         firmataBoard.on( 'ready', () => {
             this.model.addBoard( board );
-            connected();
+            connected( id );
             clearTimeout( connectionTimeout );
         } );
 

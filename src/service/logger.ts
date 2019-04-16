@@ -1,4 +1,3 @@
-//import * as log from 'node-pretty-log';
 import Chalk from 'chalk';
 import * as moment from 'moment';
 
@@ -20,7 +19,7 @@ class Logger {
      * @param {string} message
      */
     public static debug( namespace: string, message: string ): void {
-        if ( process.env.verbose !== '' ) console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ Logger.formatMessage( namespace, message ) }` )
+        if ( process.env.verbose ) console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ Logger.formatMessage( namespace, message ) }` )
     }
 
     /**
@@ -30,7 +29,7 @@ class Logger {
      * @param {string} message
      */
     public static info( namespace: string, message: string ): void {
-        if ( process.env.verbose !== '' ) console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
+        if ( process.env.verbose ) console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
     }
 
     /**

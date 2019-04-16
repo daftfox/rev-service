@@ -86,35 +86,41 @@ class EthernetService extends BoardService{
 
             this.connectToBoard(
                 etherPort,
-                () => {
-                    Logger.info( EthernetService.namespace, `A new compatible device has connected successfully on: ${availablePort}.` );
-                },
-                this.handleDisconnected
+                this.handleConnected.bind( this ),
+                this.handleDisconnected.bind( this )
             );
         } );
 
-        localSocket.on( 'data', ( data: any ) => {
-            Logger.debug( EthernetService.namespace, `<<< Received data from device. ${data}` );
+        localSocket.on( 'data', ( data: Buffer ) => {
+            Logger.debug( EthernetService.namespace, `<<< Received data from device: [${data.toString('hex')}]` ); // fixme: make data legible
 
             remoteSocket.write( data );
         } );
 
-        remoteSocket.on( 'data', ( data: any ) => {
-            Logger.debug( EthernetService.namespace, `>>> Sending data to device. ${data}` );
+        remoteSocket.on( 'data', ( data: Buffer ) => {
+            Logger.debug( EthernetService.namespace, `>>> Sending data to device: [${data.toString('hex')}]` ); // fixme: make data legible
 
             localSocket.write( data );
         } );
     }
 
     /**
-     * Returns a port to its available state, allowing it to be used again.
-     * @param {number} port
+     * Handles a disconnected board.
+     * @param {string} boardId
      */
-    private handleDisconnected( port: string ): void {
-        Logger.info( EthernetService.namespace, `Device has disconnected from port ${port}` );
+    private handleDisconnected( boardId: string ): void {
+        Logger.info( EthernetService.namespace, `Device has disconnected from port ${boardId}.` );
 
-        this.availablePorts.push( parseInt( port, 10 ) );
-        this.removeConnection( port );
+        this.availablePorts.push( parseInt( boardId, 10 ) );
+        this.removeConnection( boardId );
+    }
+
+    /**
+     * Handles a connected board.
+     * @param {string} boardId
+     */
+    private handleConnected( boardId: string ): void {
+        Logger.info( EthernetService.namespace, `A new compatible device has connected successfully on: ${boardId}.` );
     }
 
     /**
