@@ -1,4 +1,4 @@
-# rev-back-end
+# rev-service
 Rev allows you to connect to, monitor and control devices supporting the
 firmataBoard protocol.
 
@@ -17,9 +17,7 @@ Rev contains an extensive set of interfaces to connect to the outside world and 
 The SerialService scans all host USB interfaces for plugged in devices with firmataBoard-compatibility. When recognized, they are added to the list of connected devices.
 
 ### Ethernet
-Devices are able to connect using nothing but a regular network connection. The EthernetService opens up and listens to a given range of ports.
-When a device connects to a port, that particular port is taken until the client device goes offline.
-By default ports ```3030``` to ```3039``` are opened up.
+Devices are able to connect using nothing but a regular network connection. The EthernetService opens up and listens port 9000 by default.
 
 ### WebSocket
 The frontend application can be fed through a WebSocket connection, again, promising near-realtime updates.
@@ -27,6 +25,7 @@ The WebSocket endpoint is by default available at ws://localhost
 
 ### FileServer
 The FileServer serves files that are present in the ```/public``` directory on http://localhost. It serves ```index.html``` by default when a GET request is made to the root folder.
+Will probably remove this in the future.
 
 ## Installation
 Install dependencies
@@ -38,8 +37,8 @@ To install Rev globally, run
 ```sh
 npm link
 ```
-After which you will be able to start the service, regardless of what folder you are in.
+After which you will be able to start the service through the terminal, regardless of what folder you are in.
 ```sh
-rev
+rev-service
 ```
 
