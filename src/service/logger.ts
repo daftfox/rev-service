@@ -29,7 +29,7 @@ class Logger {
      * @param {string} message
      */
     public static info( namespace: string, message: string ): void {
-        if ( process.env.verbose ) console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
+        console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( namespace, message ) }` );
     }
 
     /**

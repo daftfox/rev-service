@@ -14,7 +14,7 @@ class HttpService {
      * @type {http.Server}
      * @access private
      */
-    private server: Server;
+    private _server: Server;
 
     /**
      * @type {number}
@@ -55,7 +55,7 @@ class HttpService {
      */
     constructor( port: number ) {
         this.port = port;
-        this.server = createServer( this.handleRequest.bind( this ) ).listen( port );
+        this._server = createServer( this.handleRequest.bind( this ) ).listen( port );
         Logger.info( HttpService.namespace, `Listening on port ${port}.` );
     }
 
@@ -64,8 +64,8 @@ class HttpService {
      * @access public
      * @returns {module:http.Server}
      */
-    public getServer(): Server {
-        return this.server;
+    public get server(): Server {
+        return this._server;
     }
 
     /**

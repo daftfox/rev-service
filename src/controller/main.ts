@@ -1,20 +1,14 @@
-import * as WebSocket from 'websocket';
-import {Subscription} from "rxjs/internal/Subscription";
-import {withLatestFrom} from "rxjs/operators";
 import Config, {Flags} from '../config/config';
 import SerialService from "../service/serial-service";
 import EthernetService from "../service/ethernet-service";
 import WebSocketService from "../service/web-socket-service";
 import Logger from "../service/logger";
-import HttpService from "../service/http-service";
-import Board from "../domain/board";
-import {Command} from "../interface/command";
-import WebSocketEvent, {WebSocketEventType} from "../interface/web-socket-event";
 import Boards from "../model/boards";
 import CommandError from "../error/command-error";
 import NoAvailablePortError from "../error/no-available-port-error";
 import NotFoundError from "../error/not-found-error";
 import BoardError from "../error/board-error";
+require('longjohn');
 
 /**
  * Main controller
@@ -60,36 +54,6 @@ class MainController {
     private serialService: SerialService;
 
     /**
-     * @type {HttpService}
-     * @access private
-     */
-    private staticFileService: HttpService;
-
-    /**
-     * @type {Subscription}
-     * @access private
-     */
-    private boardsUpdated: Subscription;
-
-    /**
-     * @type {Subscription}
-     * @access private
-     */
-    private newClientConnected: Subscription;
-
-    /**
-     * @type {Subscription}
-     * @access private
-     */
-    private boardDisconnected: Subscription;
-
-    /**
-     * @type {Subscription}
-     * @access private
-     */
-    private commandReceived: Subscription;
-
-    /**
      * Creates a new instance of MainController and starts required services
      * @constructor
      */
@@ -107,9 +71,14 @@ class MainController {
      * @access private
      */
     private startServices(): void {
-        this.staticFileService = new HttpService( this.options.wsPort );
-        this.socketService     = new WebSocketService( this.staticFileService.getServer() );
-        this.model             = new Boards();
+        this.model = new Boards();
+        // this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
+        // this.model.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
+
+        this.socketService = new WebSocketService(
+            this.options.port,
+            this.model
+        );
 
         if ( this.options.ethernet ) {
             this.ethernetService = new EthernetService( this.model,
@@ -124,74 +93,7 @@ class MainController {
             this.serialService   = new SerialService( this.model );
         }
 
-        this.subscribeToEvents();
-
-        process.on('uncaughtException', this.handleError );
-    }
-
-    /**
-     * Broadcast an update with the newly connected board to connected clients.
-     * @access private
-     * @param {Board} board The board that was connected
-     */
-    private broadcastNewBoard( board: Board ): void {
-        this.socketService.broadcastEvent( new WebSocketEvent( WebSocketEventType.ADD_BOARD, Board.toDiscrete( board ) ) );
-    }
-
-    /**
-     * Broadcast an update with the disconnected board to connected clients.
-     * @access private
-     * @param {Board} board
-     */
-    private broadcastDisconnectedBoard( board: Board ): void {
-        this.socketService.broadcastEvent( new WebSocketEvent( WebSocketEventType.REMOVE_BOARD, Board.toDiscrete( board ) ) );
-    }
-
-    /**
-     * Give newly connected clients a list of all connected boards.
-     * @access private
-     * @param {connection} client The WebSocket connection of the client that has just connected
-     * @param {Board[]} boards An array of boards that are connected
-     */
-    private updateAllBoardsForClient( [ client, boards ] : [ WebSocket.connection, Board[] ] ): void {
-        this.socketService.sendEvent( client, new WebSocketEvent( WebSocketEventType.UPDATE_ALL_BOARDS, Board.toDiscreteArray( boards ) ) )
-    }
-
-    /**
-     * Subscribe to observables exposed by services.
-     * @access private
-     */
-    private subscribeToEvents(): void {
-        this.boardsUpdated = this.model.boards.subscribe(
-            this.broadcastNewBoard.bind( this ),
-            this.handleError
-        );
-
-        this.newClientConnected = this.socketService.newClient.pipe(
-            withLatestFrom( this.model.getAllBoards )
-        ).subscribe(
-            this.updateAllBoardsForClient.bind( this ),
-            this.handleError
-        );
-
-        this.boardDisconnected = this.model.boardDisconnected.subscribe(
-            this.broadcastDisconnectedBoard.bind( this ),
-            this.handleError
-        );
-
-        this.commandReceived = this.socketService.handleCommandReceived.subscribe(
-            this.handleExecReceived.bind( this ),
-            this.handleError
-        );
-    }
-
-    /**
-     * Sends a Command object received from a client to the designated board
-     * @access private
-     * @param {Command} command An instance of Command containing the board's id and the method to execute.
-     */
-    private handleExecReceived( command: Command ): void {
-        this.model.executeCommand( command );
+        //process.on('uncaughtException', this.handleError );
     }
 
     /**

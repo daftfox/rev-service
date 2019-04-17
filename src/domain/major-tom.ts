@@ -170,7 +170,7 @@ class MajorTom extends Board {
      */
     private initializeMajorTom(): void {
         this.namespace = `Major Tom - ${ this.id }`;
-        Logger.info( this.namespace, "This is Major Tom to ground control." );
+        Logger.debug( this.namespace, "This is Major Tom to ground control." );
         this.firmataBoard.pinMode( MajorTom.FAN_PIN, FirmataBoard.PIN_MODE.OUTPUT );
         this.firmataBoard.pinMode( MajorTom.POWER_PIN, FirmataBoard.PIN_MODE.PWM );
 
@@ -193,9 +193,11 @@ class MajorTom extends Board {
     private enableBlinkLed( enable: boolean ) {
         if ( enable ) {
             if ( this.blinkInterval ) throw new Error( `LED blink is already enabled.` );
-            this.blinkInterval = setInterval( this.toggleLED.bind( this ), 1000);
+            this.blinkInterval = setInterval( this.toggleLED.bind( this ), 500);
+            this.intervals.push( this.blinkInterval );
         } else {
-            clearInterval( this.blinkInterval );
+            this.clearInterval( this.blinkInterval );
+            this.intervals.splice( this.intervals.indexOf( this.blinkInterval, 1 ) );
             this.blinkInterval = null;
             this.firmataBoard.digitalWrite( MajorTom.LED_PIN, FirmataBoard.PIN_STATE.HIGH ); // high === low???
         }
@@ -307,7 +309,7 @@ class MajorTom extends Board {
     private stopEngine(): void {
         this.engineOn = false;
         this.enableEmulatorIgnition( false );
-        clearInterval( this.shakeInterval );
+        this.clearInterval( this.shakeInterval );
     }
 
     /**
@@ -365,7 +367,10 @@ class MajorTom extends Board {
             setTimeout( () => {
                 this.enableFan( false );
             }, MajorTom.DEFAULT_SHAKE_DURATION );
+
         }, MajorTom.DEFAULT_SHAKE_DURATION + 1000 );
+
+        this.intervals.push( this.shakeInterval );
     }
 
     /**
@@ -394,8 +399,10 @@ class MajorTom extends Board {
         const rampUp = setInterval( () => {
             ramped += 10;
             this.setSupplyVoltage( MajorTom.SUPPLY_VOLTAGE.LOW + ramped );
-            if ( ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD ) clearInterval( rampUp );
+            if ( ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD ) this.clearInterval( rampUp );
         }, interval );
+
+        this.intervals.push( rampUp );
     }
 
     /**

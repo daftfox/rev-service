@@ -83,6 +83,10 @@ class SerialService extends BoardService {
      * @param {string} boardId
      */
     private handleDisconnected( boardId: string ): void {
+        if ( boardId ) Logger.info( SerialService.namespace, `A device has disconnected from port ${boardId}.` );
+        else Logger.info( SerialService.namespace, `A device has failed to connect.` );
+
+        Logger.info( SerialService.namespace, `A device has disconnected from port ${boardId}.` );
         this.removeConnection( boardId );
     }
 

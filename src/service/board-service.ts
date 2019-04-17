@@ -3,6 +3,7 @@ import Boards from "../model/boards";
 import Board from "../domain/board";
 import MajorTom from "../domain/major-tom";
 import * as FirmataBoard from 'firmata';
+import Logger from "./logger";
 
 /**
  * A basic board-service that implements a connectToBoard method
@@ -28,10 +29,6 @@ class BoardService {
      */
     constructor( model: Boards ) {
         this.model = model;
-
-        this.model.boardDisconnected.subscribe(
-            board => this.removeConnection( board.getPort() )
-        )
     }
 
     /**
@@ -40,10 +37,11 @@ class BoardService {
      * @param {function(boolean):void} connected - Callback for when device successfully connects.
      * @param {function():void} disconnected
      */
-    protected connectToBoard( port: EtherPort | string, connected?: ( boardId: string ) => void, disconnected?: ( boardId: string ) => void ): void {
+    protected connectToBoard( port: EtherPort | string, connected?: ( boardId: string ) => void, disconnected?: ( boardId?: string ) => void ): void {
         let board: Board;
 
         const firmataBoard = new FirmataBoard( port );
+
         const id = ( typeof port === "object" ? port.path.toString( 10 ) : port );
 
         /*
@@ -53,7 +51,7 @@ class BoardService {
         const connectionTimeout = setTimeout( _ => {
             board = null;
             firmataBoard.removeAllListeners(); // "What do we say to the God of memory leaks? Not today."
-            disconnected( id );
+            disconnected();
         }, 10000) ;
 
         /*
@@ -94,7 +92,9 @@ class BoardService {
          * I try to capture disconnected in a different way
          */
         firmataBoard.on( 'disconnect', () => {
-            this.model.removeBoard( board );
+            Logger.warn( 'DISCONNECT', 'DISCONNECT' );
+
+            this.model.removeBoard( board.id );
             disconnected( id );
         } );
 
@@ -102,7 +102,9 @@ class BoardService {
          * The same goes for this one.
          */
         firmataBoard.on('close', () => {
-            this.model.removeBoard( board );
+            Logger.warn( 'CLOSED', 'CLOSED' );
+
+            this.model.removeBoard( board.id );
             disconnected( id );
         } );
     }
@@ -114,6 +116,7 @@ class BoardService {
      */
     protected removeConnection( port: string ): void {
         this.connections.splice( this.connections.indexOf( port ), 1 );
+        this.model.removeBoard( port );
     }
 }
 

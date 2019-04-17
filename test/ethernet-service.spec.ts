@@ -4,29 +4,28 @@ import EthernetService from '../src/service/ethernet-service';
 import Boards from '../src/model/boards';
 import EthernetServiceOptions from '../src/interface/ethernet-service-options';
 import * as net from 'net';
-import { VERSION_BUFFER, ANALOG_MAPPING_BUFFER, CAPABILITIES_BUFFER } from './mock-data/firmata-responses';
+import { connectBoard } from './test-util/board-util';
+
 
 describe( 'Ethernet service', () => {
-    let boards: Boards;
+    let model: Boards;
     let ethernetServiceOptions: EthernetServiceOptions;
     let ethernetService: EthernetService;
 
-    const parseBuffer = ( buffer: Buffer ) => {
-        return buffer.toString( 'hex' );
-    };
+    const connectedClients: net.Socket[] = [];
 
     before( () => {
-        process.env.verbose = '1';
-        boards = new Boards();
+        //process.env.verbose = '1';
+        model = new Boards();
         ethernetServiceOptions = {
             listenPort: 9000,
             startPort: 3000,
             endPort: 3100
         };
-        ethernetService = new EthernetService( boards, ethernetServiceOptions );
+        ethernetService = new EthernetService( model, ethernetServiceOptions );
     } );
 
-    it( 'should instantiate properly', () => {
+    it( 'should have instantiated properly', () => {
         expect( ethernetService ).to.not.equal( null );
     } );
 
@@ -47,59 +46,30 @@ describe( 'Ethernet service', () => {
     } ).timeout(70000);
 
     it( 'should create a new instance of major tom', ( done ) => {
+        connectBoard( ethernetServiceOptions )
+            .then( ( client: net.Socket ) => {
+                connectedClients.push( client );
 
-        const client = new net.Socket().connect( ethernetServiceOptions.listenPort );
-        client.on( 'data', ( data: Buffer ) => {
-            const parsedData = parseBuffer( data );
+                expect( model.boards.length ).to.equal( 1 );
+                model.removeBoard( model.boards.shift().id );
 
-            if ( parsedData === 'f9f079f7' ) { // request version and firmware
-                client.write( VERSION_BUFFER );
-            } else if( parsedData === 'f06bf7' ) { // request capabilities
-                client.write( CAPABILITIES_BUFFER );
-            } else if( parsedData === 'f069f7' ) { // request analog mapping
-                client.write( ANALOG_MAPPING_BUFFER );
-            } else {
-                expect( parsedData.substring( 0, 2 ) ).to.equal( 'f4' );
                 done();
-            }
-        } );
+            });
     } ).timeout( 10000 );
 
     it( 'should create two concurrent instances of major tom', ( done ) => {
-        const responses = [];
+        connectBoard( ethernetServiceOptions )
+            .then( ( client1: net.Socket ) => {
+                connectedClients.push( client1 );
+                expect( model.boards.length ).to.equal( 1 );
 
-        const client1 = new net.Socket().connect( ethernetServiceOptions.listenPort );
-        client1.on( 'data', ( data: Buffer ) => {
-            const parsedData = parseBuffer( data );
-
-            if ( parsedData === 'f9f079f7' ) { // request version and firmware
-                client1.write( VERSION_BUFFER );
-            } else if( parsedData === 'f06bf7' ) { // request capabilities
-                client1.write( CAPABILITIES_BUFFER );
-            } else if( parsedData === 'f069f7' ) { // request analog mapping
-                client1.write( ANALOG_MAPPING_BUFFER );
-            } else {
-                responses.push( parsedData.substring( 0, 2 ) );
-            }
-        } );
-
-        setTimeout( () => {
-            const client2 = new net.Socket().connect( ethernetServiceOptions.listenPort );
-            client2.on( 'data', ( data: Buffer ) => {
-                const parsedData = parseBuffer( data );
-
-                if ( parsedData === 'f9f079f7' ) { // request version and firmware
-                    client2.write( VERSION_BUFFER );
-                } else if( parsedData === 'f06bf7' ) { // request capabilities
-                    client2.write( CAPABILITIES_BUFFER );
-                } else if( parsedData === 'f069f7' ) { // request analog mapping
-                    client2.write( ANALOG_MAPPING_BUFFER );
-                } else {
-                    responses.push( parsedData.substring( 0, 2 ) );
-                    expect( responses.filter( response => response != 'f4' ).length ).to.equal( 0 );
-                    done();
-                }
+                // connect a second board
+                connectBoard( ethernetServiceOptions )
+                    .then( ( client2: net.Socket ) => {
+                        connectedClients.push( client2 );
+                        expect( model.boards.length ).to.equal( 2 );
+                        done();
+                    } );
             } );
-        }, 3000 );
-    } ).timeout( 10000 );
+    } ).timeout( 14000 );
 } );

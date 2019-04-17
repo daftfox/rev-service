@@ -10,7 +10,7 @@ export default class Config {
 
     /** @access private */
     private static flags = args
-        .option( 'wsPort', 'Port from which the WebSocket service will be served.', 80 )
+        .option( 'port', 'Port from which the WebSocket service will be served.', 80 )
         .option( 'ethPort', 'Port from which the ethernet service will be served.', 9000 )
         .option( 'startPort', 'The first port in the range of ports you want to make available for the ethernet service.', 3000 )
         .option( 'endPort', 'The last port in the range of ports you want to make available for the ethernet service.', 3100 )
@@ -34,6 +34,6 @@ export interface Flags {
     serial: boolean; // enable/disable the serial service
     verbose: boolean; // enable/disable verbose mode
     ethernet: boolean; // enable/disable the ethernet service
-    wsPort: number; // port to bind the WebSocket service to
+    port: number; // port to bind the WebSocket service to
     ethPort: number; // port to bind the ethernet service to
 }

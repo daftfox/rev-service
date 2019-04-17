@@ -92,13 +92,19 @@ class EthernetService extends BoardService{
         } );
 
         localSocket.on( 'data', ( data: Buffer ) => {
-            Logger.debug( EthernetService.namespace, `<<< Received data from device: [${data.toString('hex')}]` ); // fixme: make data legible
+            Logger.debug( EthernetService.namespace, `<<< Received data from device: [${data.toString('hex')}]` );
 
             remoteSocket.write( data );
         } );
 
+        localSocket.on( 'error', ( err ) => {
+            this.handleDisconnected( availablePort.toString( 10 ) );
+            localSocket.destroy();
+            remoteSocket.destroy();
+        } );
+
         remoteSocket.on( 'data', ( data: Buffer ) => {
-            Logger.debug( EthernetService.namespace, `>>> Sending data to device: [${data.toString('hex')}]` ); // fixme: make data legible
+            Logger.debug( EthernetService.namespace, `>>> Sending data to device: [${data.toString('hex')}]` );
 
             localSocket.write( data );
         } );
@@ -109,7 +115,8 @@ class EthernetService extends BoardService{
      * @param {string} boardId
      */
     private handleDisconnected( boardId: string ): void {
-        Logger.info( EthernetService.namespace, `Device has disconnected from port ${boardId}.` );
+        if ( boardId ) Logger.info( EthernetService.namespace, `A device has disconnected from port ${boardId}.` );
+        else Logger.info( EthernetService.namespace, `A device has failed to connect.` );
 
         this.availablePorts.push( parseInt( boardId, 10 ) );
         this.removeConnection( boardId );
@@ -120,7 +127,7 @@ class EthernetService extends BoardService{
      * @param {string} boardId
      */
     private handleConnected( boardId: string ): void {
-        Logger.info( EthernetService.namespace, `A new compatible device has connected successfully on: ${boardId}.` );
+        Logger.info( EthernetService.namespace, `A new compatible device has connected successfully on port ${boardId}.` );
     }
 
     /**

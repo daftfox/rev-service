@@ -4,6 +4,7 @@ import Logger from "../service/logger";
 import {Command} from "../interface/command";
 import CommandError from "../error/command-error";
 import * as EtherPort from 'etherport';
+import Timeout = NodeJS.Timeout;
 
 /**
  * Generic representation of devices compatible with the firmata protocol.
@@ -71,6 +72,10 @@ class Board implements DiscreteBoard {
      */
     protected firmataBoard: FirmataBoard;
 
+    protected intervals: Timeout[];
+
+    protected timeouts: Timeout[];
+
     /**
      * Creates a new instance of Board and awaits a successful connection before setting its status to READY
      * @constructor
@@ -80,6 +85,8 @@ class Board implements DiscreteBoard {
     constructor( firmataBoard: FirmataBoard, id: string ) {
         this.firmataBoard = firmataBoard;
         this.id = id;
+        this.timeouts = [];
+        this.intervals = [];
 
         this.namespace = `board - ${ this.id }`;
 
@@ -158,6 +165,31 @@ class Board implements DiscreteBoard {
      */
     public setStatus( status: BoardStatus ) {
         this.status = status;
+    }
+
+    public clearAllTimers(): void {
+        this.clearAllIntervals();
+        this.clearAllTimeouts();
+    }
+
+    protected clearInterval( interval: Timeout ): void {
+        clearInterval( this.intervals.find( _interval => _interval === interval ) );
+        this.intervals.splice( this.intervals.indexOf( interval ), 1 );
+    }
+
+    protected clearTimeout( timeout: Timeout ): void {
+        clearTimeout( this.timeouts.find( _timeout => _timeout === timeout ) );
+        this.timeouts.splice( this.timeouts.indexOf( timeout ), 1 );
+    }
+
+    private clearAllIntervals(): void {
+        this.intervals.forEach( interval => clearInterval( interval ) );
+        this.intervals = [];
+    }
+
+    private clearAllTimeouts(): void {
+        this.timeouts.forEach( timeout => clearTimeout( timeout ) );
+        this.timeouts = [];
     }
 
     /**

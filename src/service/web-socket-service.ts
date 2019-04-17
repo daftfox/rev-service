@@ -1,13 +1,13 @@
 import * as WebSocket from 'websocket';
 import {Server} from 'http';
-import WebSocketEvent from "../interface/web-socket-event";
-import {distinctUntilChanged, filter, scan} from "rxjs/operators";
-import {Observable} from "rxjs/internal/Observable";
-import {Subject} from "rxjs/internal/Subject";
+import WebSocketEvent, {WebSocketEventType} from "../interface/web-socket-event";
 import Logger from "./logger";
 import {AddressInfo} from "net";
 import {Command} from "../interface/command";
 import WrongEncodingError from "../error/wrong-encoding-error";
+import Boards from "../model/boards";
+import HttpService from "./http-service";
+import Board from "../domain/board";
 
 /**
  * @classdesc Service that allows clients to interface using a near real-time web socket connection
@@ -28,16 +28,10 @@ class WebSocketService {
     private webSocketServer: WebSocket.server;
 
     /**
-     * @type {Subject<Command>}
+     * @type {Boards}
      * @access private
      */
-    private commands$: Subject<Command>;
-
-    /**
-     * @type {Subject<WebSocket.connection>}
-     * @access private
-     */
-    private connections$: Subject<WebSocket.connection>;
+    private model: Boards;
 
     /**
      * @type {string}
@@ -47,26 +41,30 @@ class WebSocketService {
 
     /**
      * @constructor
-     * @param {module:http.Server} httpServer
+     * @param {number} port
+     * @param {port} model
      */
-    constructor( httpServer: Server ) {
-        this.httpServer = httpServer;
-        this.connections$ = new Subject<WebSocket.connection>();
-        this.commands$ = new Subject<Command>();
+    constructor( port: number, model: Boards ) {
+        this.httpServer = new HttpService( port ).server;
 
-        this.createWebSocketServer();
+        this.model = model;
+        this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
+        this.model.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
+
+        this.startWebSocketServer();
     }
 
     /**
+     * Start the WebSocket server
      * @access private
      */
-    private createWebSocketServer(): void {
+    private startWebSocketServer(): void {
         this.webSocketServer = new WebSocket.server( {
             httpServer: this.httpServer
         } );
 
         Logger.info( WebSocketService.namespace, `Listening on port ${ JSON.stringify( ( <AddressInfo>this.httpServer.address() ).port ) }.` );
-        this.webSocketServer.on( 'request', this.handleRequestReceived.bind( this ) );
+        this.webSocketServer.on( 'request', this.handleConnectionRequest.bind( this ) );
     }
 
     /**
@@ -74,56 +72,54 @@ class WebSocketService {
      * @access private
      * @param {request} request
      */
-    private handleRequestReceived( request: WebSocket.request ): void {
-        const connection = request.accept( null, request.origin );
+    private handleConnectionRequest( request: WebSocket.request ): void {
+        let connection = request.accept( null, request.origin );
 
         Logger.info( WebSocketService.namespace, `Client connected via ${ request.origin }` );
-        this.connections$.next( connection );
+        this.handleClientConnected( connection );
 
-        // todo: clear listeners on disconnect?
-        connection.on( 'message', message => {
-            if ( message.type !== "utf8" ) throw new WrongEncodingError( `Received WebSocket message in unsupported format` );
-            const command = JSON.parse( message.utf8Data );
-            this.commands$.next( command );
-        } );
-
+        connection.on( 'message', this.handleMessage.bind( this ) );
         connection.on( 'close', ( reasonCode: number, description: string ) => {
+            connection = null;
             Logger.info( WebSocketService.namespace, `Connection to a client was lost because of: ${ description }` );
         } );
     }
 
-    /**
-     * @access public
-     * @return {Observable<connection[]>}
-     */
-    public get allClients(): Observable<WebSocket.connection[]> {
-        return this.connections$.pipe(
-            filter( ( connection: WebSocket.connection ) => connection !== null ),
-            scan( ( acc: WebSocket.connection[], cur: WebSocket.connection ) => [...acc, cur], [] ),
-            distinctUntilChanged()
-        );
+    private handleMessage( message: any ): void {
+        if ( message.type !== "utf8" ) throw new WrongEncodingError( `Received WebSocket message in unsupported format` );
+        try {
+            const command = <Command>JSON.parse( message.utf8Data );
+            this.model.executeCommand( command );
+        } catch( err ) {
+            Logger.error( WebSocketService.namespace, err );
+        }
     }
 
     /**
      * @access public
-     * @return {Observable<Command>}
+     * @param {WebSocket.connection} client
+     * @return {void}
      */
-    public get handleCommandReceived(): Observable<Command> {
-        return this.commands$.pipe(
-            filter( ( command: Command ) => command.method !== null ),
-            distinctUntilChanged()
-        );
+    public handleClientConnected( client: WebSocket.connection ): void {
+        this.sendEvent( client, new WebSocketEvent( WebSocketEventType.UPDATE_ALL_BOARDS, Board.toDiscreteArray( this.model.boards ) ) );
     }
 
     /**
-     * @access public
-     * @return {Observable<WebSocket.connection>}
+     * Broadcast an update with the newly connected board to connected clients.
+     * @access private
+     * @param {Board} board The board that was connected
      */
-    public get newClient(): Observable<WebSocket.connection> {
-        return this.connections$.pipe(
-            filter( ( connection: WebSocket.connection ) => connection !== null ),
-            distinctUntilChanged()
-        );
+    private broadcastBoardConnected( board: Board ): void {
+        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.ADD_BOARD, Board.toDiscrete( board ) ) );
+    }
+
+    /**
+     * Broadcast an update with the disconnected board to connected clients.
+     * @access private
+     * @param {Board} board
+     */
+    private broadcastBoardDisconnected( board: Board ): void {
+        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.REMOVE_BOARD, Board.toDiscrete( board ) ) );
     }
 
     /**

@@ -1,12 +1,6 @@
 import Board from '../domain/board';
-import { Observable } from "rxjs/internal/Observable";
-import {concatMap, distinctUntilChanged, filter, map, scan, share} from "rxjs/operators";
-import {Subject} from "rxjs/internal/Subject";
-import {BoardStatus} from "../interface/discrete-board";
-import {BehaviorSubject} from "rxjs/internal/BehaviorSubject";
 import {Command} from "../interface/command";
 import NotFoundError from "../error/not-found-error";
-import BoardError from "../error/board-error";
 
 /**
  * @classdesc
@@ -15,63 +9,38 @@ import BoardError from "../error/board-error";
 class Boards {
     /**
      * @access private
-     * @type {BehaviorSubject<Board>
+     * @type {Board[]}
      */
-    private boards$: BehaviorSubject<Board>;
+    private _boards: Board[];
 
-    /**
-     * @access private
-     * @type {Subject<Board>
-     */
-    private boardDisconnected$: Subject<Board>;
+    private notifyBoardConnectedListeners: (( Board ) => void)[];
 
-    /**
-     * @access private
-     * @type {Subject<Command>
-     */
-    private command$: Subject<Command>;
-
-    /**
-     * @access private
-     * @type {Observable<Board>
-     */
-    private executeCommand$: Observable<Board>;
+    private notifyBoardDisconnectedListeners: (( Board ) => void)[];
 
     /**
      * @constructor
      */
     constructor() {
-        this.boards$ = new BehaviorSubject<Board>(null);
-        this.boardDisconnected$ = new Subject<Board>();
-        this.command$ = new Subject<Command>();
-        this.executeCommand$ = this.command$.pipe(
-            concatMap( command => this.getBoardById( command.boardId ))
-        );
+        this._boards = [];
+        this.notifyBoardConnectedListeners = [];
+        this.notifyBoardDisconnectedListeners = [];
+    }
+
+    public addBoardConnectedListener( listener: ( Board ) => void ): void {
+        this.notifyBoardConnectedListeners.push( listener );
+    }
+
+    public addBoardDisconnectedListener( listener: ( Board ) => void ): void {
+        this.notifyBoardDisconnectedListeners.push( listener );
     }
 
     /**
-     * Returns an observable that can be subscribed to, to handle new boards that get added
+     * Returns an array of the currently connected boards
      * @access public
-     * @return {Observable<Board>}
+     * @return {Board[]}
      */
-    public get boards(): Observable<Board> {
-        return this.boards$.pipe(
-            filter( board => board !== null ),
-            distinctUntilChanged(),
-            share()
-        )
-    }
-
-    /**
-     * Returns an observable containing all board that have connected since the application initialized
-     * @access public
-     * @return {Observable<Board[]>}
-     */
-    public get getAllBoards(): Observable<Board[]> {
-        return this.boards.pipe(
-            scan( ( acc: Board[], cur: Board ) => [...acc, cur], [] ),
-            map( boards => boards.filter( board => board.status !== BoardStatus.DISCONNECTED ) ), // filter out disconnected boards
-        );
+    public get boards(): Board[] {
+        return this._boards;
     }
 
     /**
@@ -80,21 +49,8 @@ class Boards {
      * @param {string} id
      * @return {Observable<Board>}
      */
-    public getBoardById( id: string ): Observable<Board> {
-        return this.boards.pipe(
-            scan( ( acc: Board[], cur: Board ) => [...acc, cur], [] ),
-            filter( board => board !== null ),
-            map( boards => boards.find( board => board.id === id ) )
-        );
-    }
-
-    /**
-     * Returns an observable that notifies subscribers of disconnected boards
-     * @access public
-     * @return {Observable<Board>}
-     */
-    public get boardDisconnected(): Observable<Board> {
-        return this.boardDisconnected$.asObservable();
+    public getBoardById( id: string ): Board {
+        return this._boards.find( board => board.id === id );
     }
 
     /**
@@ -103,17 +59,20 @@ class Boards {
      * @param {Board} board
      */
     public addBoard( board: Board ): void {
-        this.boards$.next( board );
+        this._boards.push( board );
+        this.notifyBoardConnectedListeners.forEach( listener => listener( Board.toDiscrete( board ) ) );
+
     }
 
     /**
      * Register the supplied board as disconnected and notify subscribers
      * @access public
-     * @param {Board} board
+     * @param {string} boardId
      */
-    public removeBoard( board: Board ): void {
-        board.setStatus( BoardStatus.DISCONNECTED );
-        this.boardDisconnected$.next( board );
+    public removeBoard( boardId: string ): void {
+        const removedBoard = this._boards.splice( this._boards.findIndex( board => board.id === boardId ), 1 ).shift();
+        removedBoard.clearAllTimers();
+        this.notifyBoardDisconnectedListeners.forEach( listener => listener( Board.toDiscrete( removedBoard ) ) );
     }
 
     /**
@@ -122,18 +81,12 @@ class Boards {
      * @param {Command} command
      */
     public executeCommand( command: Command ): void {
-        this.executeCommand$.subscribe(
-            board => {
-                if ( !board ) throw new NotFoundError( `Board not found` );
-                try {
-                    board.executeCommand( command );
-                } catch ( error ) {
-                    this.removeBoard( board );
-                    throw new BoardError( error ) ;
-                }
-            }
-        );
-        this.command$.next( command );
+        const board = this._boards.find( board => board.id === command.boardId );
+
+        if ( !board ) throw new NotFoundError( `Board with id ${command.boardId} not found` );
+        else {
+            board.executeCommand( command );
+        }
     }
 }
 
