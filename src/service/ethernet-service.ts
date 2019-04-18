@@ -5,6 +5,7 @@ import Logger from './logger';
 import * as net from 'net';
 import NoAvailablePortError from "../error/no-available-port-error";
 import EthernetServiceOptions from "../interface/ethernet-service-options";
+import Chalk from 'chalk';
 
 /**
  * @classdesc An ethernet service that open up a number of ports between in a given port-range
@@ -12,15 +13,17 @@ import EthernetServiceOptions from "../interface/ethernet-service-options";
  * @namespace EthernetService
  */
 class EthernetService extends BoardService{
+
     /**
      * @access private
-     * @static
-     * @type {string}
+     * @type {net.Server}
      */
-    private static namespace = `ethernet`;
-
     private tcpProxy: net.Server;
 
+    /**
+     * @access private
+     * @type {number[]}
+     */
     private availablePorts: number[];
 
     /**
@@ -31,7 +34,9 @@ class EthernetService extends BoardService{
     constructor( model: Boards, options: EthernetServiceOptions ) {
         super( model );
 
-        this.connections = [];
+        this.namespace = 'ethernet';
+        this.log = new Logger( this.namespace );
+
         this.listen( options );
     }
 
@@ -48,7 +53,7 @@ class EthernetService extends BoardService{
      * @param {EthernetServiceOptions} options
      */
     private listen( options: EthernetServiceOptions ): void {
-        Logger.info( EthernetService.namespace, `Listening on port ${options.listenPort}.` );
+        this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( options.listenPort.toString( 10 ) ) }.` );
 
         this.availablePorts = this.getPortRange( options );
         this.tcpProxy = net.createServer( this.handleConnectionRequest.bind( this ) ).listen( options.listenPort );
@@ -76,49 +81,50 @@ class EthernetService extends BoardService{
     private handleConnectionRequest( localSocket: net.Socket ): void {
         const availablePort = this.getAvailablePort();
 
-        Logger.debug( EthernetService.namespace, `A new device attempts to connect. Proxying to port ${availablePort}` );
+        this.log.debug( `Connection attempt. Start proxying to port ${ Chalk.rgb( 0, 143, 255 ).bold( availablePort.toString( 10 ) ) }.` );
 
-        const etherPort = new EtherPort( availablePort );
-        const remoteSocket = new net.Socket().connect( availablePort );
+        let etherPort = new EtherPort( availablePort );
+        let deviceSocket = new net.Socket().connect( availablePort );
 
         etherPort.on( 'open', () => {
-            Logger.debug( EthernetService.namespace, `Proxy has opened connection to EtherPort instance.` );
+            this.log.debug( `Proxy connected.` );
 
             this.connectToBoard(
                 etherPort,
                 this.handleConnected.bind( this ),
-                this.handleDisconnected.bind( this )
+                ( boardId: string ) => {
+                    this.handleDisconnected( boardId, etherPort );
+                }
             );
         } );
 
+        // send data received from physical device to instance of Board class
         localSocket.on( 'data', ( data: Buffer ) => {
-            Logger.debug( EthernetService.namespace, `<<< Received data from device: [${data.toString('hex')}]` );
-
-            remoteSocket.write( data );
+            deviceSocket.write( data );
         } );
 
-        localSocket.on( 'error', ( err ) => {
-            this.handleDisconnected( availablePort.toString( 10 ) );
-            localSocket.destroy();
-            remoteSocket.destroy();
-        } );
-
-        remoteSocket.on( 'data', ( data: Buffer ) => {
-            Logger.debug( EthernetService.namespace, `>>> Sending data to device: [${data.toString('hex')}]` );
-
+        // send data originating from the Board class instance to the physical device
+        deviceSocket.on( 'data', ( data: Buffer ) => {
             localSocket.write( data );
+        } );
+
+        // connection was lost; remove the Board instance and close the ethernet server
+        localSocket.on( 'error', ( err: Error ) => {
+            this.handleDisconnected( availablePort.toString( 10 ), etherPort );
         } );
     }
 
     /**
      * Handles a disconnected board.
      * @param {string} boardId
+     * @param {EtherPort} etherPort
      */
-    private handleDisconnected( boardId: string ): void {
-        if ( boardId ) Logger.info( EthernetService.namespace, `A device has disconnected from port ${boardId}.` );
-        else Logger.info( EthernetService.namespace, `A device has failed to connect.` );
+    private handleDisconnected( boardId: string, etherPort: EtherPort ): void {
+        if ( boardId ) this.log.info( `Device disconnected from port ${ Chalk.rgb( 0, 143, 255 ).bold( boardId ) }.` );
 
+        etherPort.server.close();
         this.availablePorts.push( parseInt( boardId, 10 ) );
+
         this.removeConnection( boardId );
     }
 
@@ -127,17 +133,17 @@ class EthernetService extends BoardService{
      * @param {string} boardId
      */
     private handleConnected( boardId: string ): void {
-        Logger.info( EthernetService.namespace, `A new compatible device has connected successfully on port ${boardId}.` );
+        this.log.info( `Device connected on port ${Chalk.rgb( 0, 143, 255 ).bold( boardId )}.` );
     }
 
     /**
-     * Returns the first unused port from the list of available ports.
+     * Returns the lowest unused port from the list of available ports.
      * @throws NoAvailablePortError
      * @return {number} An unused port from the range of available ports.
      */
     private getAvailablePort(): number {
         if ( !this.getNumberOfAvailablePorts() ) throw new NoAvailablePortError( `No available ports left. Consider increasing the number of available ports.` );
-        return this.availablePorts.shift();
+        return Math.min( ...this.availablePorts );
     }
 }
 

@@ -8,6 +8,7 @@ import WrongEncodingError from "../error/wrong-encoding-error";
 import Boards from "../model/boards";
 import HttpService from "./http-service";
 import Board from "../domain/board";
+import Chalk from 'chalk';
 
 /**
  * @classdesc Service that allows clients to interface using a near real-time web socket connection
@@ -39,6 +40,8 @@ class WebSocketService {
      */
     private static namespace = `web-socket`;
 
+    private log = new Logger( WebSocketService.namespace );
+
     /**
      * @constructor
      * @param {number} port
@@ -63,7 +66,7 @@ class WebSocketService {
             httpServer: this.httpServer
         } );
 
-        Logger.info( WebSocketService.namespace, `Listening on port ${ JSON.stringify( ( <AddressInfo>this.httpServer.address() ).port ) }.` );
+        this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( <AddressInfo>this.httpServer.address() ).port ) ) }.` );
         this.webSocketServer.on( 'request', this.handleConnectionRequest.bind( this ) );
     }
 
@@ -75,13 +78,13 @@ class WebSocketService {
     private handleConnectionRequest( request: WebSocket.request ): void {
         let connection = request.accept( null, request.origin );
 
-        Logger.info( WebSocketService.namespace, `Client connected via ${ request.origin }` );
+        this.log.info( `Client connected via ${ request.origin }` );
         this.handleClientConnected( connection );
 
         connection.on( 'message', this.handleMessage.bind( this ) );
         connection.on( 'close', ( reasonCode: number, description: string ) => {
             connection = null;
-            Logger.info( WebSocketService.namespace, `Connection to a client was lost because of: ${ description }` );
+            this.log.info( `Connection to a client was lost because of: ${ description }` );
         } );
     }
 
@@ -91,7 +94,7 @@ class WebSocketService {
             const command = <Command>JSON.parse( message.utf8Data );
             this.model.executeCommand( command );
         } catch( err ) {
-            Logger.error( WebSocketService.namespace, err );
+            this.log.error( err );
         }
     }
 

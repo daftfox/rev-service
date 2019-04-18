@@ -7,7 +7,7 @@ import Boards from "../model/boards";
 import CommandError from "../error/command-error";
 import NoAvailablePortError from "../error/no-available-port-error";
 import NotFoundError from "../error/not-found-error";
-import BoardError from "../error/board-error";
+import GenericBoardError from "../error/generic-board-error";
 require('longjohn');
 
 /**
@@ -22,6 +22,12 @@ class MainController {
      * @access private
      */
     private static namespace = `main`;
+
+    /**
+     * @access private
+     * @type {Logger}
+     */
+    private log = new Logger( MainController.namespace );
 
     /**
      * @type {Flags}
@@ -60,9 +66,9 @@ class MainController {
     constructor() {
         this.options = Config.parseOptions( process.argv );
 
-        Logger.info( MainController.namespace, 'Starting REV' );
+        this.log.info( 'Starting rev-service' );
 
-        process.env.verbose = this.options.verbose ? 'true' : '';
+        process.env.debug = this.options.debug ? 'true' : '';
         this.startServices();
     }
 
@@ -72,8 +78,6 @@ class MainController {
      */
     private startServices(): void {
         this.model = new Boards();
-        // this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
-        // this.model.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
 
         this.socketService = new WebSocketService(
             this.options.port,
@@ -93,7 +97,7 @@ class MainController {
             this.serialService   = new SerialService( this.model );
         }
 
-        //process.on('uncaughtException', this.handleError );
+        process.on('uncaughtException', this.handleError );
     }
 
     /**
@@ -106,14 +110,14 @@ class MainController {
             case CommandError:
             case NoAvailablePortError:
             case NotFoundError:
-                Logger.warn( MainController.namespace, error.message );
+                this.log.warn( error.message );
                 break;
             case Error:
-                Logger.stack( MainController.namespace, error );
+                this.log.stack( error );
                 break;
-            case BoardError:
+            case GenericBoardError:
             default:
-                Logger.error( MainController.namespace, error );
+                this.log.error( error );
         }
     }
 }

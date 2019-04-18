@@ -5,6 +5,8 @@ import {Command} from "../interface/command";
 import CommandError from "../error/command-error";
 import * as EtherPort from 'etherport';
 import Timeout = NodeJS.Timeout;
+import Chalk from 'chalk';
+
 
 /**
  * Generic representation of devices compatible with the firmata protocol.
@@ -18,6 +20,14 @@ class Board implements DiscreteBoard {
      * @access public
      */
     public id: string;
+
+    private static readonly heartbeatInterval = 10000;
+
+    /**
+     *
+     * @type {Logger}
+     */
+    protected log: Logger;
 
     /**
      * @type {string}
@@ -88,11 +98,13 @@ class Board implements DiscreteBoard {
         this.timeouts = [];
         this.intervals = [];
 
-        this.namespace = `board - ${ this.id }`;
-
         this.readyListener = () => {
-            Logger.info( this.namespace, 'Ready to rumble' );
+            this.namespace = `board - ${ this.id }`;
+            this.log = new Logger( this.namespace );
+
+            this.log.info( 'Ready' );
             this.status = BoardStatus.READY;
+            this.startHeartbeat();
         };
 
         this.firmataBoard.on( 'ready', this.readyListener );
@@ -153,7 +165,8 @@ class Board implements DiscreteBoard {
      * @param {Command} command
      */
     public executeCommand( command: Command ) {
-        if ( !this.isAvailableCommand( command ) ) throw new CommandError( `'${ command.method }' is not a valid command.` );
+        this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( command.method ) }.` );
+        if ( !this.isAvailableCommand( command ) ) throw new CommandError( `'${ Chalk.rgb( 67,230,145 ).bold( command.method ) }' is not a valid command.` );
         this.AVAILABLE_COMMANDS[ command.method ]( command.parameter );
     }
 
@@ -170,6 +183,7 @@ class Board implements DiscreteBoard {
     public clearAllTimers(): void {
         this.clearAllIntervals();
         this.clearAllTimeouts();
+        this.firmataBoard.removeAllListeners();
     }
 
     protected clearInterval( interval: Timeout ): void {
@@ -190,6 +204,29 @@ class Board implements DiscreteBoard {
     private clearAllTimeouts(): void {
         this.timeouts.forEach( timeout => clearTimeout( timeout ) );
         this.timeouts = [];
+    }
+
+    /**
+     * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
+     * Emits a disconnect event on its FirmataBoard instance if the device fails to respond within 2 seconds of this query being sent.
+     * @return {void}
+     */
+    protected startHeartbeat() {
+        const heartbeat = setInterval( () => {
+            const heartbeatTimeout = setTimeout( () => {
+                this.log.warn( `Heartbeat timeout.` );
+                this.clearAllTimers();
+                this.firmataBoard.emit( 'disconnect' );
+            }, 2000 );
+
+            this.timeouts.push( heartbeatTimeout );
+
+            this.firmataBoard.queryFirmware( () => {
+                this.log.debug( `${ Chalk.rgb( 230,67,67 ).bold( '❤' ) }` );
+                this.clearTimeout( heartbeatTimeout );
+            } );
+        }, Board.heartbeatInterval );
+        this.intervals.push ( heartbeat );
     }
 
     /**

@@ -11,14 +11,6 @@ import EthernetService from "./ethernet-service";
 class SerialService extends BoardService {
 
     /**
-     * Namespace for logging purposes
-     * @access private
-     * @static
-     * @type {string}
-     */
-    private static namespace = `serial`;
-
-    /**
      * A list of port IDs in which an unsupported device is plugged in.
      * @access private
      * @type {string[]}
@@ -32,9 +24,11 @@ class SerialService extends BoardService {
     constructor( model: Boards ) {
         super( model );
 
-        this.connections = [];
+        this.namespace = 'serial';
+        this.log = new Logger( this.namespace );
+
         this.unsupportedDevices = [];
-        Logger.info( SerialService.namespace, `Listening on serial ports.` );
+        this.log.info( `Listening on serial ports.` );
         this.startListening();
     }
 
@@ -59,7 +53,7 @@ class SerialService extends BoardService {
                                                                                  // todo: fix this shite
 
             // don't connect to the same device twice, also ignore devices that don't support Firmata
-            if ( port && !this.isConnected( port.comName ) && !this.isUnsupported( port.comName ) ) {
+            if ( port && !this.isUnsupported( port.comName ) ) {
                 this.connectToBoard(
                     port.comName,
                     this.handleConnected.bind( this ),
@@ -74,8 +68,7 @@ class SerialService extends BoardService {
      * @param {string} boardId
      */
     private handleConnected( boardId: string ): void {
-        Logger.info( SerialService.namespace, `A new compatible device connected on: ${boardId}.` );
-        this.connections.push( boardId );
+        this.log.info( `A new compatible device connected on: ${boardId}.` );
     }
 
     /**
@@ -83,21 +76,11 @@ class SerialService extends BoardService {
      * @param {string} boardId
      */
     private handleDisconnected( boardId: string ): void {
-        if ( boardId ) Logger.info( SerialService.namespace, `A device has disconnected from port ${boardId}.` );
-        else Logger.info( SerialService.namespace, `A device has failed to connect.` );
+        if ( boardId ) this.log.info( `A device has disconnected from port ${boardId}.` );
+        else this.log.info( `A device has failed to connect.` );
 
-        Logger.info( SerialService.namespace, `A device has disconnected from port ${boardId}.` );
+        this.log.info( `A device has disconnected from port ${boardId}.` );
         this.removeConnection( boardId );
-    }
-
-    /**
-     * Returns true if a device has already connected on a specific port or false if not.
-     * @access private
-     * @param {string} port
-     * @return {boolean}
-     */
-    private isConnected( port: string ): boolean {
-        return this.connections.indexOf( port ) >= 0;
     }
 
     /**

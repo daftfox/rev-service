@@ -19,9 +19,15 @@ class BoardService {
 
     /**
      * @access protected
-     * @type {string[] | EtherPort[]}
+     * @type {string}
      */
-    protected connections: string[] | EtherPort[];
+    protected namespace = 'BoardService';
+
+    /**
+     * @access protected
+     * @type {Logger}
+     */
+    protected log: Logger;
 
     /**
      * @constructor
@@ -29,13 +35,15 @@ class BoardService {
      */
     constructor( model: Boards ) {
         this.model = model;
+
+        this.log = new Logger( this.namespace )
     }
 
     /**
      * Sets up a connection to a board.
-     * @param {EtherPort | string} port - An EtherPort object or serial port address
-     * @param {function(boolean):void} connected - Callback for when device successfully connects.
-     * @param {function():void} disconnected
+     * @param {EtherPort | string} port An EtherPort object or serial port address
+     * @param {function(string):void} connected Callback for when device successfully connects.
+     * @param {function(string):void} disconnected Callback when device disconnects
      */
     protected connectToBoard( port: EtherPort | string, connected?: ( boardId: string ) => void, disconnected?: ( boardId?: string ) => void ): void {
         let board: Board;
@@ -49,10 +57,11 @@ class BoardService {
          * The device is deemed unsupported if a connection could not be made within that period.
          */
         const connectionTimeout = setTimeout( _ => {
+            this.log.warn( 'Timeout while connecting to board.' );
             board = null;
             firmataBoard.removeAllListeners(); // "What do we say to the God of memory leaks? Not today."
             disconnected();
-        }, 10000) ;
+        }, 10000);
 
         /*
          * I perform some dark magic here.
@@ -64,10 +73,11 @@ class BoardService {
          * For now the following devices have a tailor made class:
          * - Major Tom ( MajorTom.ino )
          */
-        firmataBoard.on( 'queryfirmware', () => {
-            const type = firmataBoard.firmware.name.replace( '.ino', '' );
+        firmataBoard.once( 'queryfirmware', () => {
+            const firmware = firmataBoard.firmware.name.replace( '.ino', '' );
+            this.log.debug( `Firmware of connected device: ${ firmware } v${firmataBoard.firmware.version.major}.${firmataBoard.firmware.version.minor}.` );
 
-            switch (type) {
+            switch (firmware) {
                 case 'MajorTom':
                     board = new MajorTom( firmataBoard, id );
                     break;
@@ -80,30 +90,16 @@ class BoardService {
         /*
          * A proper connection was made and the board is passed to the callback method.
          */
-        firmataBoard.on( 'ready', () => {
-            this.model.addBoard( board );
+        firmataBoard.once( 'ready', () => {
             connected( id );
+            this.model.addBoard( board );
             clearTimeout( connectionTimeout );
         } );
 
-        /*
-         * Although I have never seen this event getting properly fired, I'm still implementing this.
-         * Disconnects usually/only happen when the connection is broken up in an unplanned way.
-         * I try to capture disconnected in a different way
-         */
-        firmataBoard.on( 'disconnect', () => {
-            Logger.warn( 'DISCONNECT', 'DISCONNECT' );
 
-            this.model.removeBoard( board.id );
-            disconnected( id );
-        } );
-
-        /*
-         * The same goes for this one.
-         */
-        firmataBoard.on('close', () => {
-            Logger.warn( 'CLOSED', 'CLOSED' );
-
+        firmataBoard.once( 'disconnect', () => {
+            this.log.debug( 'Disconnect event received from firmataboard.' );
+            board.clearAllTimers();
             this.model.removeBoard( board.id );
             disconnected( id );
         } );
@@ -115,8 +111,7 @@ class BoardService {
      * @param {EtherPort | string} port
      */
     protected removeConnection( port: string ): void {
-        this.connections.splice( this.connections.indexOf( port ), 1 );
-        this.model.removeBoard( port );
+        if ( port ) this.model.removeBoard( port );
     }
 }
 

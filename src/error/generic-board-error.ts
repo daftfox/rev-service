@@ -1,7 +1,7 @@
-class BoardError extends Error {
+class GenericBoardError extends Error {
     constructor( message: string ) {
         super( message );
     }
 }
 
-export default BoardError;
+export default GenericBoardError;

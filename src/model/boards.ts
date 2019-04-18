@@ -1,6 +1,8 @@
 import Board from '../domain/board';
 import {Command} from "../interface/command";
 import NotFoundError from "../error/not-found-error";
+import Logger from "../service/logger";
+import Chalk from 'chalk';
 
 /**
  * @classdesc
@@ -11,20 +13,15 @@ class Boards {
      * @access private
      * @type {Board[]}
      */
-    private _boards: Board[];
+    private _boards: Board[] = [];
 
-    private notifyBoardConnectedListeners: (( Board ) => void)[];
+    private static namespace = 'model';
 
-    private notifyBoardDisconnectedListeners: (( Board ) => void)[];
+    private notifyBoardConnectedListeners: (( Board ) => void)[] = [];
 
-    /**
-     * @constructor
-     */
-    constructor() {
-        this._boards = [];
-        this.notifyBoardConnectedListeners = [];
-        this.notifyBoardDisconnectedListeners = [];
-    }
+    private notifyBoardDisconnectedListeners: (( Board ) => void)[] = [];
+
+    private log = new Logger( Boards.namespace );
 
     public addBoardConnectedListener( listener: ( Board ) => void ): void {
         this.notifyBoardConnectedListeners.push( listener );
@@ -47,7 +44,7 @@ class Boards {
      * Returns an observable containing the board with the id supplied in the argument
      * @access public
      * @param {string} id
-     * @return {Observable<Board>}
+     * @return {Board}
      */
     public getBoardById( id: string ): Board {
         return this._boards.find( board => board.id === id );
@@ -59,6 +56,7 @@ class Boards {
      * @param {Board} board
      */
     public addBoard( board: Board ): void {
+        this.log.debug( `Adding new board with id ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } to list of available boards.` );
         this._boards.push( board );
         this.notifyBoardConnectedListeners.forEach( listener => listener( Board.toDiscrete( board ) ) );
 
@@ -70,9 +68,12 @@ class Boards {
      * @param {string} boardId
      */
     public removeBoard( boardId: string ): void {
+        this.log.debug( `Removing board with id ${ Chalk.rgb( 0, 143, 255 ).bold( boardId ) } from list of available boards.` );
         const removedBoard = this._boards.splice( this._boards.findIndex( board => board.id === boardId ), 1 ).shift();
-        removedBoard.clearAllTimers();
-        this.notifyBoardDisconnectedListeners.forEach( listener => listener( Board.toDiscrete( removedBoard ) ) );
+
+        if ( removedBoard ) {
+            this.notifyBoardDisconnectedListeners.forEach( listener => listener( Board.toDiscrete( removedBoard ) ) );
+        }
     }
 
     /**
@@ -83,7 +84,7 @@ class Boards {
     public executeCommand( command: Command ): void {
         const board = this._boards.find( board => board.id === command.boardId );
 
-        if ( !board ) throw new NotFoundError( `Board with id ${command.boardId} not found` );
+        if ( !board ) throw new NotFoundError( `Board with id ${ Chalk.rgb( 0, 143, 255 ).bold( command.boardId ) } not found` );
         else {
             board.executeCommand( command );
         }

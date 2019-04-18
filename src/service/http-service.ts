@@ -3,6 +3,7 @@ import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 import Logger from './logger';
+import Chalk from 'chalk';
 
 /**
  * @classdesc A basic HTTP static files server serving static files at a given port
@@ -15,6 +16,8 @@ class HttpService {
      * @access private
      */
     private _server: Server;
+
+    private log = new Logger( HttpService.namespace );
 
     /**
      * @type {number}
@@ -56,7 +59,7 @@ class HttpService {
     constructor( port: number ) {
         this.port = port;
         this._server = createServer( this.handleRequest.bind( this ) ).listen( port );
-        Logger.info( HttpService.namespace, `Listening on port ${port}.` );
+        this.log.debug( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( port.toString( 10 ) ) }.` );
     }
 
     /**

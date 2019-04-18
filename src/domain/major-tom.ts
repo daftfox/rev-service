@@ -170,7 +170,9 @@ class MajorTom extends Board {
      */
     private initializeMajorTom(): void {
         this.namespace = `Major Tom - ${ this.id }`;
-        Logger.debug( this.namespace, "This is Major Tom to ground control." );
+        this.log = new Logger( this.namespace );
+
+        this.log.debug( "This is Major Tom to ground control." );
         this.firmataBoard.pinMode( MajorTom.FAN_PIN, FirmataBoard.PIN_MODE.OUTPUT );
         this.firmataBoard.pinMode( MajorTom.POWER_PIN, FirmataBoard.PIN_MODE.PWM );
 
@@ -182,6 +184,7 @@ class MajorTom extends Board {
         };
 
         this.firmataBoard.serialConfig( serialOptions );
+        this.startHeartbeat();
     }
 
     /**

@@ -21,10 +21,10 @@ Devices are able to connect using nothing but a regular network connection. The 
 
 ### WebSocket
 The frontend application can be fed through a WebSocket connection, again, promising near-realtime updates.
-The WebSocket endpoint is by default available at ws://localhost
+The WebSocket endpoint is by default available at <ws://localhost>
 
 ### FileServer
-The FileServer serves files that are present in the ```/public``` directory on http://localhost. It serves ```index.html``` by default when a GET request is made to the root folder.
+The FileServer serves files that are present in the ```/public``` directory on <http://localhost>. It serves ```index.html``` by default when a GET request is made to the root folder.
 Will probably remove this in the future.
 
 ## Installation
