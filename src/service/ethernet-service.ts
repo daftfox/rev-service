@@ -108,7 +108,7 @@ class EthernetService extends BoardService{
     private handleDisconnected( boardId: string, etherPort: EtherPort ): void {
         if ( boardId ) this.log.info( `Device disconnected from port ${ Chalk.rgb( 0, 143, 255 ).bold( boardId ) }.` );
 
-        //etherPort.server.close();
+        etherPort.server.close();
         this.availablePorts.push( parseInt( boardId, 10 ) );
 
         this.removeBoard( boardId );
