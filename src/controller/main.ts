@@ -97,7 +97,7 @@ class MainController {
             this.serialService   = new SerialService( this.model );
         }
 
-        process.on('uncaughtException', this.handleError );
+        process.on('uncaughtException', this.handleError.bind( this ) );
     }
 
     /**
@@ -117,7 +117,7 @@ class MainController {
                 break;
             case GenericBoardError:
             default:
-                this.log.error( error );
+                this.log.stack( error );
         }
     }
 }

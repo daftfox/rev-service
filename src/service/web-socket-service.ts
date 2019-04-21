@@ -1,6 +1,6 @@
 import * as WebSocket from 'websocket';
 import {Server} from 'http';
-import WebSocketEvent, {WebSocketEventType} from "../interface/web-socket-event";
+import WebSocketEvent, {WebSocketEventType} from "../domain/web-socket-event";
 import Logger from "./logger";
 import {AddressInfo} from "net";
 import {Command} from "../interface/command";
@@ -52,6 +52,7 @@ class WebSocketService {
 
         this.model = model;
         this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
+        this.model.addBoardUpdatedListener( this.broadcastBoardUpdated.bind( this ) );
         this.model.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
 
         this.startWebSocketServer();
@@ -116,13 +117,17 @@ class WebSocketService {
         this.broadcastEvent( new WebSocketEvent( WebSocketEventType.ADD_BOARD, Board.toDiscrete( board ) ) );
     }
 
+    private broadcastBoardUpdated( board: Board ): void {
+        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.UPDATE_BOARD, Board.toDiscrete( board ) ) );
+    }
+
     /**
      * Broadcast an update with the disconnected board to connected clients.
      * @access private
      * @param {Board} board
      */
     private broadcastBoardDisconnected( board: Board ): void {
-        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.REMOVE_BOARD, Board.toDiscrete( board ) ) );
+        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.REMOVE_BOARD, board.id ) );
     }
 
     /**

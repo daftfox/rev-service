@@ -60,20 +60,6 @@ class EthernetService extends BoardService{
     }
 
     /**
-     * Returns an array of booleans mapped to ports that are represented by the array index. An available port is set to true.
-     * @return {boolean[]} Array of ports
-     */
-    private getPortRange( options: EthernetServiceOptions ): number[] {
-        const portRange = [];
-
-        for ( let port = options.startPort; port < options.endPort; port ++ ) {
-            portRange.push( port );
-        }
-
-        return portRange;
-    }
-
-    /**
      * Setup a proxy to redirect communication from and to
      * boards from the supplied port to any of the supplied available ports.
      * @param {net.Socket} localSocket
@@ -98,18 +84,18 @@ class EthernetService extends BoardService{
             );
         } );
 
-        // send data received from physical device to instance of Board class
+        // send data received from physical device to instance of IBoard class
         localSocket.on( 'data', ( data: Buffer ) => {
             deviceSocket.write( data );
         } );
 
-        // send data originating from the Board class instance to the physical device
+        // send data originating from the IBoard class instance to the physical device
         deviceSocket.on( 'data', ( data: Buffer ) => {
             localSocket.write( data );
         } );
 
-        // connection was lost; remove the Board instance and close the ethernet server
-        localSocket.on( 'error', ( err: Error ) => {
+        // connection was lost; remove the IBoard instance and close the ethernet server
+        localSocket.on( 'error', () => {
             this.handleDisconnected( availablePort.toString( 10 ), etherPort );
         } );
     }
@@ -122,10 +108,10 @@ class EthernetService extends BoardService{
     private handleDisconnected( boardId: string, etherPort: EtherPort ): void {
         if ( boardId ) this.log.info( `Device disconnected from port ${ Chalk.rgb( 0, 143, 255 ).bold( boardId ) }.` );
 
-        etherPort.server.close();
+        //etherPort.server.close();
         this.availablePorts.push( parseInt( boardId, 10 ) );
 
-        this.removeConnection( boardId );
+        this.removeBoard( boardId );
     }
 
     /**
@@ -137,13 +123,27 @@ class EthernetService extends BoardService{
     }
 
     /**
+     * Returns an array of booleans mapped to ports that are represented by the array index. An available port is set to true.
+     * @return {boolean[]} Array of ports
+     */
+    private getPortRange( options: EthernetServiceOptions ): number[] {
+        const portRange = [];
+
+        for ( let port = options.startPort; port < options.endPort; port ++ ) {
+            portRange.push( port );
+        }
+
+        return portRange;
+    }
+
+    /**
      * Returns the lowest unused port from the list of available ports.
      * @throws NoAvailablePortError
      * @return {number} An unused port from the range of available ports.
      */
     private getAvailablePort(): number {
         if ( !this.getNumberOfAvailablePorts() ) throw new NoAvailablePortError( `No available ports left. Consider increasing the number of available ports.` );
-        return Math.min( ...this.availablePorts );
+        return this.availablePorts.shift();
     }
 }
 

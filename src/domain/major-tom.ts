@@ -6,11 +6,11 @@ import Logger from "../service/logger";
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
 /**
- * MajorTom is an extension of the default Board class, allowing for more specific control over its behaviour. Since we
- * know and design the physical properties and abilities of the 'Major Tom' device, we are able to define methods that
- * allow us to seamlessly execute these abilities.
- *
  * @classdesc
+ * MajorTom is an extension of the default IBoard class, allowing for more specific control over its behaviour. Since we
+ * know and design the physical properties and abilities of the 'Major Tom' device, we are able to define methods that
+ * allow us to seamlessly integrate with these abilities.
+ *
  * @namespace MajorTom
  */
 class MajorTom extends Board {
@@ -21,7 +21,6 @@ class MajorTom extends Board {
      * GOOD     ~12.6v
      * LOW      ~11.5v
      * CRITICAL ~10.6v
-     *
      * @type {Object}
      * @access private
      * @namespace SUPPLY_VOLTAGE
@@ -37,7 +36,6 @@ class MajorTom extends Board {
      * The pin connected to the builtin LED
      * ESP8266:         GPIO2
      * Wemos D1 Mini:   D4
-     *
      * @type {number}
      * @access private
      */
@@ -47,7 +45,6 @@ class MajorTom extends Board {
      * The pin connected to the unbalanced fan
      * ESP8266:         GPIO16
      * Wemos D1 Mini:   D0
-     *
      * @type {number}
      * @access private
      */
@@ -57,7 +54,6 @@ class MajorTom extends Board {
      * The pin connected to the variable power supply
      * ESP8266:         GPIO14
      * Wemos D1 Mini:   D5
-     *
      * @type {number}
      * @access private
      */
@@ -67,7 +63,6 @@ class MajorTom extends Board {
      * Microcontroller pin designated for receiving serial communication
      * ESP8266:         GPIO13
      * Wemos D1 Mini:   D7
-     *
      * @type {number}
      * @access private
      */
@@ -77,7 +72,6 @@ class MajorTom extends Board {
      * The pin designated for transmitting serial communication
      * ESP8266:         GPIO15
      * Wemos D1 Mini:   D8
-     *
      * @type {number}
      * @access private
      */
@@ -86,7 +80,6 @@ class MajorTom extends Board {
     /**
      * The baud rate at which the Freematics OBD II emulator communicates over UART
      * This is 38400 baud by default
-     *
      * @type {number}
      * @access private
      */
@@ -94,7 +87,6 @@ class MajorTom extends Board {
 
     /**
      * The default duration of the power dip that's executed on engine ignition.
-     *
      * @type {number}
      * @access private
      */
@@ -102,7 +94,6 @@ class MajorTom extends Board {
 
     /**
      * The default duration of a shake interval. Eg. the length of time the fan spins before taking a little break.
-     *
      * @type {number}
      * @access private
      */
@@ -110,39 +101,35 @@ class MajorTom extends Board {
 
     /**
      * The ID of the interval that's executed when we turn on the engine.
-     *
      * @access private
      */
     private shakeInterval;
 
     /**
      * The ID of the interval that's executed when we blink the builtin LED.
-     *
      * @access private
      */
     private blinkInterval;
 
     /**
      * Indicator for whether the engine is running or not.
-     *
      * @type {boolean}
      * @access private
      */
     private engineOn = false;
 
     /**
-     * The AVAILABLE_COMMANDS property is used to map available methods to string representations so we can easily
+     * The availableCommands property is used to map available methods to string representations so we can easily
      * validate and call them from elsewhere. The mapping should be obvious.
-     *
      * @type {Object}
      * @access protected
      */
-    protected AVAILABLE_COMMANDS = {
-        BLINKON: () => { this.enableBlinkLed( true ) },
-        BLINKOFF: () => { this.enableBlinkLed( false ) },
+    public availableCommands = {
+        BLINKON: () => { this.enableBlinkLed( true ); this.currentJob = "BLINKON" },
+        BLINKOFF: () => { this.enableBlinkLed( false ); this.resetCurrentJob() },
         TOGGLELED: () => { this.toggleLED() },
-        ENGINEON: () => { this.startEngine() },
-        ENGINEOFF: () => { this.stopEngine() },
+        ENGINEON: () => { this.startEngine(); this.currentJob = "ENGINEON" },
+        ENGINEOFF: () => { this.stopEngine(); this.resetCurrentJob() },
         SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
         SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
         SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
@@ -195,12 +182,14 @@ class MajorTom extends Board {
      */
     private enableBlinkLed( enable: boolean ) {
         if ( enable ) {
-            if ( this.blinkInterval ) throw new Error( `LED blink is already enabled.` );
+            if ( this.blinkInterval ) {
+                this.log.warn( `LED blink is already enabled.` );
+                return;
+            }
             this.blinkInterval = setInterval( this.toggleLED.bind( this ), 500);
             this.intervals.push( this.blinkInterval );
         } else {
             this.clearInterval( this.blinkInterval );
-            this.intervals.splice( this.intervals.indexOf( this.blinkInterval, 1 ) );
             this.blinkInterval = null;
             this.firmataBoard.digitalWrite( MajorTom.LED_PIN, FirmataBoard.PIN_STATE.HIGH ); // high === low???
         }

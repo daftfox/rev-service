@@ -80,7 +80,7 @@ class SerialService extends BoardService {
         else this.log.info( `A device has failed to connect.` );
 
         this.log.info( `A device has disconnected from port ${boardId}.` );
-        this.removeConnection( boardId );
+        this.removeBoard( boardId );
     }
 
     /**

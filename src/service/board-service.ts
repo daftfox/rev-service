@@ -66,7 +66,7 @@ class BoardService {
         /*
          * I perform some dark magic here.
          * As there are standard devices that offer functionality, I take a look at the name of the firmware that
-         * was installed. By default an instance of Board is created, but with these standard devices I instantiate
+         * was installed. By default an instance of IBoard is created, but with these standard devices I instantiate
          * an object of its corresponding class.
          *
          * The firmware name is defined by the name of the Arduino sketch.
@@ -84,23 +84,23 @@ class BoardService {
                 default:
                     board = new Board( firmataBoard, id );
             }
-            board.setPort( port );
         } );
 
         /*
          * A proper connection was made and the board is passed to the callback method.
          */
         firmataBoard.once( 'ready', () => {
-            connected( id );
             this.model.addBoard( board );
             clearTimeout( connectionTimeout );
+            connected( id );
         } );
 
+        firmataBoard.on( 'update', () => {
+            this.model.updateBoard( board );
+        } );
 
         firmataBoard.once( 'disconnect', () => {
             this.log.debug( 'Disconnect event received from firmataboard.' );
-            board.clearAllTimers();
-            this.model.removeBoard( board.id );
             disconnected( id );
         } );
     }
@@ -110,7 +110,7 @@ class BoardService {
      * @access protected
      * @param {EtherPort | string} port
      */
-    protected removeConnection( port: string ): void {
+    protected removeBoard(port: string ): void {
         if ( port ) this.model.removeBoard( port );
     }
 }

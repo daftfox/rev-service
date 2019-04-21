@@ -15,7 +15,7 @@ describe( 'Ethernet service', () => {
     const connectedClients: net.Socket[] = [];
 
     before( () => {
-        //process.env.verbose = '1';
+        process.env.debug = '1';
         model = new Boards();
         ethernetServiceOptions = {
             listenPort: 9000,
@@ -51,7 +51,6 @@ describe( 'Ethernet service', () => {
                 connectedClients.push( client );
 
                 expect( model.boards.length ).to.equal( 1 );
-                model.removeBoard( model.boards.shift().id );
 
                 done();
             });

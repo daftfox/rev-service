@@ -18,6 +18,7 @@ class WebSocketEvent {
 export enum WebSocketEventType {
     ADD_BOARD,
     REMOVE_BOARD,
+    UPDATE_BOARD,
     UPDATE_ALL_BOARDS,
     EXECUTE_PROGRAM
 }

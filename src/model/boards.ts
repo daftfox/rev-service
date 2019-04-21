@@ -19,12 +19,18 @@ class Boards {
 
     private notifyBoardConnectedListeners: (( Board ) => void)[] = [];
 
+    private notifyBoardUpdatedListeners: (( Board ) => void)[] = [];
+
     private notifyBoardDisconnectedListeners: (( Board ) => void)[] = [];
 
     private log = new Logger( Boards.namespace );
 
     public addBoardConnectedListener( listener: ( Board ) => void ): void {
         this.notifyBoardConnectedListeners.push( listener );
+    }
+
+    public addBoardUpdatedListener( listener: ( Board ) => void ): void {
+        this.notifyBoardUpdatedListeners.push( listener );
     }
 
     public addBoardDisconnectedListener( listener: ( Board ) => void ): void {
@@ -58,8 +64,7 @@ class Boards {
     public addBoard( board: Board ): void {
         this.log.debug( `Adding new board with id ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } to list of available boards.` );
         this._boards.push( board );
-        this.notifyBoardConnectedListeners.forEach( listener => listener( Board.toDiscrete( board ) ) );
-
+        this.notifyBoardConnectedListeners.forEach( listener => listener( board ) );
     }
 
     /**
@@ -72,8 +77,13 @@ class Boards {
         const removedBoard = this._boards.splice( this._boards.findIndex( board => board.id === boardId ), 1 ).shift();
 
         if ( removedBoard ) {
-            this.notifyBoardDisconnectedListeners.forEach( listener => listener( Board.toDiscrete( removedBoard ) ) );
+            removedBoard.clearAllTimers();
+            this.notifyBoardDisconnectedListeners.forEach( listener => listener( removedBoard ) );
         }
+    }
+
+    public updateBoard( updatedBoard ): void {
+        this.notifyBoardUpdatedListeners.forEach( listener => listener( updatedBoard ) );
     }
 
     /**

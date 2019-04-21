@@ -1,11 +1,10 @@
 import * as FirmataBoard from 'firmata';
-import { BoardStatus, DiscreteBoard } from "../interface/discrete-board";
 import Logger from "../service/logger";
 import {Command} from "../interface/command";
 import CommandError from "../error/command-error";
-import * as EtherPort from 'etherport';
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
+import DiscreteBoard from "../interface/discrete-board";
 
 
 /**
@@ -21,10 +20,16 @@ class Board implements DiscreteBoard {
      */
     public id: string;
 
+    /**
+     * The interval at which to send out a heartbeat
+     * @static
+     * @access private
+     * @type {number}
+     */
     private static readonly heartbeatInterval = 10000;
 
     /**
-     *
+     * @access protected
      * @type {Logger}
      */
     protected log: Logger;
@@ -42,28 +47,18 @@ class Board implements DiscreteBoard {
     public productId: string;
 
     /**
-     * @type {BoardStatus}
-     * @access public
-     */
-    public status: BoardStatus;
-
-    /**
      * @type {string}
      * @access public
      */
     public type: string;
 
     /**
-     * @type {string | EtherPort
-     * @access private
-     */
-    private port: string | EtherPort;
-
-    /**
+     * The availableCommands property is used to map available methods to string representations so we can easily
+     * validate and call them from elsewhere. The mapping should be obvious.
      * @type {Object}
      * @access protected
      */
-    protected AVAILABLE_COMMANDS = {};
+    public availableCommands = {};
 
     /**
      * @type {string}
@@ -82,12 +77,22 @@ class Board implements DiscreteBoard {
      */
     protected firmataBoard: FirmataBoard;
 
+    /**
+     * @access protected
+     * @type {Timeout[]}
+     */
     protected intervals: Timeout[];
 
+    /**
+     * @access protected
+     * @type {Timeout[]}
+     */
     protected timeouts: Timeout[];
 
+    public currentJob: string = "IDLE";
+
     /**
-     * Creates a new instance of Board and awaits a successful connection before setting its status to READY
+     * Creates a new instance of IBoard and awaits a successful connection before setting its status to READY
      * @constructor
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
@@ -97,33 +102,38 @@ class Board implements DiscreteBoard {
         this.id = id;
         this.timeouts = [];
         this.intervals = [];
+        this.type = this.constructor.name;
 
         this.readyListener = () => {
             this.namespace = `board - ${ this.id }`;
             this.log = new Logger( this.namespace );
 
             this.log.info( 'Ready' );
-            this.status = BoardStatus.READY;
             this.startHeartbeat();
         };
 
         this.firmataBoard.on( 'ready', this.readyListener );
     }
 
+    public getAvailableCommands(): string[] {
+        return Object.keys( this.availableCommands );
+    }
+
     /**
-     * Return a minimal representation of the Board class
+     * Return a minimal representation of the IBoard class
      * @static
      * @access public
      * @param {Board} board
-     * @returns {DiscreteBoard} A small object representing a Board instance, but without the overhead and methods.
+     * @returns {DiscreteBoard} A small object representing a IBoard instance, but without the overhead and methods.
      */
     public static toDiscrete( board: Board ): DiscreteBoard {
         return {
             id: board.id,
             vendorId: board.vendorId,
             productId: board.productId,
-            status: board.status,
-            type: board.type
+            type: board.type,
+            currentJob: board.currentJob,
+            commands: board.getAvailableCommands()
         };
     }
 
@@ -139,26 +149,6 @@ class Board implements DiscreteBoard {
     }
 
     /**
-     * Set port
-     *
-     * @access public
-     * @param {string | EtherPort} port
-     */
-    public setPort( port: string | EtherPort ): void {
-        this.port = port;
-    }
-
-    /**
-     * Get port
-     *
-     * @access public
-     * @returns {string | EtherPort}
-     */
-    public getPort(): string | EtherPort {
-        return this.port;
-    }
-
-    /**
      * Execute a command
      *
      * @access public
@@ -167,40 +157,48 @@ class Board implements DiscreteBoard {
     public executeCommand( command: Command ) {
         this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( command.method ) }.` );
         if ( !this.isAvailableCommand( command ) ) throw new CommandError( `'${ Chalk.rgb( 67,230,145 ).bold( command.method ) }' is not a valid command.` );
-        this.AVAILABLE_COMMANDS[ command.method ]( command.parameter );
+        this.availableCommands[ command.method ]( command.parameter );
+        this.firmataBoard.emit( 'update' );
     }
 
     /**
-     * Set status
-     *
-     * @access public
-     * @param {BoardStatus} status
+     * Clear all timeouts and intervals. This is required when a physical device is disconnected.
      */
-    public setStatus( status: BoardStatus ) {
-        this.status = status;
-    }
-
     public clearAllTimers(): void {
         this.clearAllIntervals();
         this.clearAllTimeouts();
         this.firmataBoard.removeAllListeners();
     }
 
+    /**
+     * Clear an interval that was set by this IBoard instance.
+     * @param {NodeJS.Timeout} interval
+     */
     protected clearInterval( interval: Timeout ): void {
         clearInterval( this.intervals.find( _interval => _interval === interval ) );
         this.intervals.splice( this.intervals.indexOf( interval ), 1 );
     }
 
+    /**
+     * Clear a timeout that was set by this IBoard instance.
+     * @param {NodeJS.Timeout} timeout
+     */
     protected clearTimeout( timeout: Timeout ): void {
         clearTimeout( this.timeouts.find( _timeout => _timeout === timeout ) );
         this.timeouts.splice( this.timeouts.indexOf( timeout ), 1 );
     }
 
+    /**
+     * Clear all intervals set by this IBoard instance.
+     */
     private clearAllIntervals(): void {
         this.intervals.forEach( interval => clearInterval( interval ) );
         this.intervals = [];
     }
 
+    /**
+     * Clear all timeouts set by this IBoard instance
+     */
     private clearAllTimeouts(): void {
         this.timeouts.forEach( timeout => clearTimeout( timeout ) );
         this.timeouts = [];
@@ -213,31 +211,41 @@ class Board implements DiscreteBoard {
      */
     protected startHeartbeat() {
         const heartbeat = setInterval( () => {
+
+            // set a timeout to emit a disconnect event if the physical device doesn't reply within 2 seconds
             const heartbeatTimeout = setTimeout( () => {
                 this.log.warn( `Heartbeat timeout.` );
-                this.clearAllTimers();
                 this.firmataBoard.emit( 'disconnect' );
+                this.clearInterval( heartbeat );
+                this.clearTimeout( heartbeatTimeout );
             }, 2000 );
 
             this.timeouts.push( heartbeatTimeout );
 
+            // we utilize the queryFirmware method to emulate a heartbeat
             this.firmataBoard.queryFirmware( () => {
+
+                // heartbeat received
                 this.log.debug( `${ Chalk.rgb( 230,67,67 ).bold( '❤' ) }` );
+                this.firmataBoard.emit( 'update' );
                 this.clearTimeout( heartbeatTimeout );
             } );
         }, Board.heartbeatInterval );
         this.intervals.push ( heartbeat );
     }
 
+    protected resetCurrentJob(): void {
+        this.currentJob = "IDLE";
+    }
+
     /**
-     * Check if the command received is an actual valid command
-     *
+     * Check if the command received is a valid command
      * @access private
      * @param {Command} command The command to check for availability
      * @returns {boolean} True if the command is valid, false if not
      */
     private isAvailableCommand( command: Command ): boolean {
-        return Object.keys( this.AVAILABLE_COMMANDS ).indexOf( command.method ) >= 0;
+        return this.getAvailableCommands().indexOf( command.method ) >= 0;
     }
 }
 
