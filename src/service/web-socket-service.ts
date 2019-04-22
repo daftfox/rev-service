@@ -1,14 +1,18 @@
 import * as WebSocket from 'websocket';
-import {Server} from 'http';
-import WebSocketEvent, {WebSocketEventType} from "../domain/web-socket-event";
+import { Server } from 'http';
+import WebSocketMessage from "../domain/web-socket-message";
 import Logger from "./logger";
-import {AddressInfo} from "net";
-import {Command} from "../interface/command";
+import { AddressInfo } from "net";
+import ICommandEvent from "../interface/command-event";
 import WrongEncodingError from "../error/wrong-encoding-error";
 import Boards from "../model/boards";
 import HttpService from "./http-service";
 import Board from "../domain/board";
 import Chalk from 'chalk';
+import { WebSocketMessageType } from "../domain/web-socket-message";
+import { BoardActionType } from "../interface/board-event";
+import IBoard from "../interface/board";
+import CommandService from "./command-service";
 
 /**
  * @classdesc Service that allows clients to interface using a near real-time web socket connection
@@ -42,6 +46,8 @@ class WebSocketService {
 
     private log = new Logger( WebSocketService.namespace );
 
+    private commandService: CommandService;
+
     /**
      * @constructor
      * @param {number} port
@@ -51,6 +57,8 @@ class WebSocketService {
         this.httpServer = new HttpService( port ).server;
 
         this.model = model;
+        this.commandService = new CommandService( this.model );
+
         this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
         this.model.addBoardUpdatedListener( this.broadcastBoardUpdated.bind( this ) );
         this.model.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
@@ -79,21 +87,23 @@ class WebSocketService {
     private handleConnectionRequest( request: WebSocket.request ): void {
         let connection = request.accept( null, request.origin );
 
-        this.log.info( `Client connected via ${ request.origin }` );
         this.handleClientConnected( connection );
 
-        connection.on( 'message', this.handleMessage.bind( this ) );
+        connection.on( 'message', this.handleMessageReceived.bind( this ) );
         connection.on( 'close', ( reasonCode: number, description: string ) => {
             connection = null;
-            this.log.info( `Connection to a client was lost because of: ${ description }` );
         } );
     }
 
-    private handleMessage( message: any ): void {
-        if ( message.type !== "utf8" ) throw new WrongEncodingError( `Received WebSocket message in unsupported format` );
+    private handleMessageReceived( message: { type: string, utf8Data: any } ): void {
+        if ( message.type !== "utf8" ) this.log.warn( 'Message received in wrong encoding format. Supported format is utf8' );
         try {
-            const command = <Command>JSON.parse( message.utf8Data );
-            this.model.executeCommand( command );
+            const webSocketMessage = <WebSocketMessage> JSON.parse( message.utf8Data );
+            switch ( webSocketMessage.type ) {
+                case WebSocketMessageType.COMMAND_EVENT:
+                    this.commandService.executeCommand( <ICommandEvent> webSocketMessage.payload );
+                    break;
+            }
         } catch( err ) {
             this.log.error( err );
         }
@@ -105,7 +115,16 @@ class WebSocketService {
      * @return {void}
      */
     public handleClientConnected( client: WebSocket.connection ): void {
-        this.sendEvent( client, new WebSocketEvent( WebSocketEventType.UPDATE_ALL_BOARDS, Board.toDiscreteArray( this.model.boards ) ) );
+        this.sendEvent(
+            client,
+            new WebSocketMessage(
+                WebSocketMessageType.BOARD_EVENT,
+                {
+                    action: BoardActionType.UPDATE_ALL,
+                    data: <IBoard[]> Board.toDiscreteArray( this.model.boards )
+                }
+            )
+        );
     }
 
     /**
@@ -114,11 +133,27 @@ class WebSocketService {
      * @param {Board} board The board that was connected
      */
     private broadcastBoardConnected( board: Board ): void {
-        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.ADD_BOARD, Board.toDiscrete( board ) ) );
+        this.broadcastEvent(
+            new WebSocketMessage(
+                WebSocketMessageType.BOARD_EVENT,
+                {
+                    action: BoardActionType.ADD,
+                    data: <IBoard[]> [ Board.toDiscrete( board ) ]
+                }
+            )
+        );
     }
 
     private broadcastBoardUpdated( board: Board ): void {
-        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.UPDATE_BOARD, Board.toDiscrete( board ) ) );
+        this.broadcastEvent(
+            new WebSocketMessage(
+                WebSocketMessageType.BOARD_EVENT,
+                {
+                    action: BoardActionType.UPDATE,
+                    data: <IBoard[]> [ Board.toDiscrete( board ) ]
+                }
+            )
+        );
     }
 
     /**
@@ -127,23 +162,31 @@ class WebSocketService {
      * @param {Board} board
      */
     private broadcastBoardDisconnected( board: Board ): void {
-        this.broadcastEvent( new WebSocketEvent( WebSocketEventType.REMOVE_BOARD, board.id ) );
+        this.broadcastEvent(
+            new WebSocketMessage(
+                WebSocketMessageType.BOARD_EVENT,
+                {
+                    action: BoardActionType.REMOVE,
+                    data: <IBoard[]> [ Board.toDiscrete( board ) ]
+                }
+            )
+        );
     }
 
     /**
      * @access public
-     * @param {WebSocketEvent} event
+     * @param {WebSocketMessage} event
      */
-    public broadcastEvent( event: WebSocketEvent ): void {
+    public broadcastEvent( event: WebSocketMessage ): void {
         this.webSocketServer.broadcastUTF( event.toString() );
     }
 
     /**
      * @access public
      * @param {connection} connection
-     * @param {WebSocketEvent} event
+     * @param {WebSocketMessage} event
      */
-    public sendEvent( connection: WebSocket.connection, event: WebSocketEvent ): void {
+    public sendEvent( connection: WebSocket.connection, event: WebSocketMessage ): void {
         connection.sendUTF( event.toString() );
     }
 }

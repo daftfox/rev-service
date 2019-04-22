@@ -1,4 +1,4 @@
-export default interface DiscreteBoard {
+export default interface IBoard {
     id:        string;
     vendorId:  string;
     productId: string;

@@ -41,12 +41,12 @@
     "etherport": "git://github.com/daftfox/etherport.git",
     "firmata": "^2.0.0",
     "json2typescript": "^1.0.6",
+    "longjohn": "^0.2.12",
     "moment": "^2.23.0",
     "serialport": "^7.1.0",
     "supports-color": "^5.5.0",
     "typescript": "^3.2.2",
-    "websocket": "^1.0.28",
-    "longjohn": "^0.2.12"
+    "websocket": "^1.0.28"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",

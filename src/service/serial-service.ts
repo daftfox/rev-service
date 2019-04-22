@@ -2,7 +2,7 @@ import BoardService from "./board-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import Logger from "./logger";
-import EthernetService from "./ethernet-service";
+import ISerialPort from "../interface/serial-port";
 
 /**
  * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
@@ -45,7 +45,7 @@ class SerialService extends BoardService {
      * @access private
      */
     private scanSerialPorts(): void {
-        Serialport.list( ( error: any, ports: SerialPort[] ) => {       // list all connected serial devices
+        Serialport.list( ( error: any, ports: ISerialPort[] ) => {       // list all connected serial devices
 
             const port = ports
                 .filter( port => port.manufacturer !== undefined )

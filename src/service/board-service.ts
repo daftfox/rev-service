@@ -66,7 +66,7 @@ class BoardService {
         /*
          * I perform some dark magic here.
          * As there are standard devices that offer functionality, I take a look at the name of the firmware that
-         * was installed. By default an instance of IBoard is created, but with these standard devices I instantiate
+         * was installed. By default an instance of Board is created, but with these standard devices I instantiate
          * an object of its corresponding class.
          *
          * The firmware name is defined by the name of the Arduino sketch.

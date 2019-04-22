@@ -1,10 +1,10 @@
 import * as FirmataBoard from 'firmata';
 import Logger from "../service/logger";
-import {Command} from "../interface/command";
+import ICommandEvent from "../interface/command-event";
 import CommandError from "../error/command-error";
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
-import DiscreteBoard from "../interface/discrete-board";
+import IBoard from "../interface/board";
 
 
 /**
@@ -13,7 +13,7 @@ import DiscreteBoard from "../interface/discrete-board";
  * @classdesc
  * @namespace Board
  */
-class Board implements DiscreteBoard {
+class Board implements Board {
     /**
      * @type {string
      * @access public
@@ -53,12 +53,12 @@ class Board implements DiscreteBoard {
     public type: string;
 
     /**
-     * The availableCommands property is used to map available methods to string representations so we can easily
+     * The availableActions property is used to map available methods to string representations so we can easily
      * validate and call them from elsewhere. The mapping should be obvious.
      * @type {Object}
      * @access protected
      */
-    public availableCommands = {};
+    protected availableActions = {};
 
     /**
      * @type {string}
@@ -92,7 +92,7 @@ class Board implements DiscreteBoard {
     public currentJob: string = "IDLE";
 
     /**
-     * Creates a new instance of IBoard and awaits a successful connection before setting its status to READY
+     * Creates a new instance of Board and awaits a successful connection before setting its status to READY
      * @constructor
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
@@ -115,25 +115,25 @@ class Board implements DiscreteBoard {
         this.firmataBoard.on( 'ready', this.readyListener );
     }
 
-    public getAvailableCommands(): string[] {
-        return Object.keys( this.availableCommands );
+    public getAvailableActions(): string[] {
+        return Object.keys( this.availableActions );
     }
 
     /**
-     * Return a minimal representation of the IBoard class
+     * Return a minimal representation of the Board class
      * @static
      * @access public
      * @param {Board} board
-     * @returns {DiscreteBoard} A small object representing a IBoard instance, but without the overhead and methods.
+     * @returns {Board} A small object representing a Board instance, but without the overhead and methods.
      */
-    public static toDiscrete( board: Board ): DiscreteBoard {
+    public static toDiscrete( board: Board ): IBoard {
         return {
             id: board.id,
             vendorId: board.vendorId,
             productId: board.productId,
             type: board.type,
             currentJob: board.currentJob,
-            commands: board.getAvailableCommands()
+            commands: board.getAvailableActions()
         };
     }
 
@@ -142,22 +142,23 @@ class Board implements DiscreteBoard {
      * @static
      * @access public
      * @param {Board[]} boards
-     * @returns {DiscreteBoard[]}
+     * @returns {Board[]}
      */
-    public static toDiscreteArray( boards: Board[] ): DiscreteBoard[] {
-        return boards.map( Board.toDiscrete  );
+    public static toDiscreteArray( boards: Board[] ): IBoard[] {
+        return boards.map( Board.toDiscrete );
     }
 
     /**
      * Execute a command
      *
      * @access public
-     * @param {Command} command
+     * @param {string} action
+     * @param {string} parameter
      */
-    public executeCommand( command: Command ) {
-        this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( command.method ) }.` );
-        if ( !this.isAvailableCommand( command ) ) throw new CommandError( `'${ Chalk.rgb( 67,230,145 ).bold( command.method ) }' is not a valid command.` );
-        this.availableCommands[ command.method ]( command.parameter );
+    public executeCommand( action: string, parameter: string ) {
+        this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
+        if ( !this.isAvailableAction( action ) ) throw new CommandError( `'${ Chalk.rgb( 67,230,145 ).bold( action ) }' is not a valid command.` );
+        this.availableActions[ action ]( parameter );
         this.firmataBoard.emit( 'update' );
     }
 
@@ -171,7 +172,7 @@ class Board implements DiscreteBoard {
     }
 
     /**
-     * Clear an interval that was set by this IBoard instance.
+     * Clear an interval that was set by this Board instance.
      * @param {NodeJS.Timeout} interval
      */
     protected clearInterval( interval: Timeout ): void {
@@ -180,7 +181,7 @@ class Board implements DiscreteBoard {
     }
 
     /**
-     * Clear a timeout that was set by this IBoard instance.
+     * Clear a timeout that was set by this Board instance.
      * @param {NodeJS.Timeout} timeout
      */
     protected clearTimeout( timeout: Timeout ): void {
@@ -189,7 +190,7 @@ class Board implements DiscreteBoard {
     }
 
     /**
-     * Clear all intervals set by this IBoard instance.
+     * Clear all intervals set by this Board instance.
      */
     private clearAllIntervals(): void {
         this.intervals.forEach( interval => clearInterval( interval ) );
@@ -197,7 +198,7 @@ class Board implements DiscreteBoard {
     }
 
     /**
-     * Clear all timeouts set by this IBoard instance
+     * Clear all timeouts set by this Board instance
      */
     private clearAllTimeouts(): void {
         this.timeouts.forEach( timeout => clearTimeout( timeout ) );
@@ -241,11 +242,11 @@ class Board implements DiscreteBoard {
     /**
      * Check if the command received is a valid command
      * @access private
-     * @param {Command} command The command to check for availability
+     * @param {string} action The command to check for availability
      * @returns {boolean} True if the command is valid, false if not
      */
-    private isAvailableCommand( command: Command ): boolean {
-        return this.getAvailableCommands().indexOf( command.method ) >= 0;
+    private isAvailableAction( action: string ): boolean {
+        return this.getAvailableActions().indexOf( action ) >= 0;
     }
 }
 

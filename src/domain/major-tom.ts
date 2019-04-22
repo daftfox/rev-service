@@ -7,7 +7,7 @@ import Logger from "../service/logger";
 
 /**
  * @classdesc
- * MajorTom is an extension of the default IBoard class, allowing for more specific control over its behaviour. Since we
+ * MajorTom is an extension of the default Board class, allowing for more specific control over its behaviour. Since we
  * know and design the physical properties and abilities of the 'Major Tom' device, we are able to define methods that
  * allow us to seamlessly integrate with these abilities.
  *
@@ -119,12 +119,12 @@ class MajorTom extends Board {
     private engineOn = false;
 
     /**
-     * The availableCommands property is used to map available methods to string representations so we can easily
+     * The availableActions property is used to map available methods to string representations so we can easily
      * validate and call them from elsewhere. The mapping should be obvious.
      * @type {Object}
      * @access protected
      */
-    public availableCommands = {
+    public availableActions = {
         BLINKON: () => { this.enableBlinkLed( true ); this.currentJob = "BLINKON" },
         BLINKOFF: () => { this.enableBlinkLed( false ); this.resetCurrentJob() },
         TOGGLELED: () => { this.toggleLED() },

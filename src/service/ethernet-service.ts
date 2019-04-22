@@ -4,7 +4,7 @@ import Boards from '../model/boards';
 import Logger from './logger';
 import * as net from 'net';
 import NoAvailablePortError from "../error/no-available-port-error";
-import EthernetServiceOptions from "../interface/ethernet-service-options";
+import IEthernetServiceOptions from "../interface/ethernet-service-options";
 import Chalk from 'chalk';
 
 /**
@@ -29,9 +29,9 @@ class EthernetService extends BoardService{
     /**
      * @constructor
      * @param {Boards} model Data model that implements an addBoard and removeBoard method.
-     * @param {EthernetServiceOptions} options
+     * @param {IEthernetServiceOptions} options
      */
-    constructor( model: Boards, options: EthernetServiceOptions ) {
+    constructor( model: Boards, options: IEthernetServiceOptions ) {
         super( model );
 
         this.namespace = 'ethernet';
@@ -50,9 +50,9 @@ class EthernetService extends BoardService{
 
     /**
      * Start listening on the port supplied for the ethernet service through a tcpProxy.
-     * @param {EthernetServiceOptions} options
+     * @param {IEthernetServiceOptions} options
      */
-    private listen( options: EthernetServiceOptions ): void {
+    private listen( options: IEthernetServiceOptions ): void {
         this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( options.listenPort.toString( 10 ) ) }.` );
 
         this.availablePorts = this.getPortRange( options );
@@ -84,17 +84,17 @@ class EthernetService extends BoardService{
             );
         } );
 
-        // send data received from physical device to instance of IBoard class
+        // send data received from physical device to instance of Board class
         localSocket.on( 'data', ( data: Buffer ) => {
             deviceSocket.write( data );
         } );
 
-        // send data originating from the IBoard class instance to the physical device
+        // send data originating from the Board class instance to the physical device
         deviceSocket.on( 'data', ( data: Buffer ) => {
             localSocket.write( data );
         } );
 
-        // connection was lost; remove the IBoard instance and close the ethernet server
+        // connection was lost; remove the Board instance and close the ethernet server
         localSocket.on( 'error', () => {
             this.handleDisconnected( availablePort.toString( 10 ), etherPort );
         } );
@@ -126,7 +126,7 @@ class EthernetService extends BoardService{
      * Returns an array of booleans mapped to ports that are represented by the array index. An available port is set to true.
      * @return {boolean[]} Array of ports
      */
-    private getPortRange( options: EthernetServiceOptions ): number[] {
+    private getPortRange( options: IEthernetServiceOptions ): number[] {
         const portRange = [];
 
         for ( let port = options.startPort; port < options.endPort; port ++ ) {

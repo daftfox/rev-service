@@ -1,5 +1,5 @@
 import Board from '../domain/board';
-import {Command} from "../interface/command";
+import ICommandEvent from "../interface/command-event";
 import NotFoundError from "../error/not-found-error";
 import Logger from "../service/logger";
 import Chalk from 'chalk';
@@ -87,11 +87,11 @@ class Boards {
     }
 
     /**
-     * Consumes a Command object and executes it on the board specified by its boardId property
+     * Consumes a CommandEvent object and executes it on the board specified by its boardId property
      * @access public
-     * @param {Command} command
+     * @param {ICommandEvent} command
      */
-    public executeCommand( command: Command ): void {
+    public executeCommand( command: ICommandEvent ): void {
         const board = this._boards.find( board => board.id === command.boardId );
 
         if ( !board ) throw new NotFoundError( `Board with id ${ Chalk.rgb( 0, 143, 255 ).bold( command.boardId ) } not found` );

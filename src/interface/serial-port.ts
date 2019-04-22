@@ -1,4 +1,4 @@
-interface SerialPort {
+export default interface ISerialPort {
     comName:      string;
     manufacturer: string;
     serialNumber: string;
