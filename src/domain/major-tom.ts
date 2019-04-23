@@ -156,7 +156,7 @@ class MajorTom extends Board {
      * @access private
      */
     private initializeMajorTom(): void {
-        this.namespace = `Major Tom - ${ this.id }`;
+        this.namespace = `MajorTom_${ this.id }`;
         this.log = new Logger( this.namespace );
 
         this.log.debug( "This is Major Tom to ground control." );

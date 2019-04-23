@@ -85,20 +85,6 @@ class Boards {
     public updateBoard( updatedBoard ): void {
         this.notifyBoardUpdatedListeners.forEach( listener => listener( updatedBoard ) );
     }
-
-    /**
-     * Consumes a CommandEvent object and executes it on the board specified by its boardId property
-     * @access public
-     * @param {ICommandEvent} command
-     */
-    public executeCommand( command: ICommandEvent ): void {
-        const board = this._boards.find( board => board.id === command.boardId );
-
-        if ( !board ) throw new NotFoundError( `Board with id ${ Chalk.rgb( 0, 143, 255 ).bold( command.boardId ) } not found` );
-        else {
-            board.executeCommand( command );
-        }
-    }
 }
 
 export default Boards;

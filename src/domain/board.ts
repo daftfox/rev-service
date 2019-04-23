@@ -26,7 +26,7 @@ class Board implements Board {
      * @access private
      * @type {number}
      */
-    private static readonly heartbeatInterval = 10000;
+    private static readonly heartbeatInterval = 3000;
 
     /**
      * @access protected
@@ -227,7 +227,7 @@ class Board implements Board {
             this.firmataBoard.queryFirmware( () => {
 
                 // heartbeat received
-                this.log.debug( `${ Chalk.rgb( 230,67,67 ).bold( '❤' ) }` );
+                // this.log.debug( `${ Chalk.rgb( 230,67,67 ).bold( '❤' ) }` );
                 this.firmataBoard.emit( 'update' );
                 this.clearTimeout( heartbeatTimeout );
             } );

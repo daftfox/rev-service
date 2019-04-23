@@ -15,7 +15,7 @@ class BoardService {
      * @access private
      * @type {Boards}
      */
-    private model: Boards;
+    protected model: Boards;
 
     /**
      * @access protected
@@ -45,12 +45,12 @@ class BoardService {
      * @param {function(string):void} connected Callback for when device successfully connects.
      * @param {function(string):void} disconnected Callback when device disconnects
      */
-    protected connectToBoard( port: EtherPort | string, connected?: ( boardId: string ) => void, disconnected?: ( boardId?: string ) => void ): void {
+    protected connectToBoard( port: EtherPort | string, connected?: ( board: Board ) => void, disconnected?: ( board: Board, port?: string ) => void ): void {
         let board: Board;
+        let id: string;
 
         const firmataBoard = new FirmataBoard( port );
-
-        const id = ( typeof port === "object" ? port.path.toString( 10 ) : port );
+        const _port = ( typeof port === "object" ? port.path : port );
 
         /*
          * Set a 10 second timeout.
@@ -60,7 +60,7 @@ class BoardService {
             this.log.warn( 'Timeout while connecting to board.' );
             board = null;
             firmataBoard.removeAllListeners(); // "What do we say to the God of memory leaks? Not today."
-            disconnected();
+            disconnected( null, _port );
         }, 10000);
 
         /*
@@ -74,7 +74,8 @@ class BoardService {
          * - Major Tom ( MajorTom.ino )
          */
         firmataBoard.once( 'queryfirmware', () => {
-            const firmware = firmataBoard.firmware.name.replace( '.ino', '' );
+            const firmware = firmataBoard.firmware.name.split('_').shift();
+            id = firmataBoard.firmware.name.split('_').pop().replace( '.ino', '' );
             this.log.debug( `Firmware of connected device: ${ firmware } v${firmataBoard.firmware.version.major}.${firmataBoard.firmware.version.minor}.` );
 
             switch (firmware) {
@@ -92,7 +93,7 @@ class BoardService {
         firmataBoard.once( 'ready', () => {
             this.model.addBoard( board );
             clearTimeout( connectionTimeout );
-            connected( id );
+            connected( board );
         } );
 
         firmataBoard.on( 'update', () => {
@@ -101,17 +102,8 @@ class BoardService {
 
         firmataBoard.once( 'disconnect', () => {
             this.log.debug( 'Disconnect event received from firmataboard.' );
-            disconnected( id );
+            disconnected( board, _port );
         } );
-    }
-
-    /**
-     * Removes connection from list of stored connections
-     * @access protected
-     * @param {EtherPort | string} port
-     */
-    protected removeBoard(port: string ): void {
-        if ( port ) this.model.removeBoard( port );
     }
 }
 
