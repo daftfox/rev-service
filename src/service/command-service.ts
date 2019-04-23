@@ -1,16 +1,12 @@
-import Boards from "../model/boards";
-import ICommandEvent from "../interface/command-event";
+import Board from "../domain/board";
+import ICommand from "../interface/command";
 
 class CommandService {
-    private model: Boards;
-
-    constructor( model: Boards ) {
-        this.model = model;
-    }
-
-    public executeCommand( command: ICommandEvent ) {
-        const board = this.model.getBoardById( command.boardId );
-        board.executeCommand( command.action, command.parameter );
+    public static executeCommand( board: Board, command: ICommand ): Promise<void> {
+        return new Promise( ( resolve ) => {
+            board.executeCommand( command.action, command.parameter );
+            setTimeout( resolve, command.duration || 100 );
+        } );
     }
 }
 

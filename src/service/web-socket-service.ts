@@ -4,7 +4,6 @@ import WebSocketMessage from "../domain/web-socket-message";
 import Logger from "./logger";
 import { AddressInfo } from "net";
 import ICommandEvent from "../interface/command-event";
-import WrongEncodingError from "../error/wrong-encoding-error";
 import Boards from "../model/boards";
 import HttpService from "./http-service";
 import Board from "../domain/board";
@@ -13,6 +12,7 @@ import { WebSocketMessageType } from "../domain/web-socket-message";
 import { BoardActionType } from "../interface/board-event";
 import IBoard from "../interface/board";
 import CommandService from "./command-service";
+import ICommand from "../interface/command";
 
 /**
  * @classdesc Service that allows clients to interface using a near real-time web socket connection
@@ -57,7 +57,6 @@ class WebSocketService {
         this.httpServer = new HttpService( port ).server;
 
         this.model = model;
-        this.commandService = new CommandService( this.model );
 
         this.model.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
         this.model.addBoardUpdatedListener( this.broadcastBoardUpdated.bind( this ) );
@@ -90,22 +89,21 @@ class WebSocketService {
         this.handleClientConnected( connection );
 
         connection.on( 'message', this.handleMessageReceived.bind( this ) );
-        connection.on( 'close', ( reasonCode: number, description: string ) => {
+        connection.on( 'close', () => {
             connection = null;
         } );
     }
 
     private handleMessageReceived( message: { type: string, utf8Data: any } ): void {
         if ( message.type !== "utf8" ) this.log.warn( 'Message received in wrong encoding format. Supported format is utf8' );
-        try {
-            const webSocketMessage = <WebSocketMessage> JSON.parse( message.utf8Data );
-            switch ( webSocketMessage.type ) {
-                case WebSocketMessageType.COMMAND_EVENT:
-                    this.commandService.executeCommand( <ICommandEvent> webSocketMessage.payload );
-                    break;
-            }
-        } catch( err ) {
-            this.log.error( err );
+
+        const webSocketMessage = <WebSocketMessage> JSON.parse( message.utf8Data );
+        switch ( webSocketMessage.type ) {
+            case WebSocketMessageType.COMMAND_EVENT:
+                const board = this.model.getBoardById( (<ICommandEvent> webSocketMessage.payload ).boardId );
+                const command: ICommand = { action: ( <ICommandEvent> webSocketMessage.payload ).action, parameter: ( <ICommandEvent> webSocketMessage.payload ).parameter };
+                CommandService.executeCommand( board, command );
+                break;
         }
     }
 
