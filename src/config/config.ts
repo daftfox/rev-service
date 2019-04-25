@@ -10,10 +10,10 @@ export default class Config {
 
     /** @access private */
     private static flags = args
-        .option( 'port', 'Port from which the WebSocket service will be served.', 80 )
-        .option( 'ethPort', 'Port from which the ethernet service will be served.', 9000 )
-        .option( 'startPort', 'The first port in the range of ports you want to make available for the ethernet service.', 3001 )
-        .option( 'endPort', 'The last port in the range of ports you want to make available for the ethernet service.', 3101 )
+        .option( 'port', 'Port from which the WebSocket service will be served.', 3000 )
+        .option( 'ethPort', 'Port from which the ethernet service will be served.', 3001 )
+        .option( 'startPort', 'The first port in the range of ports you want to make available for the ethernet service.', 3100 )
+        .option( 'endPort', 'The last port in the range of ports you want to make available for the ethernet service.', 3200 )
         .option( 'debug', 'Enable debug logging.', false )
         .option( 'serial', 'Enable serial interface.', false )
         .option( 'ethernet', 'Enable ethernet interface.', false );

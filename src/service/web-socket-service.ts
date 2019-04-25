@@ -46,7 +46,7 @@ class WebSocketService {
 
     private log = new Logger( WebSocketService.namespace );
 
-    private commandService: CommandService;
+    private port: number;
 
     /**
      * @constructor
@@ -54,7 +54,8 @@ class WebSocketService {
      * @param {port} model
      */
     constructor( port: number, model: Boards ) {
-        this.httpServer = new HttpService( port ).server;
+        this.port = port;
+        this.httpServer = new HttpService( this.port ).server;
 
         this.model = model;
 
@@ -74,7 +75,7 @@ class WebSocketService {
             httpServer: this.httpServer
         } );
 
-        this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( <AddressInfo>this.httpServer.address() ).port ) ) }.` );
+        this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( this.port ) ) ) }.` );
         this.webSocketServer.on( 'request', this.handleConnectionRequest.bind( this ) );
     }
 
