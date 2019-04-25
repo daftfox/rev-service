@@ -2,6 +2,7 @@ import Board from "./board";
 import * as FirmataBoard from 'firmata';
 import StringConverter from "../service/string-converter";
 import Logger from "../service/logger";
+import IPinout from "../interface/pinout";
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
@@ -106,37 +107,18 @@ class MajorTom extends Board {
     private shakeInterval;
 
     /**
-     * The ID of the interval that's executed when we blink the builtin LED.
-     * @access private
-     */
-    private blinkInterval;
-
-    /**
      * Indicator for whether the engine is running or not.
      * @type {boolean}
      * @access private
      */
     private engineOn = false;
 
-    /**
-     * The availableActions property is used to map available methods to string representations so we can easily
-     * validate and call them from elsewhere. The mapping should be obvious.
-     * @type {Object}
-     * @access protected
-     */
-    public availableActions = {
-        BLINKON: () => { this.enableBlinkLed( true ); this.currentJob = "BLINKON" },
-        BLINKOFF: () => { this.enableBlinkLed( false ); this.resetCurrentJob() },
-        TOGGLELED: () => { this.toggleLED() },
-        ENGINEON: () => { this.startEngine(); this.currentJob = "ENGINEON" },
-        ENGINEOFF: () => { this.stopEngine(); this.resetCurrentJob() },
-        SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
-        SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
-        SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
-        CLEARDTCS: () => { this.clearAllDTCs() },
-        // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
-        // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-        SETVIN: ( vin: string ) => { this.setVIN( vin ) }
+    protected pinout: IPinout = {
+        LED: 2,
+        RX: 13,
+        TX: 15,
+        FAN: 16,
+        POWER: 16,
     };
 
     /**
@@ -152,16 +134,28 @@ class MajorTom extends Board {
     }
 
     /**
-     * Initializes Major Tom by setting its pins in the correct state and configuring the physical serial UART interface
+     * Initializes Major Tom by setting its pinout in the correct state and configuring the physical serial UART interface
      * @access private
      */
     private initializeMajorTom(): void {
         this.namespace = `MajorTom_${ this.id }`;
         this.log = new Logger( this.namespace );
 
+        Object.assign( this.availableActions, {
+            ENGINEON: () => { this.startEngine(); this.currentJob = "ENGINEON" },
+            ENGINEOFF: () => { this.stopEngine(); this.resetCurrentJob() },
+            SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
+            SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
+            SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
+            CLEARDTCS: () => { this.clearAllDTCs() },
+            // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
+            // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
+            SETVIN: ( vin: string ) => { this.setVIN( vin ) }
+        } );
+
         this.log.debug( "This is Major Tom to ground control." );
-        this.firmataBoard.pinMode( MajorTom.FAN_PIN, FirmataBoard.PIN_MODE.OUTPUT );
-        this.firmataBoard.pinMode( MajorTom.POWER_PIN, FirmataBoard.PIN_MODE.PWM );
+        this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
+        this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
 
         const serialOptions = {
             portId: this.firmataBoard.SERIAL_PORT_IDs.HW_SERIAL0,
@@ -172,27 +166,6 @@ class MajorTom extends Board {
 
         this.firmataBoard.serialConfig( serialOptions );
         this.startHeartbeat();
-    }
-
-    /**
-     * Enable or disable the builtin LED blinking
-     *
-     * @param {boolean} enable
-     * @access private
-     */
-    private enableBlinkLed( enable: boolean ) {
-        if ( enable ) {
-            if ( this.blinkInterval ) {
-                this.log.warn( `LED blink is already enabled.` );
-                return;
-            }
-            this.blinkInterval = setInterval( this.toggleLED.bind( this ), 500);
-            this.intervals.push( this.blinkInterval );
-        } else {
-            this.clearInterval( this.blinkInterval );
-            this.blinkInterval = null;
-            this.firmataBoard.digitalWrite( MajorTom.LED_PIN, FirmataBoard.PIN_STATE.HIGH ); // high === low???
-        }
     }
 
     /**
@@ -277,7 +250,7 @@ class MajorTom extends Board {
      */
     private setSupplyVoltage( voltage: number ): void {
         if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
-        this.firmataBoard.analogWrite( MajorTom.POWER_PIN, voltage );
+        this.firmataBoard.analogWrite( this.pinout.POWER, voltage );
     }
 
     /**
@@ -340,13 +313,6 @@ class MajorTom extends Board {
     }
 
     /**
-     * @access private
-     */
-    private toggleLED(): void {
-        this.firmataBoard.digitalWrite( MajorTom.LED_PIN, this.firmataBoard.pins[ MajorTom.LED_PIN ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
-    }
-
-    /**
      * Turns on the (unbalanced) fan for 10 seconds, after which the fan remains turned off for 1 second.
      * It will do so indefinitely or until the stopEngine() method is called.
      * NOTE: This method should not be used anywhere besides the startEngine() method.
@@ -371,7 +337,7 @@ class MajorTom extends Board {
      * @access private
      */
     private enableFan( enable: boolean ): void {
-        this.firmataBoard.digitalWrite( MajorTom.FAN_PIN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
+        this.firmataBoard.digitalWrite( this.pinout.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
     }
 
     /**
@@ -385,7 +351,7 @@ class MajorTom extends Board {
         const interval = Math.ceil( ( dipDuration >= 1000 ? dipDuration : 1500 ) / ( ( MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW ) / 10 ) );
 
         // dip it!
-        this.firmataBoard.analogWrite( MajorTom.POWER_PIN, MajorTom.SUPPLY_VOLTAGE.LOW );
+        this.firmataBoard.analogWrite( this.pinout.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
 
         // ramp it!
         const rampUp = setInterval( () => {

@@ -1,10 +1,10 @@
 import * as FirmataBoard from 'firmata';
 import Logger from "../service/logger";
-import ICommandEvent from "../interface/command-event";
 import CommandError from "../error/command-error";
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from "../interface/board";
+import IPinout from "../interface/pinout";
 
 
 /**
@@ -58,7 +58,11 @@ class Board implements Board {
      * @type {Object}
      * @access protected
      */
-    protected availableActions = {};
+    protected availableActions = {
+        BLINKON: () => { this.enableBlinkLed( true ); this.currentJob = "BLINKON" },
+        BLINKOFF: () => { this.enableBlinkLed( false ); this.resetCurrentJob() },
+        TOGGLELED: () => { this.toggleLED() },
+    };
 
     /**
      * @type {string}
@@ -72,6 +76,12 @@ class Board implements Board {
     protected readyListener;
 
     /**
+     * The ID of the interval that's executed when we blink the builtin LED.
+     * @access private
+     */
+    private blinkInterval;
+
+    /**
      * @access protected
      * @type {FirmataBoard}
      */
@@ -81,15 +91,22 @@ class Board implements Board {
      * @access protected
      * @type {Timeout[]}
      */
-    protected intervals: Timeout[];
+    protected intervals: Timeout[] = [];
 
     /**
      * @access protected
      * @type {Timeout[]}
      */
-    protected timeouts: Timeout[];
+    protected timeouts: Timeout[] = [];
 
     public currentJob: string = "IDLE";
+
+    // defaulted to Wemos D1 mini pinout for now
+    protected pinout: IPinout = {
+        LED: 2,
+        RX: 13,
+        TX: 15
+    };
 
     /**
      * Creates a new instance of Board and awaits a successful connection before setting its status to READY
@@ -100,8 +117,6 @@ class Board implements Board {
     constructor( firmataBoard: FirmataBoard, id: string ) {
         this.firmataBoard = firmataBoard;
         this.id = id;
-        this.timeouts = [];
-        this.intervals = [];
         this.type = this.constructor.name;
 
         this.readyListener = () => {
@@ -117,6 +132,10 @@ class Board implements Board {
 
     public getAvailableActions(): string[] {
         return Object.keys( this.availableActions );
+    }
+
+    public setPinout( pinout: IPinout ): void {
+        Object.assign( this.pinout, pinout );
     }
 
     /**
@@ -203,6 +222,34 @@ class Board implements Board {
     private clearAllTimeouts(): void {
         this.timeouts.forEach( timeout => clearTimeout( timeout ) );
         this.timeouts = [];
+    }
+
+    /**
+     * Enable or disable the builtin LED blinking
+     *
+     * @param {boolean} enable
+     * @access protected
+     */
+    protected enableBlinkLed( enable: boolean ) {
+        if ( enable ) {
+            if ( this.blinkInterval ) {
+                this.log.warn( `LED blink is already enabled.` );
+                return;
+            }
+            this.blinkInterval = setInterval( this.toggleLED.bind( this ), 500);
+            this.intervals.push( this.blinkInterval );
+        } else {
+            this.clearInterval( this.blinkInterval );
+            this.blinkInterval = null;
+            this.firmataBoard.digitalWrite( this.pinout.LED, FirmataBoard.PIN_STATE.HIGH ); // high === low???
+        }
+    }
+
+    /**
+     * @access protected
+     */
+    protected toggleLED(): void {
+        this.firmataBoard.digitalWrite( this.pinout.LED, this.firmataBoard.pins[ this.pinout.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
     }
 
     /**
