@@ -120,7 +120,7 @@ class Board implements Board {
         this.type = this.constructor.name;
 
         this.readyListener = () => {
-            this.namespace = `board - ${ this.id }`;
+            this.namespace = `board_${ this.id }`;
             this.log = new Logger( this.namespace );
 
             this.log.info( 'Ready' );
