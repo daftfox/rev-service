@@ -3,13 +3,13 @@ import * as EtherPort from 'etherport';
 import Boards from '../model/boards';
 import Logger from './logger';
 import { Server, Socket } from 'net';
-import NoAvailablePortError from "../error/no-available-port-error";
-import IEthernetServiceOptions from "../interface/ethernet-service-options";
+import NoAvailablePortError from '../error/no-available-port-error';
+import IEthernetServiceOptions from '../interface/ethernet-service-options';
 import Chalk from 'chalk';
-import Board from "../domain/board";
+import Board from '../domain/board';
 
 /**
- * @classdesc An ethernet service that open up a number of ports between in a given port-range
+ * @classdesc An ethernet service that opens up a number of ports between in a given port-range
  * and attempts to connect to boards that knock on the proverbial door.
  * @namespace EthernetService
  */

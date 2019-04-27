@@ -1,8 +1,8 @@
-import Board from "./board";
+import Board from './board';
 import * as FirmataBoard from 'firmata';
-import StringConverter from "../service/string-converter";
-import Logger from "../service/logger";
-import IPinout from "../interface/pinout";
+import Logger from '../service/logger';
+import IPinout from '../interface/pinout';
+import Timeout = NodeJS.Timeout;
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
@@ -22,8 +22,10 @@ class MajorTom extends Board {
      * GOOD     ~12.6v
      * LOW      ~11.5v
      * CRITICAL ~10.6v
+     *
      * @type {Object}
      * @access private
+     * @static
      * @namespace SUPPLY_VOLTAGE
      */
     private static SUPPLY_VOLTAGE = {
@@ -34,53 +36,10 @@ class MajorTom extends Board {
     };
 
     /**
-     * The pin connected to the builtin LED
-     * ESP8266:         GPIO2
-     * Wemos D1 Mini:   D4
-     * @type {number}
-     * @access private
-     */
-    private static LED_PIN = 2;
-
-    /**
-     * The pin connected to the unbalanced fan
-     * ESP8266:         GPIO16
-     * Wemos D1 Mini:   D0
-     * @type {number}
-     * @access private
-     */
-    private static FAN_PIN = 16;
-
-    /**
-     * The pin connected to the variable power supply
-     * ESP8266:         GPIO14
-     * Wemos D1 Mini:   D5
-     * @type {number}
-     * @access private
-     */
-    private static POWER_PIN = 14;
-
-    /**
-     * Microcontroller pin designated for receiving serial communication
-     * ESP8266:         GPIO13
-     * Wemos D1 Mini:   D7
-     * @type {number}
-     * @access private
-     */
-    private static RX_PIN = 13;
-
-    /**
-     * The pin designated for transmitting serial communication
-     * ESP8266:         GPIO15
-     * Wemos D1 Mini:   D8
-     * @type {number}
-     * @access private
-     */
-    private static TX_PIN = 15;
-
-    /**
-     * The baud rate at which the Freematics OBD II emulator communicates over UART
+     * The baud rate at which the Freematics OBD II emulator communicates over UART.
      * This is 38400 baud by default
+     *
+     * @static
      * @type {number}
      * @access private
      */
@@ -88,6 +47,8 @@ class MajorTom extends Board {
 
     /**
      * The default duration of the power dip that's executed on engine ignition.
+     *
+     * @static
      * @type {number}
      * @access private
      */
@@ -95,6 +56,8 @@ class MajorTom extends Board {
 
     /**
      * The default duration of a shake interval. Eg. the length of time the fan spins before taking a little break.
+     *
+     * @static
      * @type {number}
      * @access private
      */
@@ -102,23 +65,37 @@ class MajorTom extends Board {
 
     /**
      * The ID of the interval that's executed when we turn on the engine.
+     *
+     * @type {NodeJS.Timeout}
      * @access private
      */
-    private shakeInterval;
+    private shakeInterval: Timeout;
 
     /**
      * Indicator for whether the engine is running or not.
+     *
      * @type {boolean}
      * @access private
      */
     private engineOn = false;
 
+    /**
+     * An instance of {@link IPinout} allowing for convenient mapping of device pins.
+     * Default pinout mapping for MajorTom (Wemos D1 / ESP8266) is as follows:
+     * builtin LED: GPIO2 / D4
+     * tx: GPIO5 / D1
+     * rx: GPIO4 / D2
+     * fan: GPIO16 / D0
+     * voltage regulator: GPIO14 / D5
+     *
+     * @type {IPinout}
+     */
     protected pinout: IPinout = {
         LED: 2,
-        RX: 13,
-        TX: 15,
+        RX: 4,
+        TX: 5,
         FAN: 16,
-        POWER: 16,
+        POWER: 14,
     };
 
     /**
@@ -134,16 +111,18 @@ class MajorTom extends Board {
     }
 
     /**
-     * Initializes Major Tom by setting its pinout in the correct state and configuring the physical serial UART interface
+     * Initializes Major Tom by setting its pins in the correct state and configuring the physical serial UART interface.
+     *
      * @access private
+     * @returns {void}
      */
     private initializeMajorTom(): void {
         this.namespace = `MajorTom_${ this.id }`;
         this.log = new Logger( this.namespace );
 
         Object.assign( this.availableActions, {
-            ENGINEON: () => { this.startEngine(); this.currentJob = "ENGINEON" },
-            ENGINEOFF: () => { this.stopEngine(); this.resetCurrentJob() },
+            ENGINEON: () => { this.startEngine() },
+            ENGINEOFF: () => { this.stopEngine() },
             SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
             SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
             SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
@@ -153,100 +132,123 @@ class MajorTom extends Board {
             SETVIN: ( vin: string ) => { this.setVIN( vin ) }
         } );
 
-        this.log.debug( "This is Major Tom to ground control." );
+        this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+
+        // set correct pin modes
         this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
         this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
 
         const serialOptions = {
-            portId: this.firmataBoard.SERIAL_PORT_IDs.HW_SERIAL0,
+            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
             baud: MajorTom.EMULATOR_BAUD,
-            // rxPin: MajorTom.RX_PIN,
-            // txPin: MajorTom.TX_PIN
+            rxPin: this.pinout.RX,
+            txPin: this.pinout.TX
         };
 
         this.firmataBoard.serialConfig( serialOptions );
+
         this.startHeartbeat();
     }
 
     /**
-     * Enable or disable the emulator's ignition
+     * Enable or disable the emulator's ignition.
+     *
      * @param {boolean} enable
      * @access private
+     * @returns {void}
      */
     private enableEmulatorIgnition( enable: boolean ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATACC${ enable ? 1 : 0 }` ) );
+        this.writeToEmulator( `ATACC${ enable ? 1 : 0 }` );
     }
 
     /**
-     * Validate the given DTC (Diagnostic Trouble Code) and set to the emulator
+     * Validate the given DTC (Diagnostic Trouble Code) and set to the emulator.
+     *
      * @param {string} dtc A DTC code as per this site: https://www.obd-codes.com/trouble_codes/
      * @param {number} mode The mode at which the DTC should be set
      * @access private
+     * @returns {void}
      */
     private setDTC( dtc: string, mode: string ): void {
         if ( !MajorTom.isValidDTC( dtc ) ) throw new Error( `${ dtc } is not a valid DTC.` );
 
         let _mode: string;
         switch ( mode ) {
+
+            // pending DTC
             case "0x07":
                 _mode = `7`;
                 break;
+
+            // stored DTC
             case "0x0A":
                 _mode = `A`;
                 break;
         }
 
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET DTC${ _mode }=${ dtc }` ) );
+        this.writeToEmulator( `ATSET DTC${ _mode }=${ dtc }` );
     }
 
     /**
-     * Clear all DTCs from the emulator
+     * Clear all DTCs from the emulator.
+     *
      * @access private
+     * @returns {void}
      */
     private clearAllDTCs(): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATCLR DTC` ) );
+        this.writeToEmulator( `ATCLR DTC` );
     }
 
     /**
-     * Sets the emulator RPM (Rotations Per Minute)
+     * Sets the emulated RPM (Revelations Per Minute).
+     *
      * @param {number} rpm RPM
      * @access private
+     * @returns {void}
      */
     private setRPM( rpm: string ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET 010C=${ rpm }` ) );
+        this.writeToEmulator( `ATSET 010C=${ rpm }` );
     }
 
     /**
-     * Sets the emulator speed
+     * Sets the emulated speed (km/h).
+     *
      * @param {number} speed Speed in km/h
      * @access private
+     * @returns {void}
      */
     private setSpeed( speed: string ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET 0113=${ speed }` ) );
+        this.writeToEmulator( `ATSET 0113=${ speed }` );
     }
 
     /**
-     * Enable or disable the emulator's debug mode
+     * Enable or disable the emulator's debug mode.
+     *
      * @param {boolean} enable
      * @access private
+     * @returns {void}
      */
     private enableEmulatorDebugMode( enable: boolean ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATINF${ enable ? 1 : 0 }` ) );
+        this.writeToEmulator( `ATINF${ enable ? 1 : 0 }` );
     }
 
     /**
-     * Sets the emulator's VIN (Vehicle Identification Number)
+     * Sets the emulated VIN (Vehicle Identification Number).
+     *
      * @param {string} vin
      * @access private
+     * @returns {void}
      */
     private setVIN( vin: string ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATSET VIN=${ vin }` ) );
+        this.writeToEmulator( `ATSET VIN=${ vin }` );
     }
 
     /**
-     * Voltage should be between 0 - 600. This is not the actual voltage. Refer to MajorTom.SUPPLY_VOLTAGE
+     * Voltage should be between 0 - 600. This is not the actual voltage. Refer to {@link SUPPLY_VOLTAGE}.
+     *
      * @param {number} voltage
      * @access private
+     * @returns {void}
      */
     private setSupplyVoltage( voltage: number ): void {
         if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
@@ -257,10 +259,13 @@ class MajorTom extends Board {
      * Turn the engine on.
      * This will turn the emulator engine ignition on, dip the power supply and run the (unbalanced) fan
      * The engine will remain running until stopEngine() is called.
+     *
      * @access private
+     * @returns {void}
      */
     private startEngine(): void {
         if ( this.engineOn ) throw new Error( `Engine has already been started.` );
+        this.currentJob = "ENGINEON";
         this.engineOn = true;
         this.enableEmulatorIgnition( true );
         this.dipPowerSupply( MajorTom.DEFAULT_POWER_DIP_DURATION );
@@ -269,9 +274,12 @@ class MajorTom extends Board {
 
     /**
      * Turn the engine off.
+     *
      * @access private
+     * @returns {void}
      */
     private stopEngine(): void {
+        this.resetCurrentJob();
         this.engineOn = false;
         this.enableEmulatorIgnition( false );
         this.clearInterval( this.shakeInterval );
@@ -279,44 +287,54 @@ class MajorTom extends Board {
 
     /**
      * Enable or disable the emulator's character echo feature
+     *
      * @access private
      * @param {boolean} enable
+     * @returns {void}
      */
     private enableEmulatorCharacterEcho( enable: boolean ): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATE${ enable ? 1 : 0 }` ) );
+        this.writeToEmulator( `ATE${ enable ? 1 : 0 }` );
     }
 
     /**
-     * Initialize the emulator, or whatever that means
+     * Initialize the emulator, whatever that means.
+     *
      * @access private
+     * @returns {void}
      */
     private initializeEmulator(): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATZ` ) );
+        this.writeToEmulator( `ATZ` );
     }
 
     /**
-     * Reset the emulator
+     * Reset the emulator.
+     *
      * @access private
+     * @returns {void}
      */
     private resetEmulator(): void {
-        this.serialWriteToEmulator( StringConverter.toCharArray( `ATR` ) );
+        this.writeToEmulator( `ATR` );
     }
 
     /**
      * Writes a character byte-array to MajorTom's physical serial UART interface.
      * This interface is directly connected to the emulator to allow control using AT-commands.
+     *
      * @access private
-     * @param {number[]} charArray AT-method to send, encoded as a hexadecimal byte-array
+     * @param {string} payload AT-method to send
+     * @returns {void}
      */
-    private serialWriteToEmulator( charArray: number[] ): void {
-        this.firmataBoard.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.HW_SERIAL0, charArray );
+    private writeToEmulator( payload: string ): void {
+        this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
     }
 
     /**
      * Turns on the (unbalanced) fan for 10 seconds, after which the fan remains turned off for 1 second.
      * It will do so indefinitely or until the stopEngine() method is called.
      * NOTE: This method should not be used anywhere besides the startEngine() method.
+     *
      * @access private
+     * @returns {void}
      */
     private shake(): void {
         this.shakeInterval = setInterval( () => {
@@ -332,9 +350,11 @@ class MajorTom extends Board {
     }
 
     /**
-     * Enable or disable the fan
+     * Enable or disable the fan.
+     *
      * @param {boolean} enable
      * @access private
+     * @returns {void}
      */
     private enableFan( enable: boolean ): void {
         this.firmataBoard.digitalWrite( this.pinout.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
@@ -343,8 +363,10 @@ class MajorTom extends Board {
     /**
      * Sharply dip the power supply to ~11.6v and ramp the voltage up to ~12.5v (linear)
      * NOTE: latency should be tested properly when connecting using EtherPort instance.
+     *
      * @param {number} dipDuration - Dip duration in ms with a minimum of 1000. Defaults to 1500
      * @access private
+     * @returns {void}
      */
     private dipPowerSupply( dipDuration: number ): void {
         let ramped = 0;
@@ -364,9 +386,11 @@ class MajorTom extends Board {
     }
 
     /**
-     * Validates a DTC
-     * @param {string} dtc - DTC to validate
+     * Validates a DTC.
+     *
      * @access private
+     * @static
+     * @param {string} dtc - DTC to validate
      * @returns {boolean}
      */
     private static isValidDTC( dtc: string ): boolean {

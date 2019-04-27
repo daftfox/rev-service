@@ -1,9 +1,17 @@
-import ICommandEvent from "../interface/command-event";
-import IBoardEvent from "../interface/board-event";
+import ICommandEvent from '../interface/command-event';
+import IBoardEvent from '../interface/board-event';
 
+/**
+ * @classdesc A class used to instantiate WebSocket messages
+ */
 class WebSocketMessage {
-    type: WebSocketMessageType;
-    payload: IBoardEvent | ICommandEvent;
+    /**
+     *
+     *
+     * @type WebSocketMessageType
+     */
+    public type: WebSocketMessageType;
+    public payload: IBoardEvent | ICommandEvent;
 
     constructor( type: WebSocketMessageType, payload: any ) {
         this.type = type;
