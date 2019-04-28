@@ -106,17 +106,7 @@ class MajorTom extends Board {
     constructor( firmataBoard: FirmataBoard, id: string ) {
         super( firmataBoard, id );
 
-        this.firmataBoard.removeListener( 'ready', this.readyListener );
-        this.firmataBoard.on( 'ready', this.initializeMajorTom.bind( this ) );
-    }
-
-    /**
-     * Initializes Major Tom by setting its pins in the correct state and configuring the physical serial UART interface.
-     *
-     * @access private
-     * @returns {void}
-     */
-    private initializeMajorTom(): void {
+        // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${ this.id }`;
         this.log = new Logger( this.namespace );
 
@@ -132,8 +122,6 @@ class MajorTom extends Board {
             SETVIN: ( vin: string ) => { this.setVIN( vin ) }
         } );
 
-        this.log.debug( "🚀 ‍This is Major Tom to ground control." );
-
         // set correct pin modes
         this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
         this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
@@ -147,7 +135,7 @@ class MajorTom extends Board {
 
         this.firmataBoard.serialConfig( serialOptions );
 
-        this.startHeartbeat();
+        this.log.debug( "🚀 ‍This is Major Tom to ground control." );
     }
 
     /**

@@ -163,16 +163,10 @@ class Board implements IBoard {
         this.firmataBoard = firmataBoard;
         this.id = id;
         this.type = this.constructor.name;
+        this.namespace = `board_${ this.id }`;
+        this.log = new Logger( this.namespace );
 
-        // listener that executes as soon as the board is ready to setup the final properties.
-        this.readyListener = () => {
-            this.namespace = `board_${ this.id }`;
-            this.log = new Logger( this.namespace );
-
-            this.startHeartbeat();
-        };
-
-        this.firmataBoard.on( 'ready', this.readyListener );
+        this.startHeartbeat();
     }
 
     /**

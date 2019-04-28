@@ -4,6 +4,7 @@ import Board from "../domain/board";
 import MajorTom from "../domain/major-tom";
 import * as FirmataBoard from 'firmata';
 import Logger from "./logger";
+import * as net from "net";
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
@@ -52,12 +53,43 @@ class BoardService {
      * @param {function(Board):void} connected Callback for when device successfully connects, containing the {@link Board} instance.
      * @param {function(Board,string):void} disconnected Callback when device disconnects containing the {@link Board} instance and its port.
      */
-    protected connectToBoard( port: EtherPort | string, connected?: ( board: Board ) => void, disconnected?: ( board: Board, port?: string ) => void ): void {
+    protected connectToBoard( port: net.Socket | string, connected?: ( board: Board ) => void, disconnected?: ( board?: Board ) => void ): void {
         let board: Board;
         let id: string;
-        let firmataBoard = new FirmataBoard( port );
+        let firmataBoard = new FirmataBoard( port, ( err ) => {
+            if ( !err ) {
+                clearTimeout( connectionTimeout );
 
-        const _port = ( typeof port === "object" ? port.path : port );
+                const firmware = firmataBoard.firmware.name.split('_').shift();
+                id = firmataBoard.firmware.name.split('_').pop().replace( '.ino', '' );
+
+                this.log.debug( `Firmware of connected device: ${ firmware } v${ firmataBoard.firmware.version.major }.${ firmataBoard.firmware.version.minor }.` );
+
+                /*
+                 * I perform some dark magic here.
+                 * As there are standard devices that offer functionality, I take a look at the name of the firmware that
+                 * was installed. By default an instance of Board is created, but with these standard devices I instantiate
+                 * an object of its corresponding class.
+                 *
+                 * The firmware name and ID are defined by the name of the Arduino sketch.
+                 * For now the following devices have a tailor made class:
+                 * - Major Tom ( MajorTom_<unique_identifier>.ino )
+                 */
+                switch (firmware) {
+                    case 'MajorTom':
+                        board = new MajorTom( firmataBoard, id );
+                        break;
+                    default:
+                        board = new Board( firmataBoard, id );
+                }
+
+                connected( board );
+                this.model.addBoard( board );
+            } else {
+                disconnected();
+            }
+
+        } );
 
         /*
          * Set a 10 second timeout.
@@ -70,41 +102,12 @@ class BoardService {
             firmataBoard.removeAllListeners();
             firmataBoard = null;
 
-            disconnected( null, _port );
+            disconnected();
         }, 10000);
 
-        /*
-         * I perform some dark magic here.
-         * As there are standard devices that offer functionality, I take a look at the name of the firmware that
-         * was installed. By default an instance of Board is created, but with these standard devices I instantiate
-         * an object of its corresponding class.
-         *
-         * The firmware name and ID are defined by the name of the Arduino sketch.
-         * For now the following devices have a tailor made class:
-         * - Major Tom ( MajorTom_<unique_identifier>.ino )
-         */
-        firmataBoard.once( 'queryfirmware', () => {
-            const firmware = firmataBoard.firmware.name.split('_').shift();
-            id = firmataBoard.firmware.name.split('_').pop().replace( '.ino', '' );
-            this.log.debug( `Firmware of connected device: ${ firmware } v${ firmataBoard.firmware.version.major }.${ firmataBoard.firmware.version.minor }.` );
-
-            switch (firmware) {
-                case 'MajorTom':
-                    board = new MajorTom( firmataBoard, id );
-                    break;
-                default:
-                    board = new Board( firmataBoard, id );
-            }
-        } );
-
-        /*
-         * A proper connection was made and the board is passed to the callback method.
-         */
-        firmataBoard.once( 'ready', () => {
-            this.model.addBoard( board );
-            clearTimeout( connectionTimeout );
-
-            connected( board );
+        firmataBoard.on( 'error', ( err ) => {
+            disconnected( board );
+            board = null;
         } );
 
         firmataBoard.on( 'update', () => {
@@ -114,7 +117,7 @@ class BoardService {
         firmataBoard.once( 'disconnect', () => {
             this.log.debug( 'Disconnect event received from firmataboard.' );
 
-            disconnected( board, _port );
+            disconnected( board );
         } );
     }
 }

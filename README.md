@@ -5,8 +5,8 @@ firmataBoard protocol.
 ## Firmata
 [Firmata](http://firmata.org/wiki/Main_Page) is a protocol that allows
 near-realtime communication between a host and client device. It can be used to read values or execute specific actions, such as performing
-serial UART communication. Rev makes use of the [firmata.js](https://github.com/firmata/firmata.js/tree/master/packages/firmata.js) library, in conjunction with
-[EtherPort](https://www.npmjs.com/package/etherport) and [SerialPort](https://www.npmjs.com/package/serialport) to handle the transport layer.
+serial UART communication. Rev makes use of the [firmata.js](https://github.com/firmata/firmata.js/tree/master/packages/firmata.js) library, 
+in conjunction with [SerialPort](https://www.npmjs.com/package/serialport) to handle the transport layer for serial connections.
 
 Devices are able to connect over ethernet and serial USB interfaces, although no guarantees can be given about latencies when using ethernet.
 
@@ -39,6 +39,6 @@ npm link
 ```
 After which you will be able to start the service through the terminal, regardless of what folder you are in.
 ```sh
-rev-service
+rev-service [--ethernet] [--serial] [--debug] [--port 9000]
 ```
 

@@ -103,12 +103,7 @@ class MainController {
         );
 
         if ( this.options.ethernet ) {
-            this.ethernetService = new EthernetService( this.model,
-                {
-                    listenPort: this.options.ethPort,
-                    startPort: this.options.startPort,
-                    endPort: this.options.endPort,
-                } );
+            this.ethernetService = new EthernetService( this.model, this.options.ethPort );
         }
 
         if ( this.options.serial ) {
