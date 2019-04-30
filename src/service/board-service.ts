@@ -1,4 +1,3 @@
-import * as EtherPort from 'etherport';
 import Boards from "../model/boards";
 import Board from "../domain/board";
 import MajorTom from "../domain/major-tom";

@@ -1,5 +1,5 @@
 import Config from '../config/config';
-import SerialService from '../service/serial-service';
+// import SerialService from '../service/serial-service';
 import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
 import Logger from '../service/logger';
@@ -73,7 +73,7 @@ class MainController {
      * @type {SerialService}
      * @access private
      */
-    private serialService: SerialService;
+    //private serialService: SerialService;
 
     /**
      * Creates a new instance of MainController and starts required services.
@@ -106,9 +106,9 @@ class MainController {
             this.ethernetService = new EthernetService( this.model, this.options.ethPort );
         }
 
-        if ( this.options.serial ) {
-            this.serialService   = new SerialService( this.model );
-        }
+        // if ( this.options.serial ) {
+        //     this.serialService   = new SerialService( this.model );
+        // }
 
         process.on('uncaughtException', this.handleError.bind( this ) );
     }

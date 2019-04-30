@@ -1,0 +1,1 @@
+{"version":3,"file":"tcp-proxy-service.js","sourceRoot":"","sources":["../../src/service/tcp-proxy-service.ts"],"names":[],"mappings":";;AAAA,2BAA2B;AAG3B,MAAM,eAAe;IAMjB;QAFQ,WAAM,GAAG,GAAG,CAAC,MAAM,CAAC;QAGxB,IAAI,CAAC,WAAW,GAAG,EAAE,CAAC;QAEtB,IAAI,CAAC,MAAM,GAAG,GAAG,CAAC,YAAY,CAAE,GAAG,EAAE;QAErC,CAAC,CAAE,CAAC;IACR,CAAC;CAGJ"}

@@ -102,7 +102,7 @@ class WebSocketService {
         switch ( webSocketMessage.type ) {
             case WebSocketMessageType.COMMAND_EVENT:
                 const board = this.model.getBoardById( (<ICommandEvent> webSocketMessage.payload ).boardId );
-                const command: ICommand = { action: ( <ICommandEvent> webSocketMessage.payload ).action, parameter: ( <ICommandEvent> webSocketMessage.payload ).parameter };
+                const command: ICommand = { action: ( <ICommandEvent> webSocketMessage.payload ).action, parameters: ( <ICommandEvent> webSocketMessage.payload ).parameters };
                 CommandService.executeCommand( board, command );
                 break;
         }

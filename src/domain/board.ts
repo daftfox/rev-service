@@ -246,7 +246,7 @@ class Board implements IBoard {
      * @param {string} parameter
      * @returns {void}
      */
-    public executeAction( action: string, parameter: string ): void {
+    public executeAction( action: string, ...parameter: string[] ): void {
         if ( !this.isAvailableAction( action ) ) throw new CommandError( `'${ Chalk.rgb( 67,230,145 ).bold( action ) }' is not a valid action.` );
 
         this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
