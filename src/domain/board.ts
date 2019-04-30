@@ -5,6 +5,7 @@ import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from '../interface/board';
 import IPinout from '../interface/pinout';
+import IPin from "../interface/pin";
 
 
 /**
@@ -76,6 +77,7 @@ class Board implements IBoard {
         BLINKON: () => { this.enableBlinkLed( true ) },
         BLINKOFF: () => { this.enableBlinkLed( false ) },
         TOGGLELED: () => { this.toggleLED() },
+        SETPINVALUE: ( pin: string, value: string ) => { this.setPinValue( parseInt( pin , 10), parseInt( value, 10 ) ) },
     };
 
     /**
@@ -87,7 +89,7 @@ class Board implements IBoard {
     protected namespace: string;
 
     /**
-     * Method that is executed as soon as the 'ready' event has been emitted by the local instance of {@link firmataBoard}.
+     * Method that is executed as soon as the 'ready' event has been emitted by the local instance of {@link Board.firmataBoard}.
      * This method should be removed as listener by any classes that extend {@link Board}.
      *
      * @type {function}
@@ -104,7 +106,7 @@ class Board implements IBoard {
     protected firmataBoard: FirmataBoard;
 
     /**
-     * An array of intervals stored so we can clear them all at once using {@link clearAllTimeouts} or {@link clearAllTimers} when the moment is there.
+     * An array of intervals stored so we can clear them all at once using {@link Board.clearAllTimeouts} or {@link Board.clearAllTimers} when the moment is there.
      *
      * @access protected
      * @type {Timeout[]}
@@ -112,7 +114,7 @@ class Board implements IBoard {
     protected intervals: Timeout[] = [];
 
     /**
-     * An array of timeouts stored so we can clear them all at once using {@link clearAllTimeouts} or {@link clearAllTimers} when the moment is there.
+     * An array of timeouts stored so we can clear them all at once using {@link Board.clearAllTimeouts} or {@link Board.clearAllTimers} when the moment is there.
      *
      * @access protected
      * @type {Timeout[]}
@@ -141,6 +143,14 @@ class Board implements IBoard {
     private blinkInterval;
 
     /**
+     * Array that is used to store the value measured by analog pins for later comparison.
+     *
+     * @access private
+     * @type {number[]}
+     */
+    private previousAnalogValue: number[] = [];
+
+    /**
      * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
      * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed disconnected
      * and removed from the data model until it attempts reconnecting.
@@ -166,6 +176,11 @@ class Board implements IBoard {
         this.namespace = `board_${ this.id }`;
         this.log = new Logger( this.namespace );
 
+        // set analog pin sampling rate at 1 second to prevent an overload of updates
+        this.firmataBoard.setSamplingInterval( 1000 );
+
+        this.attachAnalogPinListeners();
+        this.attachDigitalPinListeners();
         this.startHeartbeat();
     }
 
@@ -180,7 +195,7 @@ class Board implements IBoard {
 
     /**
      * Allows the user to define a different pinout for the device than is set by default.
-     * Default is defined in {@link pinout}
+     * Default is defined in {@link Board.pinout}
      *
      * @param {IPinout} pinout
      * @returns {void}
@@ -204,7 +219,10 @@ class Board implements IBoard {
             productId: board.productId,
             type: board.type,
             currentJob: board.currentJob,
-            commands: board.getAvailableActions()
+            commands: board.getAvailableActions(),
+            pins: board.firmataBoard.pins
+                .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel != 127 }, pin ) )
+                .filter( ( pin: IPin ) => pin.supportedModes.length > 0 )
         };
     }
 
@@ -299,11 +317,6 @@ class Board implements IBoard {
             this.resetCurrentJob();
             this.clearInterval( this.blinkInterval );
             this.blinkInterval = null;
-
-            this.firmataBoard.digitalWrite(
-                this.pinout.LED,
-                FirmataBoard.PIN_STATE.HIGH
-            );
         }
     }
 
@@ -314,20 +327,16 @@ class Board implements IBoard {
      * @returns {void}
      */
     protected toggleLED(): void {
-        this.firmataBoard.digitalWrite(
-            this.pinout.LED,
-            this.firmataBoard.pins[ this.pinout.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH
-        );
+        this.setPinValue( this.pinout.LED, this.firmataBoard.pins[ this.pinout.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
     }
 
     /**
-     * Starts an interval requesting the physical board to send its firmware version every 10 seconds and emits an 'update' event upon receiving a reply.
-     * Emits a 'disconnect' event on the local {@link FirmataBoard} instance if the device fails to respond within 2 seconds of this query being sent.
+     * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
+     * Emits a 'disconnect' event on the local {@link Board.firmataBoard} instance if the device fails to respond within 2 seconds of this query being sent.
      * The device is deemed disconnected and removed from the data model until it attempts reconnecting after the disconnect event is emitted.
      *
      * @access protected
      * @emits FirmataBoard.disconnect
-     * @emits FirmataBoard.update
      * @returns {void}
      */
     protected startHeartbeat(): void {
@@ -347,9 +356,6 @@ class Board implements IBoard {
 
             // we utilize the queryFirmware method to emulate a heartbeat
             this.firmataBoard.queryFirmware( () => {
-
-                // firmware update received, emit 'update' event to relay this to the WebSocket interface
-                this.firmataBoard.emit( 'update' );
                 this.clearTimeout( heartbeatTimeout );
             } );
         }, Board.heartbeatInterval );
@@ -357,7 +363,7 @@ class Board implements IBoard {
     }
 
     /**
-     * Sets {@link currentJob} to 'IDLE'
+     * Sets {@link Board.currentJob} to 'IDLE'
      *
      * @access protected
      * @returns {void}
@@ -380,8 +386,84 @@ class Board implements IBoard {
     }
 
     /**
-     * Clear all intervals stored in {@link intervals}.
+     * Emits an 'update' event
      *
+     * @emits FirmataBoard.update
+     * @returns {void}
+     */
+    protected emitUpdate(): void {
+        this.firmataBoard.emit( 'update' );
+    }
+
+    /**
+     * Write a value to a pin. Automatically distinguishes between analog and digital pins and calls the corresponding methods.
+     *
+     * @access protected
+     * @param {number} pin
+     * @param {number} value
+     * @returns {void}
+     */
+    protected setPinValue( pin: number, value: number ): void {
+        if ( this.isAnalogPin( pin ) ) {
+            this.firmataBoard.analogWrite( pin, value );
+        } else if ( this.isDigitalPin( pin ) ) {
+            if ( value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW ) {
+                this.log.warn( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` );
+            } else {
+                this.firmataBoard.digitalWrite( pin, value );
+            }
+        }
+        this.emitUpdate();
+    }
+
+    /**
+     * Attaches listeners to all digital pins whose modes ({@link FirmataBoard.PIN_MODE}) are setup as INPUT pins.
+     * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
+     *
+     * @access private
+     * @returns {void}
+     */
+    private attachDigitalPinListeners(): void {
+        this.firmataBoard.pins.forEach( ( pin: FirmataBoard.Pins, index: number ) => {
+            if ( this.isDigitalPin( index ) ) {
+                this.firmataBoard.digitalRead( index, this.emitUpdate.bind( this ) )
+            }
+        } );
+    }
+
+    /**
+     * Attaches listeners to all analog pins.
+     * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
+     *
+     * @access private
+     * @returns {void}
+     */
+    private attachAnalogPinListeners(): void {
+        this.firmataBoard.analogPins.forEach( ( pin: number, index: number )  => {
+            this.firmataBoard.analogRead( index, ( value: number ) => {
+                this.compareAnalogReadout( pin, value );
+            } );
+        } );
+    }
+
+    /**
+     * Calls {@link Board.emitUpdate} if the current value differs from the previously measured value.
+     *
+     * @param {number} pinIndex
+     * @param {number} value
+     * @returns {void}
+     */
+    private compareAnalogReadout( pinIndex: number, value: number ): void {
+        if ( this.previousAnalogValue[ pinIndex ] !== value ) {
+            this.previousAnalogValue[ pinIndex ] = value;
+            this.emitUpdate();
+        }
+    }
+
+    /**
+     * Clear all intervals stored in {@link Board.intervals}.
+     *
+     * @access private
      * @returns {void}
      */
     private clearAllIntervals(): void {
@@ -390,8 +472,9 @@ class Board implements IBoard {
     }
 
     /**
-     * Clear all timeouts stored in {@link timeouts}.
+     * Clear all timeouts stored in {@link Board.timeouts}.
      *
+     * @access private
      * @returns {void}
      */
     private clearAllTimeouts(): void {
@@ -408,6 +491,30 @@ class Board implements IBoard {
      */
     private isAvailableAction( action: string ): boolean {
         return this.getAvailableActions().indexOf( action ) >= 0;
+    }
+
+    /**
+     * Checks whether a pin is a digital pin.
+     *
+     * @access private
+     * @param {number} pinIndex
+     * @returns {boolean}
+     */
+    private isDigitalPin( pinIndex: number ): boolean {
+        const pin = this.firmataBoard.pins[ pinIndex ];
+        return pin.analogChannel === 127 && pin.supportedModes.length > 0 && !pin.supportedModes.includes( FirmataBoard.PIN_MODE.ANALOG );
+    }
+
+    /**
+     * Check whether a pin is an analog pin.
+     *
+     * @access private
+     * @param {number} pinIndex
+     * @returns {boolean}
+     */
+    private isAnalogPin( pinIndex: number ): boolean {
+        const pin = this.firmataBoard.pins[ pinIndex ];
+        return pin.supportedModes.includes( FirmataBoard.PIN_MODE.ANALOG );
     }
 }
 

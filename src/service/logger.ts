@@ -45,8 +45,13 @@ class Logger {
      * @access public
      * @param {Error} error
      */
-    public error( error: Error ): void {
-        const errorMessage = error.message.replace( /Error: /g, '' ); // No need to say error three times
+    public error( error: Error | string ): void {
+        let errorMessage: string;
+        if ( typeof error !== typeof '' ) {
+            errorMessage = ( <Error> error ).message.replace( /Error: /g, '' ); // No need to say error three times
+        } else {
+            errorMessage = <string> error;
+        }
         console.error( `${ Chalk.black.bgRed( 'ERROR' ) } ${ Logger.formatMessage( this.namespace, errorMessage ) }` );
     }
 
