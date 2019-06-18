@@ -1,7 +1,7 @@
-class CommandError extends Error {
+class CommandMalformed extends Error {
     constructor( message: string ) {
         super( message );
     }
 }
 
-export default CommandError;
+export default CommandMalformed;

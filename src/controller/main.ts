@@ -4,11 +4,13 @@ import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
 import Logger from '../service/logger';
 import Boards from '../model/boards';
-import CommandError from '../error/command-error';
+import CommandUnavailable from '../error/command-unavailable';
 import NoAvailablePortError from '../error/no-available-port-error';
 import NotFoundError from '../error/not-found-error';
 import GenericBoardError from '../error/generic-board-error';
 import IFlags from '../interface/flags';
+import DatabaseService from "../service/database-service";
+import Programs from "../model/programs";
 
 // only required during dev
 require('longjohn');
@@ -44,12 +46,15 @@ class MainController {
     private options: IFlags;
 
     /**
-     * Data model managing instances of {@link Board} or classes that extend it, like {@link MajorTom}.
+     * Data boardModel managing instances of {@link Board} or classes that extend it.
      *
      * @type {Boards}
      * @access private
      */
-    private model: Boards;
+    private boardModel: Boards;
+
+
+    private programModel: Programs;
 
     /**
      * Local instance of the {@link WebSocketService}.
@@ -95,19 +100,24 @@ class MainController {
      * @access private
      */
     private startServices(): void {
-        this.model = new Boards();
+        new DatabaseService().synchronise()
+            .then( () => {
+                this.boardModel = new Boards();
+                this.programModel = new Programs();
 
-        this.socketService = new WebSocketService(
-            this.options.port,
-            this.model
-        );
+                this.socketService = new WebSocketService(
+                    this.options.port,
+                    this.boardModel,
+                    this.programModel
+                );
 
-        if ( this.options.ethernet ) {
-            this.ethernetService = new EthernetService( this.model, this.options.ethPort );
-        }
+                if ( this.options.ethernet ) {
+                    this.ethernetService = new EthernetService( this.boardModel, this.options.ethPort );
+                }
+            } );
 
         // if ( this.options.serial ) {
-        //     this.serialService   = new SerialService( this.model );
+        //     this.serialService   = new SerialService( this.boardModel );
         // }
 
         process.on('uncaughtException', this.handleError.bind( this ) );
@@ -121,7 +131,7 @@ class MainController {
      */
     private handleError( error: Error ): void {
         switch( error.constructor ) {
-            case CommandError:
+            case CommandUnavailable:
             case NoAvailablePortError:
             case NotFoundError:
                 this.log.warn( error.message );

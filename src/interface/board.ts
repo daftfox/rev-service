@@ -2,10 +2,11 @@ import IPin from "./pin";
 
 export default interface IBoard {
     id: string;
-    vendorId: string;
-    productId: string;
+    name: string;
     type: string;
+    currentProgram: string;
+    vendorId?: string;
+    productId?: string;
     pins?: IPin[];
-    currentJob?: string;
     commands?: string[];
 }

@@ -3,6 +3,7 @@ import * as FirmataBoard from 'firmata';
 import Logger from '../service/logger';
 import IPinout from '../interface/pinout';
 import Timeout = NodeJS.Timeout;
+import {BuildOptions} from "sequelize";
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
@@ -103,8 +104,8 @@ class MajorTom extends Board {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor( firmataBoard: FirmataBoard, id: string ) {
-        super( firmataBoard, id );
+    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, id?: string ) {
+        super( model, buildOptions, firmataBoard, id );
 
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${ this.id }`;
@@ -122,20 +123,24 @@ class MajorTom extends Board {
             SETVIN: ( vin: string ) => { this.setVIN( vin ) }
         } );
 
-        // set correct pin modes
-        this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
-        this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
+        if ( firmataBoard ) {
 
-        const serialOptions = {
-            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
-            baud: MajorTom.EMULATOR_BAUD,
-            rxPin: this.pinout.RX,
-            txPin: this.pinout.TX
-        };
 
-        this.firmataBoard.serialConfig( serialOptions );
+            // set correct pin modes
+            this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
+            this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
 
-        this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+            const serialOptions = {
+                portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+                baud: MajorTom.EMULATOR_BAUD,
+                rxPin: this.pinout.RX,
+                txPin: this.pinout.TX
+            };
+
+            this.firmataBoard.serialConfig( serialOptions );
+
+            this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+        }
     }
 
     /**
@@ -253,7 +258,6 @@ class MajorTom extends Board {
      */
     private startEngine(): void {
         if ( this.engineOn ) throw new Error( `Engine has already been started.` );
-        this.currentJob = "ENGINEON";
         this.engineOn = true;
         this.enableEmulatorIgnition( true );
         this.dipPowerSupply( MajorTom.DEFAULT_POWER_DIP_DURATION );
@@ -267,7 +271,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private stopEngine(): void {
-        this.resetCurrentJob();
+        this.setIdle();
         this.engineOn = false;
         this.enableEmulatorIgnition( false );
         this.clearInterval( this.shakeInterval );

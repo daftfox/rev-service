@@ -1,4 +1,4 @@
-import BoardService from "./board-service";
+import ConnectionService from "./connection-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import Logger from "./logger";
@@ -8,7 +8,7 @@ import ISerialPort from "../interface/serial-port";
  * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
  * @namespace SerialService
  */
-class SerialService extends BoardService {
+class SerialService extends ConnectionService {
 
     /**
      * A list of port IDs in which an unsupported device is plugged in.
@@ -72,7 +72,7 @@ class SerialService extends BoardService {
     }
 
     /**
-     * Handles a disconnected board.
+     * Handles a connected board.
      * @param {string} boardId
      */
     private handleDisconnected( boardId: string ): void {

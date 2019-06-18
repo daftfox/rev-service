@@ -39,12 +39,16 @@
     "command-line-usage": "^5.0.5",
     "eslint": "^5.10.0",
     "firmata": "^2.0.0",
-    "json2typescript": "^1.0.6",
     "longjohn": "^0.2.12",
     "moment": "^2.23.0",
+    "reflect-metadata": "^0.1.13",
+    "sequelize": "^5.8.6",
+    "sequelize-typescript": "^1.0.0-alpha.9",
     "serialport": "^7.1.0",
+    "sqlite3": "^4.0.8",
     "supports-color": "^5.5.0",
     "typescript": "^3.2.2",
+    "uuid": "^3.3.2",
     "websocket": "^1.0.28"
   },
   "devDependencies": {
