@@ -104,6 +104,7 @@ class ConnectionService {
             this.log.debug( 'Disconnect event received from firmataboard.' );
             connectedBoard = null;
             disconnected( connectedBoard );
+            this.model.disconnectBoard( id );
         } );
     }
 }

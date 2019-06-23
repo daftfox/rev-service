@@ -451,7 +451,7 @@ class WebSocketService {
     private handleClientConnected(): Promise<WebSocketMessage<BoardBroadcast>> {
         return new Promise( ( resolve ) => {
             const body: BoardBroadcast = {
-                action: BOARD_BROADCAST_ACTION.UPDATE,
+                action: BOARD_BROADCAST_ACTION.NEW,
                 boards: this.boardModel.boards,
             };
 
@@ -467,7 +467,7 @@ class WebSocketService {
      * @return {void}
      */
     private broadcastBoardConnected( board: IBoard ): void {
-        this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.NEW, board );
+        this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.UPDATE, board );
     }
 
     /**
@@ -489,7 +489,7 @@ class WebSocketService {
      * @return {void}
      */
     private broadcastBoardDisconnected( board: IBoard ): void {
-        this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.REMOVE, board );
+        this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.UPDATE, board );
     }
 
     /**

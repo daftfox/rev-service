@@ -83,6 +83,15 @@ class Board extends Model<Board> implements IBoard {
     public currentProgram: string = IDLE;
 
     /**
+     * Last update received by board.
+     *
+     * @access public
+     * @type {string}
+     */
+    @Column
+    public lastUpdateReceived: string;
+
+    /**
      * Local instance of {@link Logger}
      *
      * @access protected
@@ -99,11 +108,12 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      */
     protected availableActions = {
-        BLINKON: () => { this.enableBlinkLed( true ) },
-        BLINKOFF: () => { this.enableBlinkLed( false ) },
-        TOGGLELED: () => { this.toggleLED() },
-        SETPINVALUE: ( pin: string, value: string ) => { this.setPinValue( parseInt( pin , 10), parseInt( value, 10 ) ) },
+        BLINKON: { requiresParams: false, method: () => { this.enableBlinkLed( true ) } },
+        BLINKOFF: { requiresParams: false, method: () => { this.enableBlinkLed( false ) } },
+        TOGGLELED: { requiresParams: false, method: () => { this.toggleLED() } },
+        SETPINVALUE: { requiresParams: true, method: ( pin: string, value: string ) => { this.setPinValue( parseInt( pin , 10), parseInt( value, 10 ) ) } },
     };
+
 
     /**
      * Namespace used by the local instance of {@link Logger}
@@ -223,10 +233,11 @@ class Board extends Model<Board> implements IBoard {
      * Method returning a string array containing the actions this device is able to execute.
      *
      * @access public
-     * @return {string[]} String array containing the available actions.
+     * @return {{action: string, requiresParams: boolean}[]} String array containing the available actions.
      */
-    public getAvailableActions(): string[] {
-        return Object.keys( this.availableActions );
+    public getAvailableActions(): {name: string, requiresParams: boolean}[] {
+        const actionNames = Object.keys( this.availableActions );
+        return actionNames.map( action => ( { name: action, requiresParams: this.availableActions[ action ].requiresParams } ) );
     }
 
     /**
@@ -280,7 +291,8 @@ class Board extends Model<Board> implements IBoard {
                 type: board.type,
                 currentProgram: board.currentProgram,
                 online: board.online,
-                commands: board.getAvailableActions(),
+                lastUpdateReceived: board.lastUpdateReceived,
+                availableCommands: board.getAvailableActions(),
             };
         }
 
@@ -289,6 +301,10 @@ class Board extends Model<Board> implements IBoard {
                 pins: board.firmataBoard.pins
                     .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel != 127 }, pin ) )
                     .filter( ( pin: IPin ) => pin.supportedModes.length > 0 ),
+            } );
+        } else {
+            Object.assign( discreteBoard, {
+                pins: [],
             } );
         }
 
@@ -316,16 +332,17 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     public executeAction( action: string, parameters?: string[] ): void {
+        if ( !this.online ) throw new CommandUnavailable( `Unable to execute command on this board since it is not online.` );
         if ( !this.isAvailableAction( action ) ) throw new CommandUnavailable( `'${ action }' is not a valid action for board with id ${this.id}.` );
 
         this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
 
-        const _action = this.availableActions[ action ];
+        const method = this.availableActions[ action ].method;
 
         if ( parameters && parameters.length ) {
-            _action( ...parameters );
+            method( ...parameters );
         } else {
-            _action();
+            method();
         }
         
         this.emitUpdate();
@@ -335,6 +352,7 @@ class Board extends Model<Board> implements IBoard {
         this.clearAllTimers();
         this.online = false;
         this.firmataBoard.removeAllListeners();
+        this.firmataBoard = null;
     }
 
     /**
@@ -479,6 +497,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected emitUpdate = (): void => {
+        this.lastUpdateReceived = new Date().toUTCString();
         this.firmataBoard.emit( 'update', Board.toDiscrete( this ) );
     };
 
@@ -583,7 +602,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {boolean} True if the command is valid, false if not
      */
     private isAvailableAction( action: string ): boolean {
-        return this.getAvailableActions().indexOf( action ) >= 0;
+        return this.getAvailableActions().findIndex( _action => _action.name === action ) >= 0;
     }
 
     /**

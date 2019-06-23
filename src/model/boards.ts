@@ -102,6 +102,7 @@ class Boards {
             id: board.id,
             name: board.name,
             type: board.type,
+            lastUpdateReceived: board.lastUpdateReceived,
         };
 
         switch( board.type ) {
@@ -253,8 +254,12 @@ class Boards {
 
         if ( board ) {
             board.disconnect();
+            board.save();
 
             const discreteBoard = Board.toDiscrete( board );
+            const index = this._boards.findIndex( board => board.id === id );
+            this._boards[ index ] = board;
+
             this.notifyBoardDisconnectedListeners.forEach( listener => listener( discreteBoard ) );
         }
     }
@@ -296,11 +301,13 @@ class Boards {
             board.save();
 
             // re-instantiate previous board to reflect type changes
-            if ( board.online && board.previous( 'type' ) && board.previous( 'type' ) !== board.getDataValue( 'type' ) ) {
+            if ( board.previous( 'type' ) && board.previous( 'type' ) !== board.getDataValue( 'type' ) ) {
                 const index = this._boards.findIndex( board => board.id === boardUpdates.id );
 
                 // clear non-essential timers and listeners
-                this._boards[ index ].clearAllTimers();
+                if ( board.online ) {
+                    this._boards[ index ].clearAllTimers();
+                }
 
                 // create new instance if board is online and attach the existing online FirmataBoard instance to it
                 board = Boards.instantiateBoard( board, board.getFirmataBoard() );

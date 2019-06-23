@@ -112,16 +112,18 @@ class MajorTom extends Board {
         this.log = new Logger( this.namespace );
 
         Object.assign( this.availableActions, {
-            ENGINEON: () => { this.startEngine() },
-            ENGINEOFF: () => { this.stopEngine() },
-            SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
-            SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
-            SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
-            CLEARDTCS: () => { this.clearAllDTCs() },
+            ENGINEON: { requiresParams: false, method: () => { this.startEngine() } },
+            ENGINEOFF: { requiresParams: false, method: () => { this.stopEngine() } },
+            SETSPEED: { requiresParams: true, method: ( speed: string ) => { this.setSpeed( speed ) } },
+            SETRPM: { requiresParams: true, method: ( rpm: string ) => { this.setRPM( rpm ) } },
+            SETDTC: { requiresParams: true, method: ( dtc: string, mode: string ) => { this.setDTC( dtc, mode ) } },
+            CLEARDTCS: { requiresParams: false, method: () => { this.clearAllDTCs() } },
             // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
             // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-            SETVIN: ( vin: string ) => { this.setVIN( vin ) }
+            SETVIN: { requiresParams: true, method: ( vin: string ) => { this.setVIN( vin ) } },
         } );
+
+
 
         if ( firmataBoard ) {
 

@@ -5,8 +5,10 @@ export default interface IBoard {
     name: string;
     type: string;
     currentProgram: string;
+    online: boolean;
+    lastUpdateReceived: string;
+    availableCommands?: string[];
     vendorId?: string;
     productId?: string;
     pins?: IPin[];
-    commands?: string[];
 }
