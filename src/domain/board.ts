@@ -4,11 +4,11 @@ import CommandUnavailable from '../error/command-unavailable';
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from '../interface/board';
-import IPinout from '../interface/pinout';
+import IPinMapping from '../interface/pin-mapping';
 import IPin from "../interface/pin";
 import CommandMalformed from "../error/command-malformed";
 import { Column, Model, Table } from "sequelize-typescript";
-import {BuildOptions} from "sequelize";
+import {BuildOptions, STRING} from "sequelize";
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -149,19 +149,16 @@ class Board extends Model<Board> implements IBoard {
      */
     protected timeouts: Timeout[] = [];
 
-    // defaulted to Wemos D1 mini pinout for now
     /**
-     * The pinout set for generic boards. This is currently set to the pinout for Wemos D1 (mini) boards, as these are
-     * the ones I use during development.
+     * The pinMapping set for generic boards. This is currently set to the pinMapping for Arduino Uno boards.
      *
-     * @type {IPinout}
-     * @default [{ LED: 2, RX: 13, TX: 15 }]
+     * @type {IPinMapping}
+     * @default [{ LED: 13, RX: 0, TX: 1 }]
      */
-    protected pinout: IPinout = {
-        LED: 2,
-        RX: 13,
-        TX: 15
-    };
+    public pinMapping: IPinMapping = PIN_MAPPING.ARDUINO_UNO;
+
+    @Column( { type: STRING } )
+    public pinout: PINOUT = PINOUT.ARDUINO_UNO;
 
     /**
      * The ID of the interval that's executed when we blink the builtin LED.
@@ -179,7 +176,7 @@ class Board extends Model<Board> implements IBoard {
     private heartbeatTimeout: Timeout;
 
     /**
-     * Array that is used to store the value measured by analog pins for later comparison.
+     * Array that is used to store the value measured by analog pinMapping for later comparison.
      *
      * @access private
      * @type {number[]}
@@ -198,7 +195,9 @@ class Board extends Model<Board> implements IBoard {
      * @type {number}
      * @default [5000]
      */
-    private static readonly heartbeatInterval = 5000;
+    private static readonly heartbeatInterval = 10000;
+
+    public serialConnection: boolean = false;
 
     /**
      * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
@@ -209,7 +208,7 @@ class Board extends Model<Board> implements IBoard {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, id?: string ) {
+    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, serialConnection: boolean = false, id?: string ) {
         super( model, buildOptions );
 
         this.id = id;
@@ -219,9 +218,17 @@ class Board extends Model<Board> implements IBoard {
         if ( firmataBoard ) {
             this.online = true;
             this.firmataBoard = firmataBoard;
+            this.serialConnection = serialConnection;
 
-            // set analog pin sampling rate at 1 second to prevent an overload of updates
-            this.firmataBoard.setSamplingInterval( 1000 );
+            if ( this.pinout !== PINOUT.ARDUINO_UNO ) {
+                this.setPinout( this.pinout );
+            }
+
+            if ( this.serialConnection ) {
+                this.firmataBoard.setSamplingInterval( 200 );
+            } else {
+                this.firmataBoard.setSamplingInterval( 1000 );
+            }
 
             this.attachAnalogPinListeners();
             this.attachDigitalPinListeners();
@@ -241,14 +248,28 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
-     * Allows the user to define a different pinout for the device than is set by default.
-     * Default is defined in {@link Board.pinout}
+     * Allows the user to define a different pinMapping for the device than is set by default.
+     * Default is defined in {@link Board.pinMapping}
      *
-     * @param {IPinout} pinout - The pinout to save to this board.
+     * @param {IPinMapping} pinout - The pinMapping to save to this board.
      * @returns {void}
      */
-    public setPinout( pinout: IPinout ): void {
-        Object.assign( this.pinout, pinout );
+    public setPinout( pinout: PINOUT ): void {
+        let mappedPins = {};
+
+        switch ( pinout ) {
+            case PINOUT.ARDUINO_UNO:
+                Object.assign( mappedPins, PIN_MAPPING.ARDUINO_UNO );
+                break;
+            case PINOUT.ESP_8266:
+                Object.assign( mappedPins, PIN_MAPPING.ESP_8266 );
+                break;
+            default:
+                throw Error( 'This pinout is not supported.' );
+        }
+
+        this.pinout = pinout;
+        Object.assign( this.pinMapping, mappedPins );
     }
 
     /**
@@ -291,13 +312,16 @@ class Board extends Model<Board> implements IBoard {
                 type: board.type,
                 currentProgram: board.currentProgram,
                 online: board.online,
+                serialConnection: board.serialConnection,
                 lastUpdateReceived: board.lastUpdateReceived,
+                pinout: board.pinout,
                 availableCommands: board.getAvailableActions(),
             };
         }
 
         if ( board.firmataBoard ) {
             Object.assign( discreteBoard, {
+                refreshRate: board.firmataBoard.getSamplingInterval(),
                 pins: board.firmataBoard.pins
                     .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel != 127 }, pin ) )
                     .filter( ( pin: IPin ) => pin.supportedModes.length > 0 ),
@@ -438,7 +462,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected toggleLED(): void {
-        this.setPinValue( this.pinout.LED, this.firmataBoard.pins[ this.pinout.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
+        this.setPinValue( this.pinMapping.LED, this.firmataBoard.pins[ this.pinMapping.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
     }
 
     /**
@@ -461,7 +485,7 @@ class Board extends Model<Board> implements IBoard {
                 this.firmataBoard.emit( 'disconnect' );
                 this.clearInterval( heartbeat );
                 this.resetHeartbeatTimeout();
-            }, 3000 );
+            }, 10000 );
 
             this.timeouts.push( this.heartbeatTimeout );
 
@@ -502,7 +526,7 @@ class Board extends Model<Board> implements IBoard {
     };
 
     /**
-     * Write a value to a pin. Automatically distinguishes between analog and digital pins and calls the corresponding methods.
+     * Write a value to a pin. Automatically distinguishes between analog and digital pinMapping and calls the corresponding methods.
      *
      * @access protected
      * @param {number} pin
@@ -531,7 +555,7 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
-     * Attaches listeners to all digital pins whose modes ({@link FirmataBoard.PIN_MODE}) are setup as INPUT pins.
+     * Attaches listeners to all digital pinMapping whose modes ({@link FirmataBoard.PIN_MODE}) are setup as INPUT pinMapping.
      * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
      *
      * @access private
@@ -546,7 +570,7 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
-     * Attaches listeners to all analog pins.
+     * Attaches listeners to all analog pinMapping.
      * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
      *
      * @access private
@@ -633,3 +657,19 @@ class Board extends Model<Board> implements IBoard {
 export default Board;
 
 export const IDLE = "idle";
+export enum PINOUT {
+    ARDUINO_UNO = 'Arduino Uno',
+    ESP_8266 = 'ESP8266',
+}
+export const PIN_MAPPING = {
+    ARDUINO_UNO: {
+        LED: 13,
+        RX: 1,
+        TX: 0,
+    },
+    ESP_8266: {
+        LED: 2,
+        RX: 4,
+        TX: 5,
+    }
+};

@@ -17,8 +17,8 @@ class MajorTom extends board_1.default {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor(firmataBoard, id) {
-        super(firmataBoard, id);
+    constructor(model, buildOptions, firmataBoard, serialConnection = false, id) {
+        super(model, buildOptions, firmataBoard, serialConnection, id);
         /**
          * Indicator for whether the engine is running or not.
          *
@@ -26,49 +26,50 @@ class MajorTom extends board_1.default {
          * @access private
          */
         this.engineOn = false;
+        this.pinout = board_1.PINOUT.ESP_8266;
         /**
-         * An instance of {@link IPinout} allowing for convenient mapping of device pins.
-         * Default pinout mapping for MajorTom (Wemos D1 / ESP8266) is as follows:
+         * An instance of {@link IPinMapping} allowing for convenient mapping of device pinMapping.
+         * Default pinMapping mapping for MajorTom (Wemos D1 / ESP8266) is as follows:
          * builtin LED: GPIO2 / D4
          * tx: GPIO5 / D1
          * rx: GPIO4 / D2
          * fan: GPIO16 / D0
          * voltage regulator: GPIO14 / D5
          *
-         * @type {IPinout}
+         * @type {IPinMapping}
          */
-        this.pinout = {
-            LED: 2,
-            RX: 4,
-            TX: 5,
-            FAN: 16,
-            POWER: 14,
-        };
+        this.pinMapping = board_1.PIN_MAPPING.ESP_8266;
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${this.id}`;
         this.log = new logger_1.default(this.namespace);
+        Object.assign(this.pinMapping, {
+            FAN: 16,
+            POWER: 14,
+        });
         Object.assign(this.availableActions, {
-            ENGINEON: () => { this.startEngine(); },
-            ENGINEOFF: () => { this.stopEngine(); },
-            SETSPEED: (speed) => { this.setSpeed(speed); },
-            SETRPM: (rpm) => { this.setRPM(rpm); },
-            SETDTC: (speed, mode) => { this.setDTC(speed, mode); },
-            CLEARDTCS: () => { this.clearAllDTCs(); },
+            ENGINEON: { requiresParams: false, method: () => { this.startEngine(); } },
+            ENGINEOFF: { requiresParams: false, method: () => { this.stopEngine(); } },
+            SETSPEED: { requiresParams: true, method: (speed) => { this.setSpeed(speed); } },
+            SETRPM: { requiresParams: true, method: (rpm) => { this.setRPM(rpm); } },
+            SETDTC: { requiresParams: true, method: (dtc, mode) => { this.setDTC(dtc, mode); } },
+            CLEARDTCS: { requiresParams: false, method: () => { this.clearAllDTCs(); } },
             // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
             // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-            SETVIN: (vin) => { this.setVIN(vin); }
+            SETVIN: { requiresParams: true, method: (vin) => { this.setVIN(vin); } },
         });
-        // set correct pin modes
-        this.firmataBoard.pinMode(this.pinout.FAN, 1 /* OUTPUT */);
-        this.firmataBoard.pinMode(this.pinout.POWER, 3 /* PWM */);
-        const serialOptions = {
-            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
-            baud: MajorTom.EMULATOR_BAUD,
-            rxPin: this.pinout.RX,
-            txPin: this.pinout.TX
-        };
-        this.firmataBoard.serialConfig(serialOptions);
-        this.log.debug("🚀 ‍This is Major Tom to ground control.");
+        if (firmataBoard) {
+            // set correct pin modes
+            this.firmataBoard.pinMode(this.pinMapping.FAN, 1 /* OUTPUT */);
+            this.firmataBoard.pinMode(this.pinMapping.POWER, 3 /* PWM */);
+            const serialOptions = {
+                portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+                baud: MajorTom.EMULATOR_BAUD,
+                rxPin: this.pinMapping.RX,
+                txPin: this.pinMapping.TX
+            };
+            this.firmataBoard.serialConfig(serialOptions);
+            this.log.debug("🚀 ‍This is Major Tom to ground control.");
+        }
     }
     /**
      * Enable or disable the emulator's ignition.
@@ -163,7 +164,7 @@ class MajorTom extends board_1.default {
     setSupplyVoltage(voltage) {
         if (voltage > 600)
             throw new Error(`Better not play with fire. Do not set supply voltage higher than 600 (for now).`);
-        this.firmataBoard.analogWrite(this.pinout.POWER, voltage);
+        this.firmataBoard.analogWrite(this.pinMapping.POWER, voltage);
     }
     /**
      * Turn the engine on.
@@ -176,7 +177,6 @@ class MajorTom extends board_1.default {
     startEngine() {
         if (this.engineOn)
             throw new Error(`Engine has already been started.`);
-        this.currentJob = "ENGINEON";
         this.engineOn = true;
         this.enableEmulatorIgnition(true);
         this.dipPowerSupply(MajorTom.DEFAULT_POWER_DIP_DURATION);
@@ -189,7 +189,7 @@ class MajorTom extends board_1.default {
      * @returns {void}
      */
     stopEngine() {
-        this.resetCurrentJob();
+        this.setIdle();
         this.engineOn = false;
         this.enableEmulatorIgnition(false);
         this.clearInterval(this.shakeInterval);
@@ -258,7 +258,7 @@ class MajorTom extends board_1.default {
      * @returns {void}
      */
     enableFan(enable) {
-        this.firmataBoard.digitalWrite(this.pinout.FAN, enable ? 1 /* HIGH */ : 0 /* LOW */);
+        this.firmataBoard.digitalWrite(this.pinMapping.FAN, enable ? 1 /* HIGH */ : 0 /* LOW */);
     }
     /**
      * Sharply dip the power supply to ~11.6v and ramp the voltage up to ~12.5v (linear)
@@ -272,7 +272,7 @@ class MajorTom extends board_1.default {
         let ramped = 0;
         const interval = Math.ceil((dipDuration >= 1000 ? dipDuration : 1500) / ((MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW) / 10));
         // dip it!
-        this.firmataBoard.analogWrite(this.pinout.POWER, MajorTom.SUPPLY_VOLTAGE.LOW);
+        this.firmataBoard.analogWrite(this.pinMapping.POWER, MajorTom.SUPPLY_VOLTAGE.LOW);
         // ramp it!
         const rampUp = setInterval(() => {
             ramped += 10;

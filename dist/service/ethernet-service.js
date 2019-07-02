@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const board_service_1 = require("./board-service");
+const connection_service_1 = require("./connection-service");
 const logger_1 = require("./logger");
 const net_1 = require("net");
 const chalk_1 = require("chalk");
@@ -8,10 +8,10 @@ const chalk_1 = require("chalk");
  * @classdesc An ethernet service that opens a socket and attempts to connect to boards that knock on the proverbial door.
  * @namespace EthernetService
  */
-class EthernetService extends board_service_1.default {
+class EthernetService extends connection_service_1.default {
     /**
      * @constructor
-     * @param {Boards} model Data model that implements an addBoard and removeBoard method.
+     * @param {Boards} model Data model.
      * @param {number} port
      */
     constructor(model, port) {
@@ -38,7 +38,7 @@ class EthernetService extends board_service_1.default {
     handleConnectionRequest(socket) {
         let board;
         this.log.debug(`New connection attempt.`);
-        this.connectToBoard(socket, (_board) => {
+        this.connectToBoard(socket, false, (_board) => {
             board = _board;
             this.log.info(`Device ${chalk_1.default.rgb(0, 143, 255).bold(board.id)} connected.`);
         }, (_board) => {
@@ -47,7 +47,7 @@ class EthernetService extends board_service_1.default {
         });
     }
     /**
-     * Handles a disconnected board.
+     * Handles a connected board.
      *
      * @param {net.Socket} socket
      * @param {Board} board
@@ -58,7 +58,7 @@ class EthernetService extends board_service_1.default {
         socket.destroy();
         if (board) {
             this.log.info(`Device ${board.id} disconnected.`);
-            this.model.removeBoard(board.id);
+            this.model.disconnectBoard(board.id);
         }
     }
 }

@@ -1,27 +1,34 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const board_service_1 = require("./board-service");
+const connection_service_1 = require("./connection-service");
 const Serialport = require("serialport");
 const logger_1 = require("./logger");
+const chalk_1 = require("chalk");
 /**
- * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
+ * @description Service that automatically connects to any Firmata compatible devices physically connected to the host.
  * @namespace SerialService
  */
-class SerialService extends board_service_1.default {
+class SerialService extends connection_service_1.default {
     /**
      * @constructor
      * @param {Boards} model
      */
     constructor(model) {
         super(model);
+        /**
+         * A list of port IDs in which an unsupported device is plugged in.
+         * @access private
+         * @type {string[]}
+         */
+        this.unsupportedDevices = [];
+        this.usedPorts = [];
         this.namespace = 'serial';
         this.log = new logger_1.default(this.namespace);
-        this.unsupportedDevices = [];
         this.log.info(`Listening on serial ports.`);
         this.startListening();
     }
     /**
-     * Scans the host's ports every 10 seconds.
+     * Scans the host's ports every 3 seconds.
      * @access private
      */
     startListening() {
@@ -33,42 +40,26 @@ class SerialService extends board_service_1.default {
      */
     scanSerialPorts() {
         Serialport.list((error, ports) => {
-            const port = ports
-                .filter(port => port.manufacturer !== undefined)
-                .find(port => port.manufacturer.startsWith("Arduino")); // only allow devices produced by Arduino for now
-            // todo: fix this shite
-            // don't connect to the same device twice, also ignore devices that don't support Firmata
-            if (port && !this.isUnsupported(port.comName)) {
-                this.connectToBoard(port.comName, this.handleConnected.bind(this), this.handleDisconnected.bind(this));
+            const availablePort = ports
+                .filter(port => port.productId !== undefined)
+                .filter(port => this.usedPorts.indexOf(port.comName) < 0)
+                .filter(port => this.unsupportedDevices.indexOf(port.comName) < 0).pop();
+            if (availablePort) {
+                this.usedPorts.push(availablePort.comName);
+                this.connectToBoard(availablePort.comName, true, (board) => {
+                    this.log.info(`Device ${chalk_1.default.rgb(0, 143, 255).bold(board.id)} connected.`);
+                }, (board) => {
+                    this.usedPorts.splice(this.usedPorts.indexOf(availablePort.comName), 1);
+                    if (board) {
+                        this.log.info(`Device ${board.id} disconnected.`);
+                        this.model.disconnectBoard(board.id);
+                    }
+                    else {
+                        this.unsupportedDevices.push(availablePort.comName);
+                    }
+                });
             }
         });
-    }
-    /**
-     * Handles a connected board.
-     * @param {string} boardId
-     */
-    handleConnected(boardId) {
-        this.log.info(`A new compatible device connected on: ${boardId}.`);
-    }
-    /**
-     * Handles a disconnected board.
-     * @param {string} boardId
-     */
-    handleDisconnected(boardId) {
-        if (boardId)
-            this.log.info(`A device has disconnected from port ${boardId}.`);
-        else
-            this.log.info(`A device has failed to connect.`);
-        this.log.info(`A device has disconnected from port ${boardId}.`);
-    }
-    /**
-     * Returns true if a device is present in the list of unsupported devices.
-     * @access private
-     * @param {string} port
-     * @return {boolean}
-     */
-    isUnsupported(port) {
-        return this.unsupportedDevices.indexOf(port) >= 0;
     }
 }
 exports.default = SerialService;

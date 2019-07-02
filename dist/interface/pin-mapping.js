@@ -1,3 +1,3 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-//# sourceMappingURL=pinMapping.js.map
+//# sourceMappingURL=pin-mapping.js.map

@@ -56,6 +56,7 @@ class EthernetService extends ConnectionService{
 
         this.connectToBoard(
             socket,
+            false,
             ( _board: IBoard ) => {
                 board = _board;
                 this.log.info( `Device ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } connected.` );

@@ -11,6 +11,7 @@ import GenericBoardError from '../error/generic-board-error';
 import IFlags from '../interface/flags';
 import DatabaseService from "../service/database-service";
 import Programs from "../model/programs";
+import SerialService from "../service/serial-service";
 
 // only required during dev
 require('longjohn');
@@ -78,7 +79,7 @@ class MainController {
      * @type {SerialService}
      * @access private
      */
-    //private serialService: SerialService;
+    private serialService: SerialService;
 
     /**
      * Creates a new instance of MainController and starts required services.
@@ -114,11 +115,10 @@ class MainController {
                 if ( this.options.ethernet ) {
                     this.ethernetService = new EthernetService( this.boardModel, this.options.ethPort );
                 }
+                if ( this.options.serial ) {
+                    this.serialService = new SerialService( this.boardModel );
+                }
             } );
-
-        // if ( this.options.serial ) {
-        //     this.serialService   = new SerialService( this.boardModel );
-        // }
 
         process.on('uncaughtException', this.handleError.bind( this ) );
     }

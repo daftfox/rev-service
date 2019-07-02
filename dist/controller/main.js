@@ -6,10 +6,13 @@ const ethernet_service_1 = require("../service/ethernet-service");
 const web_socket_service_1 = require("../service/web-socket-service");
 const logger_1 = require("../service/logger");
 const boards_1 = require("../model/boards");
-const command_error_1 = require("../error/command-error");
+const command_unavailable_1 = require("../error/command-unavailable");
 const no_available_port_error_1 = require("../error/no-available-port-error");
 const not_found_error_1 = require("../error/not-found-error");
 const generic_board_error_1 = require("../error/generic-board-error");
+const database_service_1 = require("../service/database-service");
+const programs_1 = require("../model/programs");
+const serial_service_1 = require("../service/serial-service");
 // only required during dev
 require('longjohn');
 /**
@@ -17,13 +20,6 @@ require('longjohn');
  * @namespace MainController
  */
 class MainController {
-    /**
-     * Local instance of the {@link SerialService}.
-     *
-     * @type {SerialService}
-     * @access private
-     */
-    //private serialService: SerialService;
     /**
      * Creates a new instance of MainController and starts required services.
      *
@@ -48,14 +44,18 @@ class MainController {
      * @access private
      */
     startServices() {
-        this.model = new boards_1.default();
-        this.socketService = new web_socket_service_1.default(this.options.port, this.model);
-        if (this.options.ethernet) {
-            this.ethernetService = new ethernet_service_1.default(this.model, this.options.ethPort);
-        }
-        // if ( this.options.serial ) {
-        //     this.serialService   = new SerialService( this.model );
-        // }
+        new database_service_1.default().synchronise()
+            .then(() => {
+            this.boardModel = new boards_1.default();
+            this.programModel = new programs_1.default();
+            this.socketService = new web_socket_service_1.default(this.options.port, this.boardModel, this.programModel);
+            if (this.options.ethernet) {
+                this.ethernetService = new ethernet_service_1.default(this.boardModel, this.options.ethPort);
+            }
+            if (this.options.serial) {
+                this.serialService = new serial_service_1.default(this.boardModel);
+            }
+        });
         process.on('uncaughtException', this.handleError.bind(this));
     }
     /**
@@ -66,7 +66,7 @@ class MainController {
      */
     handleError(error) {
         switch (error.constructor) {
-            case command_error_1.default:
+            case command_unavailable_1.default:
             case no_available_port_error_1.default:
             case not_found_error_1.default:
                 this.log.warn(error.message);

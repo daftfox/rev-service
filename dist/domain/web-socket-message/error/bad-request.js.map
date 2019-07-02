@@ -1,0 +1,1 @@
+{"version":3,"file":"bad-request.js","sourceRoot":"","sources":["../../../../src/domain/web-socket-message/error/bad-request.ts"],"names":[],"mappings":";;AAAA,yDAAgD;AAEhD,MAAM,UAAW,SAAQ,0BAAc;IACnC,YAAa,OAAe;QACxB,KAAK,CAAE,OAAO,CAAE,CAAC;QAEjB,IAAI,CAAC,IAAI,GAAG,GAAG,CAAC;QAChB,IAAI,CAAC,YAAY,CAAC,KAAK,GAAG,oEAAoE,CAAC;IACnG,CAAC;CACJ;AAED,kBAAe,UAAU,CAAC"}

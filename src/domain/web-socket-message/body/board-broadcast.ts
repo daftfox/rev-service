@@ -11,4 +11,5 @@ export enum BOARD_BROADCAST_ACTION {
     NEW = 'NEW',
     UPDATE = 'UPDATE',
     REMOVE = 'REMOVE',
+    REPLACE = 'REPLACE',
 }

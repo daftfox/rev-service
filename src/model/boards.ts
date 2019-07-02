@@ -11,6 +11,7 @@ import ICommand from "../interface/command";
 import Program from "../domain/program";
 import Conflict from "../domain/web-socket-message/error/conflict";
 import MethodNotAllowed from "../domain/web-socket-message/error/method-not-allowed";
+import LedController from "../domain/led-controller";
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
@@ -27,6 +28,7 @@ class Boards {
     private static AVAILABLE_TYPES = {
         MAJORTOM: 'MajorTom',
         BOARD: "Board",
+        LEDCONTROLLER: "LedController",
     };
 
     /**
@@ -62,7 +64,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private notifyBoardConnectedListeners: ( ( IBoard ) => void )[] = [];
+    private boardConnectedListeners: ( ( board: IBoard, newRecord: boolean ) => void )[] = [];
 
     /**
      * Array of listener methods that are called as soon as a {@link Board} instance has updated.
@@ -70,7 +72,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private notifyBoardUpdatedListeners: ( ( IBoard ) => void )[] = [];
+    private boardUpdatedListeners: ( ( IBoard ) => void )[] = [];
 
     /**
      * Array of listener methods that are called as soon as a {@link Board} instance was removed from the {@link _boards} array.
@@ -78,7 +80,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private notifyBoardDisconnectedListeners: ( ( IBoard ) => void )[] = [];
+    private boardDisconnectedListeners: ( ( IBoard ) => void )[] = [];
 
     constructor() {
          Board.findAll()
@@ -95,7 +97,7 @@ class Boards {
      * @param {FirmataBoard} [firmataBoard] - Connected instance of {@link FirmataBoard} to attach to the newly created instance.
      * @returns {Board} New instance of {@link Board} or {@link MajorTom}.
      */
-    public static instantiateBoard( board: Board, firmataBoard?: FirmataBoard ): Board {
+    public static instantiateBoard( board: Board, serialConnection: boolean = false, firmataBoard?: FirmataBoard ): Board {
         let boardInstance: Board;
 
         const dataValues = {
@@ -107,10 +109,13 @@ class Boards {
 
         switch( board.type ) {
             case 'MajorTom':
-                boardInstance = new MajorTom( dataValues, { isNewRecord: board.isNewRecord }, firmataBoard );
+                boardInstance = new MajorTom( dataValues, { isNewRecord: board.isNewRecord }, firmataBoard, serialConnection );
+                break;
+            case 'LedController':
+                boardInstance = new LedController( dataValues, { isNewRecord: board.isNewRecord }, firmataBoard, serialConnection );
                 break;
             default:
-                boardInstance = new Board( dataValues, { isNewRecord: board.isNewRecord }, firmataBoard );
+                boardInstance = new Board( dataValues, { isNewRecord: board.isNewRecord }, firmataBoard, serialConnection );
                 break;
         }
 
@@ -124,8 +129,8 @@ class Boards {
      * @param {(IBoard) => void} listener - Callback method to execute when a {@link Board} instance has online.
      * @returns {void}
      */
-    public addBoardConnectedListener( listener: ( IBoard ) => void ): void {
-        this.notifyBoardConnectedListeners.push( listener );
+    public addBoardConnectedListener( listener: ( board: IBoard, newRecord: boolean ) => void ): void {
+        this.boardConnectedListeners.push( listener );
     }
 
     /**
@@ -136,7 +141,7 @@ class Boards {
      * @returns {void}
      */
     public addBoardUpdatedListener( listener: ( IBoard ) => void ): void {
-        this.notifyBoardUpdatedListeners.push( listener );
+        this.boardUpdatedListeners.push( listener );
     }
 
     /**
@@ -147,7 +152,7 @@ class Boards {
      * @returns {void}
      */
     public addBoardDisconnectedListener( listener: ( IBoard ) => void ): void {
-        this.notifyBoardDisconnectedListeners.push( listener );
+        this.boardDisconnectedListeners.push( listener );
     }
 
     /**
@@ -195,12 +200,13 @@ class Boards {
      * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
      * @returns {Promise<IBoard>} A promise that resolves to an object implementing the {@link IBoard} interface once the board has been added successfully.
      */
-    public async addBoard( id: string, type: string, firmataBoard: FirmataBoard ): Promise<IBoard> {
+    public async addBoard( id: string, type: string, firmataBoard: FirmataBoard, serialConnection: boolean ): Promise<IBoard> {
 
         // fill variable with an instance of Board, either retrieved from the data storage, or newly constructed.
-        const board = await Boards.findOrBuildBoard( id, type, firmataBoard );
+        const board = await Boards.findOrBuildBoard( id, type, firmataBoard, serialConnection );
+        const newRecord = board.isNewRecord;
 
-        if ( board.isNewRecord ) {
+        if ( newRecord ) {
 
             // store the Board in the data storage and append it to the local storage array if it is new
             Boards.log.debug( `Storing new board with id ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } in the database.` );
@@ -223,7 +229,7 @@ class Boards {
         // retrieve a lean copy of the Board instance
         const discreteBoard = Board.toDiscrete( board );
 
-        this.notifyBoardConnectedListeners.forEach( listener => listener( discreteBoard ) );
+        this.boardConnectedListeners.forEach( listener => listener( discreteBoard, newRecord ) );
         return Promise.resolve( discreteBoard );
     }
 
@@ -260,7 +266,7 @@ class Boards {
             const index = this._boards.findIndex( board => board.id === id );
             this._boards[ index ] = board;
 
-            this.notifyBoardDisconnectedListeners.forEach( listener => listener( discreteBoard ) );
+            this.boardDisconnectedListeners.forEach( listener => listener( discreteBoard ) );
         }
     }
 
@@ -286,38 +292,45 @@ class Boards {
 
         let board = this._boards.find( board => board.id === boardUpdates.id );
 
-        // do not allow the user to change the Board.type property into an unsupported value
-        if ( boardUpdates.type && !Object.values( Boards.AVAILABLE_TYPES ).includes( boardUpdates.type ) )  {
-            throw new BadRequest( `Type '${ boardUpdates.type }' is not a valid type. Valid types are${ Object.values( Boards.AVAILABLE_TYPES ).map( type => ` '${ type }'` ) }.` );
-        }
+        if ( board ) {
 
-        // update existing board values
-        Object.assign( board, boardUpdates );
+            // do not allow the user to change the Board.type property into an unsupported value
+            if ( boardUpdates.type && !Object.values( Boards.AVAILABLE_TYPES ).includes( boardUpdates.type ) )  {
+                throw new BadRequest( `Type '${ boardUpdates.type }' is not a valid type. Valid types are${ Object.values( Boards.AVAILABLE_TYPES ).map( type => ` '${ type }'` ) }.` );
+            }
 
-        if ( persist ) {
+            // update existing board values
+            Object.assign( board, boardUpdates );
 
-            // persist instance changes to the data storage
-            Boards.log.debug( `Storing update for board with id ${ Chalk.rgb( 0, 143, 255 ).bold( boardUpdates.id ) } in the database.` );
-            board.save();
+            if ( persist ) {
 
-            // re-instantiate previous board to reflect type changes
-            if ( board.previous( 'type' ) && board.previous( 'type' ) !== board.getDataValue( 'type' ) ) {
-                const index = this._boards.findIndex( board => board.id === boardUpdates.id );
+                // persist instance changes to the data storage
+                Boards.log.debug( `Storing update for board with id ${ Chalk.rgb( 0, 143, 255 ).bold( boardUpdates.id ) } in the database.` );
+                board.save();
 
-                // clear non-essential timers and listeners
-                if ( board.online ) {
-                    this._boards[ index ].clearAllTimers();
+                if ( board.previous( 'pinout' ) && board.previous( 'pinout' ) !== board.getDataValue( 'pinout' ) ) {
+                    board.setPinout( board.pinout );
                 }
 
-                // create new instance if board is online and attach the existing online FirmataBoard instance to it
-                board = Boards.instantiateBoard( board, board.getFirmataBoard() );
-                this._boards[ index ] = board;
+                // re-instantiate previous board to reflect type changes
+                if ( board.previous( 'type' ) && board.previous( 'type' ) !== board.getDataValue( 'type' ) ) {
+                    const index = this._boards.findIndex( board => board.id === boardUpdates.id );
+
+                    // clear non-essential timers and listeners
+                    if ( board.online ) {
+                        this._boards[ index ].clearAllTimers();
+                    }
+
+                    // create new instance if board is online and attach the existing online FirmataBoard instance to it
+                    board = Boards.instantiateBoard( board, board.serialConnection, board.getFirmataBoard() );
+                    this._boards[ index ] = board;
+                }
             }
+
+            const discreteBoard = Board.toDiscrete( board );
+
+            this.boardUpdatedListeners.forEach( listener => listener( discreteBoard ) );
         }
-
-        const discreteBoard = Board.toDiscrete( board );
-
-        this.notifyBoardUpdatedListeners.forEach( listener => listener( discreteBoard ) );
     }
 
     /**
@@ -331,12 +344,14 @@ class Boards {
      */
     public executeActionOnBoard( id: string, command: ICommand ): Promise<void> {
         const board = this._boards.find( board => board.id === id );
+        let timeout;
 
         return new Promise( ( resolve, reject ) => {
             try {
                 board.executeAction( command.action, command.parameters );
-                setTimeout( resolve, command.duration || 100 );
+                timeout = setTimeout( resolve, command.duration || 100 );
             } catch ( error ) {
+                clearTimeout( timeout );
                 reject( new MethodNotAllowed( error.message ) );
             }
         } );
@@ -383,20 +398,23 @@ class Boards {
 
         const discreteBoard = Board.toDiscrete( board );
 
-        if ( repeat === -1 ) {
+        try {
+            if ( repeat === -1 ) {
 
-            // execute program indefinitely
-            while ( board.currentProgram !== program.name ) {
-                await this.runProgram( discreteBoard, program );
+                // execute program indefinitely
+                while ( board.currentProgram !== program.name ) {
+                    await this.runProgram( discreteBoard, program );
+                }
+
+            } else {
+
+                // execute program n times
+                for ( let repetition = 0; repetition < repeat; repetition++ ) {
+                    await this.runProgram( discreteBoard, program );
+                }
             }
-
-        } else {
-
-            // execute program n times
-            for ( let repetition = 0; repetition < repeat; repetition++ ) {
-                await this.runProgram( discreteBoard, program );
-            }
-
+        } catch ( error ) {
+            new MethodNotAllowed( error.message );
         }
 
         // set the board's current program status to 'idle'
@@ -416,7 +434,7 @@ class Boards {
      * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
      * @returns {Promise<Board>} Promise that resolves to an instance of {@link Board} after an instance has been found or created.
      */
-    private static async findOrBuildBoard( id: string, type: string, firmataBoard: FirmataBoard ): Promise<Board> {
+    private static async findOrBuildBoard( id: string, type: string, firmataBoard: FirmataBoard, serialConnection: boolean ): Promise<Board> {
         let [ board ] = await Board.findOrBuild( {
             where: {
                 id: id,
@@ -427,7 +445,7 @@ class Boards {
             }
         });
 
-        board = Boards.instantiateBoard( board, firmataBoard );
+        board = Boards.instantiateBoard( board, serialConnection, firmataBoard );
 
         return Promise.resolve( board );
     }
@@ -450,7 +468,11 @@ class Boards {
                 break;
             }
 
-            await this.executeActionOnBoard( board.id, command );
+            try {
+                await this.executeActionOnBoard( board.id, command );
+            } catch ( error ) {
+                return Promise.reject( error );
+            }
         }
 
         return Promise.resolve();

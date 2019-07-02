@@ -1,5 +1,5 @@
 import * as WebSocket from 'websocket';
-import {Server} from 'http';
+import { Server } from 'http';
 import WebSocketMessage, {
     WebSocketMessageKind,
     WebSocketMessageType
@@ -9,14 +9,14 @@ import Boards from "../model/boards";
 import HttpService from "./http-service";
 import Chalk from 'chalk';
 import ICommand from "../interface/command";
-import BoardRequest, {BoardAction} from "../domain/web-socket-message/body/board-request";
+import BoardRequest, { BoardAction } from "../domain/web-socket-message/body/board-request";
 import BoardResponse from "../domain/web-socket-message/body/board-response";
-import {ResponseCode} from "../domain/web-socket-message/response-code";
+import { ResponseCode } from "../domain/web-socket-message/response-code";
 import CommandRequest from "../domain/web-socket-message/body/command-request";
 import ProgramResponse from "../domain/web-socket-message/body/program-response";
-import ProgramRequest, {ProgramAction} from "../domain/web-socket-message/body/program-request";
+import ProgramRequest, { ProgramAction } from "../domain/web-socket-message/body/program-request";
 import Programs from "../model/programs";
-import BoardBroadcast, {BOARD_BROADCAST_ACTION} from "../domain/web-socket-message/body/board-broadcast";
+import BoardBroadcast, { BOARD_BROADCAST_ACTION } from "../domain/web-socket-message/body/board-broadcast";
 import ErrorResponse from "../domain/web-socket-message/body/error-response";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 import NotFound from "../domain/web-socket-message/error/not-found";
@@ -380,6 +380,8 @@ class WebSocketService {
                         } else if ( error instanceof CommandUnavailable ) {
                             // board does not support this command
                             reject( new MethodNotAllowed( error.message ) );
+                        } else {
+                            reject( error );
                         }
 
                     } )
@@ -451,7 +453,7 @@ class WebSocketService {
     private handleClientConnected(): Promise<WebSocketMessage<BoardBroadcast>> {
         return new Promise( ( resolve ) => {
             const body: BoardBroadcast = {
-                action: BOARD_BROADCAST_ACTION.NEW,
+                action: BOARD_BROADCAST_ACTION.REPLACE,
                 boards: this.boardModel.boards,
             };
 
@@ -466,8 +468,8 @@ class WebSocketService {
      * @param {IBoard} board - The board that was connected
      * @return {void}
      */
-    private broadcastBoardConnected( board: IBoard ): void {
-        this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.UPDATE, board );
+    private broadcastBoardConnected( board: IBoard, newRecord: boolean ): void {
+        this.broadcastBoardUpdate( ( newRecord ? BOARD_BROADCAST_ACTION.NEW : BOARD_BROADCAST_ACTION.UPDATE ), board );
     }
 
     /**

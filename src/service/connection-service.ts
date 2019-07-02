@@ -3,6 +3,8 @@ import * as FirmataBoard from 'firmata';
 import Logger from "./logger";
 import * as net from "net";
 import IBoard from "../interface/board";
+import SerialPort = require("serialport");
+import SerialService from "./serial-service";
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
@@ -51,7 +53,7 @@ class ConnectionService {
      * @param {function(IBoard):void} [connected] - Callback for when device successfully connects, containing an object implementing the {@link IBoard} interface.
      * @param {function(IBoard):void} [disconnected] - Callback when device disconnects containing an object implementing the {@link IBoard} interface.
      */
-    protected connectToBoard( port: net.Socket | string, connected?: ( board: IBoard ) => void, disconnected?: ( board?: IBoard ) => void ): void {
+    protected connectToBoard( port: net.Socket | string, serialConnection: boolean, connected?: ( board: IBoard ) => void, disconnected?: ( board?: IBoard ) => void ): void {
         let connectedBoard: IBoard;
         let id: string;
 
@@ -62,7 +64,7 @@ class ConnectionService {
          * The device is deemed unsupported if a connection could not be made within that period.
          */
         const connectionTimeout = setTimeout( () => {
-            this.log.warn( 'Timeout while connecting to connectedBoard.' );
+            this.log.warn( 'Timeout while connecting to device.' );
 
             connectedBoard = null;
             firmataBoard.removeAllListeners();
@@ -83,7 +85,7 @@ class ConnectionService {
             id = firmataBoard.firmware.name.split( '_' ).pop().replace( '.ino', '' );
 
             // add connected device to list of available devices and / or persist to the data storage if new
-            connectedBoard = await this.model.addBoard( id, type, firmataBoard );
+            connectedBoard = await this.model.addBoard( id, type, firmataBoard, serialConnection );
 
             // callback to connection interface service
             connected( connectedBoard );

@@ -1,0 +1,1 @@
+{"version":3,"file":"conflict.js","sourceRoot":"","sources":["../../../../src/domain/web-socket-message/error/conflict.ts"],"names":[],"mappings":";;AAAA,yDAAgD;AAEhD,MAAM,QAAS,SAAQ,0BAAc;IACjC,YAAa,OAAe;QACxB,KAAK,CAAE,OAAO,CAAE,CAAC;QAEjB,IAAI,CAAC,IAAI,GAAG,GAAG,CAAC;QAChB,IAAI,CAAC,YAAY,CAAC,KAAK,GAAG,uDAAuD,CAAC;IACtF,CAAC;CACJ;AAED,kBAAe,QAAQ,CAAC"}
