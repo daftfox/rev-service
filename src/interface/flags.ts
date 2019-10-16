@@ -7,5 +7,12 @@ export default interface IFlags {
     debug: boolean; // enable/disable debug logging
     ethernet: boolean; // enable/disable the ethernet service
     port: number; // port to bind the WebSocket service to
-    ethPort: number; // port to bind the ethernet service to
+    ethernetPort: number; // port to bind the ethernet service to
+    dbSchema: string;
+    dbHost: string;
+    dbPort: number;
+    dbUsername: string;
+    dbPassword: string;
+    dbDialect: string;
+    dbPath: string;
 }

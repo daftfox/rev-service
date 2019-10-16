@@ -1,14 +1,16 @@
 import Config from '../config/config';
-// import SerialService from '../service/serial-service';
 import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
 import Logger from '../service/logger';
 import Boards from '../model/boards';
-import CommandError from '../error/command-error';
+import CommandUnavailable from '../error/command-unavailable';
 import NoAvailablePortError from '../error/no-available-port-error';
 import NotFoundError from '../error/not-found-error';
 import GenericBoardError from '../error/generic-board-error';
 import IFlags from '../interface/flags';
+import DatabaseService from "../service/database-service";
+import Programs from "../model/programs";
+import SerialService from "../service/serial-service";
 
 // only required during dev
 require('longjohn');
@@ -44,12 +46,15 @@ class MainController {
     private options: IFlags;
 
     /**
-     * Data model managing instances of {@link Board} or classes that extend it, like {@link MajorTom}.
+     * Data boardModel managing instances of {@link Board} or classes that extend it.
      *
      * @type {Boards}
      * @access private
      */
-    private model: Boards;
+    private boardModel: Boards;
+
+
+    private programModel: Programs;
 
     /**
      * Local instance of the {@link WebSocketService}.
@@ -73,12 +78,10 @@ class MainController {
      * @type {SerialService}
      * @access private
      */
-    //private serialService: SerialService;
+    private serialService: SerialService;
 
     /**
      * Creates a new instance of MainController and starts required services.
-     *
-     * @constructor
      */
     constructor() {
         this.options = Config.parseOptions( process.argv );
@@ -93,22 +96,39 @@ class MainController {
      * Start services that are required to run the application.
      *
      * @access private
+     * @returns {void}
      */
     private startServices(): void {
-        this.model = new Boards();
+        const databaseOptions = {
+            username: this.options.dbUsername,
+            password: this.options.dbPassword,
+            host: this.options.dbHost,
+            port: this.options.dbPort,
+            path: this.options.dbPath,
+            dialect: this.options.dbDialect,
+            schema: this.options.dbSchema,
+            debug: this.options.debug
+        };
 
-        this.socketService = new WebSocketService(
-            this.options.port,
-            this.model
-        );
+        new DatabaseService( databaseOptions )
+            .synchronise()
+            .then( () => {
+                this.boardModel = new Boards();
+                this.programModel = new Programs();
 
-        if ( this.options.ethernet ) {
-            this.ethernetService = new EthernetService( this.model, this.options.ethPort );
-        }
+                this.socketService = new WebSocketService(
+                    this.options.port,
+                    this.boardModel,
+                    this.programModel
+                );
 
-        // if ( this.options.serial ) {
-        //     this.serialService   = new SerialService( this.model );
-        // }
+                if ( this.options.ethernet ) {
+                    this.ethernetService = new EthernetService( this.boardModel, this.options.ethernetPort );
+                }
+                if ( this.options.serial ) {
+                    this.serialService = new SerialService( this.boardModel );
+                }
+            } );
 
         process.on('uncaughtException', this.handleError.bind( this ) );
     }
@@ -118,10 +138,11 @@ class MainController {
      *
      * @access private
      * @param {Error} error
+     * @returns {void}
      */
     private handleError( error: Error ): void {
         switch( error.constructor ) {
-            case CommandError:
+            case CommandUnavailable:
             case NoAvailablePortError:
             case NotFoundError:
                 this.log.warn( error.message );

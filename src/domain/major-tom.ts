@@ -1,7 +1,8 @@
-import Board from './board';
+import Board, { PIN_MAPPING, PINOUT } from './board';
 import * as FirmataBoard from 'firmata';
 import Logger from '../service/logger';
-import IPinout from '../interface/pinout';
+import IPinMapping from '../interface/pin-mapping';
+import { BuildOptions } from "sequelize";
 import Timeout = NodeJS.Timeout;
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
@@ -79,63 +80,67 @@ class MajorTom extends Board {
      */
     private engineOn = false;
 
+    public pinout: PINOUT = PINOUT.ESP_8266;
+
     /**
-     * An instance of {@link IPinout} allowing for convenient mapping of device pins.
-     * Default pinout mapping for MajorTom (Wemos D1 / ESP8266) is as follows:
+     * An instance of {@link IPinMapping} allowing for convenient mapping of device pinMapping.
+     * Default pinMapping mapping for MajorTom (Wemos D1 / ESP8266) is as follows:
      * builtin LED: GPIO2 / D4
      * tx: GPIO5 / D1
      * rx: GPIO4 / D2
      * fan: GPIO16 / D0
      * voltage regulator: GPIO14 / D5
      *
-     * @type {IPinout}
+     * @type {IPinMapping}
      */
-    protected pinout: IPinout = {
-        LED: 2,
-        RX: 4,
-        TX: 5,
-        FAN: 16,
-        POWER: 14,
-    };
+    public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
 
     /**
      * @constructor
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor( firmataBoard: FirmataBoard, id: string ) {
-        super( firmataBoard, id );
+    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, serialConnection: boolean = false, id?: string ) {
+        super( model, buildOptions, firmataBoard, serialConnection, id );
 
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${ this.id }`;
         this.log = new Logger( this.namespace );
 
-        Object.assign( this.availableActions, {
-            ENGINEON: () => { this.startEngine() },
-            ENGINEOFF: () => { this.stopEngine() },
-            SETSPEED: ( speed: string ) => { this.setSpeed( speed ) },
-            SETRPM: ( rpm: string ) => { this.setRPM( rpm ) },
-            SETDTC: ( speed: string, mode: string ) => { this.setDTC( speed, mode ) },
-            CLEARDTCS: () => { this.clearAllDTCs() },
-            // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
-            // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-            SETVIN: ( vin: string ) => { this.setVIN( vin ) }
+        Object.assign( this.pinMapping, {
+            FAN: 16,
+            POWER: 14,
         } );
 
-        // set correct pin modes
-        this.firmataBoard.pinMode( this.pinout.FAN, FirmataBoard.PIN_MODE.OUTPUT );
-        this.firmataBoard.pinMode( this.pinout.POWER, FirmataBoard.PIN_MODE.PWM );
+        Object.assign( this.availableActions, {
+            ENGINEON: { requiresParams: false, method: () => { this.startEngine() } },
+            ENGINEOFF: { requiresParams: false, method: () => { this.stopEngine() } },
+            SETSPEED: { requiresParams: true, method: ( speed: string ) => { this.setSpeed( speed ) } },
+            SETRPM: { requiresParams: true, method: ( rpm: string ) => { this.setRPM( rpm ) } },
+            SETDTC: { requiresParams: true, method: ( dtc: string, mode: string ) => { this.setDTC( dtc, mode ) } },
+            CLEARDTCS: { requiresParams: false, method: () => { this.clearAllDTCs() } },
+            // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
+            // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
+            SETVIN: { requiresParams: true, method: ( vin: string ) => { this.setVIN( vin ) } },
+        } );
 
-        const serialOptions = {
-            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
-            baud: MajorTom.EMULATOR_BAUD,
-            rxPin: this.pinout.RX,
-            txPin: this.pinout.TX
-        };
+        if ( firmataBoard ) {
 
-        this.firmataBoard.serialConfig( serialOptions );
+            // set correct pin modes
+            this.firmataBoard.pinMode( this.pinMapping.FAN, FirmataBoard.PIN_MODE.OUTPUT );
+            this.firmataBoard.pinMode( this.pinMapping.POWER, FirmataBoard.PIN_MODE.PWM );
 
-        this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+            const serialOptions = {
+                portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+                baud: MajorTom.EMULATOR_BAUD,
+                rxPin: this.pinMapping.RX,
+                txPin: this.pinMapping.TX
+            };
+
+            this.firmataBoard.serialConfig( serialOptions );
+
+            this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+        }
     }
 
     /**
@@ -240,7 +245,7 @@ class MajorTom extends Board {
      */
     private setSupplyVoltage( voltage: number ): void {
         if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
-        this.firmataBoard.analogWrite( this.pinout.POWER, voltage );
+        this.firmataBoard.analogWrite( this.pinMapping.POWER, voltage );
     }
 
     /**
@@ -253,7 +258,6 @@ class MajorTom extends Board {
      */
     private startEngine(): void {
         if ( this.engineOn ) throw new Error( `Engine has already been started.` );
-        this.currentJob = "ENGINEON";
         this.engineOn = true;
         this.enableEmulatorIgnition( true );
         this.dipPowerSupply( MajorTom.DEFAULT_POWER_DIP_DURATION );
@@ -267,7 +271,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private stopEngine(): void {
-        this.resetCurrentJob();
+        this.setIdle();
         this.engineOn = false;
         this.enableEmulatorIgnition( false );
         this.clearInterval( this.shakeInterval );
@@ -313,7 +317,8 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private writeToEmulator( payload: string ): void {
-        this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
+        // fixme
+        //this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
     }
 
     /**
@@ -345,7 +350,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private enableFan( enable: boolean ): void {
-        this.firmataBoard.digitalWrite( this.pinout.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
+        this.firmataBoard.digitalWrite( this.pinMapping.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
     }
 
     /**
@@ -361,7 +366,7 @@ class MajorTom extends Board {
         const interval = Math.ceil( ( dipDuration >= 1000 ? dipDuration : 1500 ) / ( ( MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW ) / 10 ) );
 
         // dip it!
-        this.firmataBoard.analogWrite( this.pinout.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
+        this.firmataBoard.analogWrite( this.pinMapping.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
 
         // ramp it!
         const rampUp = setInterval( () => {

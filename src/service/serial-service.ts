@@ -1,21 +1,25 @@
-import BoardService from "./board-service";
+import ConnectionService from "./connection-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import Logger from "./logger";
 import ISerialPort from "../interface/serial-port";
+import IBoard from "../interface/board";
+import Chalk from "chalk";
 
 /**
- * @classdesc Service that automatically connects to any Firmata compatible devices physically connected to the host.
+ * @description Service that automatically connects to any Firmata compatible devices physically connected to the host.
  * @namespace SerialService
  */
-class SerialService extends BoardService {
+class SerialService extends ConnectionService {
 
     /**
      * A list of port IDs in which an unsupported device is plugged in.
      * @access private
      * @type {string[]}
      */
-    private unsupportedDevices: string[];
+    private unsupportedDevices: string[] = [];
+
+    private usedPorts: string[] = [];
 
     /**
      * @constructor
@@ -27,13 +31,12 @@ class SerialService extends BoardService {
         this.namespace = 'serial';
         this.log = new Logger( this.namespace );
 
-        this.unsupportedDevices = [];
         this.log.info( `Listening on serial ports.` );
         this.startListening();
     }
 
     /**
-     * Scans the host's ports every 10 seconds.
+     * Scans the host's ports every 3 seconds.
      * @access private
      */
     private startListening(): void {
@@ -47,49 +50,33 @@ class SerialService extends BoardService {
     private scanSerialPorts(): void {
         Serialport.list( ( error: any, ports: ISerialPort[] ) => {       // list all connected serial devices
 
-            const port = ports
-                .filter( port => port.manufacturer !== undefined )
-                .find( port => port.manufacturer.startsWith( "Arduino" ) );      // only allow devices produced by Arduino for now
-                                                                                 // todo: fix this shite
+            const availablePort = ports
+                .filter( port => port.productId !== undefined )
+                .filter( port => this.usedPorts.indexOf( port.comName ) < 0)
+                .filter( port => this.unsupportedDevices.indexOf( port.comName ) < 0).pop();
 
-            // don't connect to the same device twice, also ignore devices that don't support Firmata
-            if ( port && !this.isUnsupported( port.comName ) ) {
+            if ( availablePort ) {
+                this.usedPorts.push( availablePort.comName );
                 this.connectToBoard(
-                    port.comName,
-                    this.handleConnected.bind( this ),
-                    this.handleDisconnected.bind( this )
+                    availablePort.comName,
+                    true,
+                    ( board: IBoard ) => {
+                        this.log.info( `Device ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } connected.` );
+                    },
+                    ( board?: IBoard ) => {
+
+                        this.usedPorts.splice( this.usedPorts.indexOf( availablePort.comName ), 1 );
+                        if ( board ) {
+                            this.log.info( `Device ${ board.id } disconnected.` );
+
+                            this.model.disconnectBoard( board.id );
+                        } else {
+                            this.unsupportedDevices.push( availablePort.comName );
+                        }
+                    }
                 );
             }
         } );
-    }
-
-    /**
-     * Handles a connected board.
-     * @param {string} boardId
-     */
-    private handleConnected( boardId: string ): void {
-        this.log.info( `A new compatible device connected on: ${boardId}.` );
-    }
-
-    /**
-     * Handles a disconnected board.
-     * @param {string} boardId
-     */
-    private handleDisconnected( boardId: string ): void {
-        if ( boardId ) this.log.info( `A device has disconnected from port ${boardId}.` );
-        else this.log.info( `A device has failed to connect.` );
-
-        this.log.info( `A device has disconnected from port ${boardId}.` );
-    }
-
-    /**
-     * Returns true if a device is present in the list of unsupported devices.
-     * @access private
-     * @param {string} port
-     * @return {boolean}
-     */
-    private isUnsupported( port: string ): boolean {
-        return this.unsupportedDevices.indexOf( port ) >= 0;
     }
 }
 
