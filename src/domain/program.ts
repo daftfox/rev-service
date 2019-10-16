@@ -1,7 +1,5 @@
-import { Column, Model, Table } from "sequelize-typescript";
+import {Column, DataType, Model, Table, Sequelize} from "sequelize-typescript";
 import ICommand from "../interface/command";
-import CommandService from "../service/command-service";
-import IBoard from "../interface/board";
 
 @Table({
     timestamps: true
@@ -14,7 +12,7 @@ class Program extends Model<Program> {
     @Column
     public deviceType: string;
 
-    @Column
+    @Column( DataType.TEXT )
     private commands: string;
 
     public getCommands(): ICommand[] {

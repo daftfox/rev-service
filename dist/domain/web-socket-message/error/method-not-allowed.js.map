@@ -1,1 +1,0 @@
-{"version":3,"file":"method-not-allowed.js","sourceRoot":"","sources":["../../../../src/domain/web-socket-message/error/method-not-allowed.ts"],"names":[],"mappings":";;AAAA,yDAAgD;AAEhD,MAAM,gBAAiB,SAAQ,0BAAc;IACzC,YAAa,OAAe;QACxB,KAAK,CAAE,OAAO,CAAE,CAAC;QAEjB,IAAI,CAAC,IAAI,GAAG,GAAG,CAAC;QAChB,IAAI,CAAC,YAAY,CAAC,KAAK,GAAG,wDAAwD,CAAC;IACvF,CAAC;CACJ;AAED,kBAAe,gBAAgB,CAAC"}

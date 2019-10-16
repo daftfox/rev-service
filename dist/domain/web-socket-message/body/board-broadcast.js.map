@@ -1,1 +1,0 @@
-{"version":3,"file":"board-broadcast.js","sourceRoot":"","sources":["../../../../src/domain/web-socket-message/body/board-broadcast.ts"],"names":[],"mappings":";;AASA,IAAY,sBAKX;AALD,WAAY,sBAAsB;IAC9B,qCAAW,CAAA;IACX,2CAAiB,CAAA;IACjB,2CAAiB,CAAA;IACjB,6CAAmB,CAAA;AACvB,CAAC,EALW,sBAAsB,GAAtB,8BAAsB,KAAtB,8BAAsB,QAKjC"}

@@ -7,7 +7,7 @@
     "postinstall": "tsc",
     "test": "mocha -r ts-node/register test/**/*.spec.ts --exit",
     "testWithCoverage": "nyc -r lcov -e .ts -x \"*.spec.ts\" mocha -r ts-node/register test/**/*.spec.ts --exit && nyc report",
-    "start": "tsc && node ./dist/index.js --serial --ethernet",
+    "start": "tsc && node ./dist/index.js --ethernet",
     "build": "tsc"
   },
   "bin": {
@@ -41,6 +41,7 @@
     "firmata": "^2.0.0",
     "longjohn": "^0.2.12",
     "moment": "^2.23.0",
+    "mysql2": "^1.7.0",
     "reflect-metadata": "^0.1.13",
     "sequelize": "^5.8.6",
     "sequelize-typescript": "^1.0.0-alpha.9",

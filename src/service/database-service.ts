@@ -2,6 +2,7 @@ import { Sequelize } from 'sequelize-typescript';
 import Program, {defaultPrograms} from "../domain/program";
 import Board from "../domain/board";
 import Logger from "./logger";
+import { Dialect } from "sequelize";
 
 class DatabaseService {
     /**
@@ -25,11 +26,11 @@ class DatabaseService {
      */
     private static log = new Logger( DatabaseService.namespace );
 
-    constructor() {
-        DatabaseService.database = new Sequelize({
-            dialect: 'sqlite',
-            storage: './database/rev.db',
-            logging: false,
+    constructor( options: { username: string, password: string, host: string, port: number, path: string, dialect: string, schema: string, debug: boolean } ) {
+        DatabaseService.database = new Sequelize( options.schema, options.username, options.password, {
+            dialect: options.dialect as Dialect,
+            storage: options.dialect === 'sqlite' ? options.path : null,
+            logging: options.debug,
         } );
 
         DatabaseService.database.addModels( [
@@ -39,13 +40,14 @@ class DatabaseService {
     }
 
     /**
-     * Synchronise the datamodel with the database.
+     * Synchronise data model with the database.
      *
      * @access public
-     * @return {void}
+     * @returns {Promise<void>}
      */
     public synchronise(): Promise<void> {
         DatabaseService.log.info(`Synchronising database model.`);
+
         return DatabaseService.database
             .sync()
             .then(

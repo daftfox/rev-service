@@ -317,7 +317,8 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private writeToEmulator( payload: string ): void {
-        this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
+        // fixme
+        //this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
     }
 
     /**

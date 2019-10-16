@@ -1,5 +1,4 @@
 import Config from '../config/config';
-// import SerialService from '../service/serial-service';
 import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
 import Logger from '../service/logger';
@@ -83,8 +82,6 @@ class MainController {
 
     /**
      * Creates a new instance of MainController and starts required services.
-     *
-     * @constructor
      */
     constructor() {
         this.options = Config.parseOptions( process.argv );
@@ -99,9 +96,22 @@ class MainController {
      * Start services that are required to run the application.
      *
      * @access private
+     * @returns {void}
      */
     private startServices(): void {
-        new DatabaseService().synchronise()
+        const databaseOptions = {
+            username: this.options.dbUsername,
+            password: this.options.dbPassword,
+            host: this.options.dbHost,
+            port: this.options.dbPort,
+            path: this.options.dbPath,
+            dialect: this.options.dbDialect,
+            schema: this.options.dbSchema,
+            debug: this.options.debug
+        };
+
+        new DatabaseService( databaseOptions )
+            .synchronise()
             .then( () => {
                 this.boardModel = new Boards();
                 this.programModel = new Programs();
@@ -113,7 +123,7 @@ class MainController {
                 );
 
                 if ( this.options.ethernet ) {
-                    this.ethernetService = new EthernetService( this.boardModel, this.options.ethPort );
+                    this.ethernetService = new EthernetService( this.boardModel, this.options.ethernetPort );
                 }
                 if ( this.options.serial ) {
                     this.serialService = new SerialService( this.boardModel );
@@ -128,6 +138,7 @@ class MainController {
      *
      * @access private
      * @param {Error} error
+     * @returns {void}
      */
     private handleError( error: Error ): void {
         switch( error.constructor ) {

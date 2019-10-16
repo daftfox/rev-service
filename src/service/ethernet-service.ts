@@ -80,7 +80,7 @@ class EthernetService extends ConnectionService{
         socket.destroy();
 
         if ( board ) {
-            this.log.info( `Device ${ board.id } disconnected.` );
+            this.log.info( `Device ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } disconnected.` );
 
             this.model.disconnectBoard( board.id );
         }

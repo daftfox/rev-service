@@ -107,7 +107,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {Object}
      * @access protected
      */
-    protected availableActions = {
+    protected availableActions: any = {
         BLINKON: { requiresParams: false, method: () => { this.enableBlinkLed( true ) } },
         BLINKOFF: { requiresParams: false, method: () => { this.enableBlinkLed( false ) } },
         TOGGLELED: { requiresParams: false, method: () => { this.toggleLED() } },
@@ -174,6 +174,9 @@ class Board extends Model<Board> implements IBoard {
      * @access private
      */
     private heartbeatTimeout: Timeout;
+
+
+    private serialRetry: Timeout;
 
     /**
      * Array that is used to store the value measured by analog pinMapping for later comparison.
@@ -502,16 +505,46 @@ class Board extends Model<Board> implements IBoard {
     };
 
     /**
-     * Writes a character byte-array to a device's serial UART interface.
+     * Writes a byte-array with the device's specified serial UART interface.
      *
      * @access private
-     * @param {string} payload String to send
+     * @param {<string | number>[]} payload Array with bytes to send
      * @param {FirmataBoard.SERIAL_PORT_ID} serialPort Serial port on which to send
      * @returns {void}
      */
-    protected serialWrite( serialPort: FirmataBoard.SERIAL_PORT_ID, payload: string ): void {
-        const bytes = [...payload].map( str => str.charCodeAt(0) );
-        this.firmataBoard.serialWrite( serialPort, bytes );
+    protected serialWriteBytes( serialPort: FirmataBoard.SERIAL_PORT_ID, payload: (string | number)[] ): void {
+        const buffer = Buffer.allocUnsafe( payload.length );
+
+        payload.forEach( ( value: string | number, index: number) => {
+            if ( typeof value === 'string' ) {
+                buffer.write( value, index );
+            } else if ( typeof value === 'number' ) {
+                buffer.writeUInt8( value, index );
+            }
+        } );
+
+        const bytesPayload = [];
+
+        for ( const [index, value] of buffer.entries() ) {
+            bytesPayload.push( value );
+        }
+
+        // const checkForAck = ( bytes: number[] ) => {
+        //     // check if the first (and likely only) byte received is 0x06, which is an ACK
+        //     if ( bytes[0] === 6 ) {
+        //         console.log(bytes[0]);
+        //         clearInterval( this.serialRetry );
+        //         this.firmataBoard.removeListener( `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`, checkForAck );
+        //     }
+        // };
+
+        //this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
+
+        this.firmataBoard.serialWrite( serialPort, bytesPayload );
+
+        // this.serialRetry = setInterval( () => {
+        //     this.firmataBoard.serialWrite( serialPort, bytesPayload );
+        // }, 2000);
     }
 
     /**
@@ -603,6 +636,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     private clearAllIntervals(): void {
+        clearInterval( this.serialRetry );
         this.intervals.forEach( interval => clearInterval( interval ) );
         this.intervals = [];
     }
@@ -669,7 +703,7 @@ export const PIN_MAPPING = {
     },
     ESP_8266: {
         LED: 2,
-        RX: 4,
-        TX: 5,
-    }
+        RX: 3,
+        TX: 1,
+    },
 };

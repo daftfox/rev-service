@@ -16,6 +16,18 @@ class LedController extends Board {
      */
     private static SERIAL_BAUD_RATE = 9600;
 
+    private static PAYLOAD_HEADER = "[";
+    private static PAYLOAD_FOOTER = "]";
+
+    private static LED_COMMANDS = {
+        SETCOLOR: "C",
+        PULSECOLOR: "P",
+        SETBRIGHTNESS: "B",
+        RAINBOW: "R",
+        RETRO: "8", // not implemented
+        KITT: "K",
+    };
+
     /**
      * An instance of {@link IPinMapping} allowing for convenient mapping of device pinMapping.
      * Default pinMapping mapping for LED Controller (Wemos D1 / ESP8266) is as follows:
@@ -35,11 +47,12 @@ class LedController extends Board {
         this.namespace = `LedController_${ this.id }`;
         this.log = new Logger( this.namespace );
 
-        Object.assign( this.availableActions, {
-            SETCOLOR: { requiresParams: true, method: ( color: string ) => { this.setColor( color ) } },
-            PULSECOLORRGB: { requiresParams: true, method: ( red: string, green: string, blue: string ) => { this.pulseColorRGB( red, green, blue ) } },
-            SETCOLORRGB: { requiresParams: true, method: ( red: string, green: string, blue: string ) => { this.setColorRGB( red, green, blue ) } },
-        } );
+        this.availableActions = {
+            RAINBOW: { requiresParams: false, method: () => { this.rainbow() } },
+            KITT: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.kitt( hue, saturation, value ) } },
+            PULSECOLOR: { requiresParams: true, method: ( hue: string, saturation: string ) => { this.pulseColor( hue, saturation ) } },
+            SETCOLOR: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.setColor( hue, saturation, value ) } },
+        };
 
         if ( firmataBoard ) {
 
@@ -54,67 +67,25 @@ class LedController extends Board {
         }
     }
 
-    private pulseColorRGB( red: string, green: string, blue: string ): void {
-        this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, `PULSECOLORRGB:${ red },${ green },${ blue };` );
+    private static buildPayload( command: string, ...parameters: any[] ): any[] {
+        return [ LedController.PAYLOAD_HEADER, command, ...parameters, LedController.PAYLOAD_FOOTER ];
     }
 
-    private setColorRGB( red: string, green: string, blue: string ): void {
-        this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, `SETCOLORRGB:${ red },${ green },${ blue };` );
+    private pulseColor( hue: string, saturation: string ): void {
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.PULSECOLOR, parseInt( hue, 10 ), parseInt( saturation, 10 ) ) );
     }
 
-    private setColor( color: string ): void {
-        switch ( color ) {
-            case COLOR.RED:
-                this.setColorRGB( '255', '0', '0' );
-                break;
-            case COLOR.ORANGE:
-                this.setColorRGB( '255', '161', '0' );
-                break;
-            case COLOR.YELLOW:
-                this.setColorRGB( '255', '255', '0' );
-                break;
-            case COLOR.LIME:
-                this.setColorRGB( '178', '255', '0' );
-                break;
-            case COLOR.GREEN:
-                this.setColorRGB( '59', '255', '0' );
-                break;
-            case COLOR.TURQUOISE:
-                this.setColorRGB( '0', '255', '208' );
-                break;
-            case COLOR.BLUE:
-                this.setColorRGB( '0', '0', '255' );
-                break;
-            case COLOR.VIOLET:
-                this.setColorRGB( '97', '0', '255' );
-                break;
-            case COLOR.PURPLE:
-                this.setColorRGB( '135', '0', '255' );
-                break;
-            case COLOR.PINK:
-                this.setColorRGB( '255', '0', '255' );
-                break;
-            case COLOR.WHITE:
-                this.setColorRGB( '255', '255', '255' );
-                break;
-            default:
-                throw new Error( `${ color } is not a supported color, use SETCOLORRGB instead.` );
-        }
+    private setColor( hue: string, saturation: string, brightness: string ): void {
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.SETCOLOR, parseInt( hue, 10 ), parseInt( saturation, 10 ), parseInt( brightness, 10 ) ) );
+    }
+
+    private rainbow(): void {
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.RAINBOW ) );
+    }
+
+    private kitt( hue: string, saturation: string, brightness: string ): void {
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.KITT, parseInt( hue, 10 ), parseInt( saturation, 10 ), parseInt( brightness, 10 ) ) );
     }
 }
 
 export default LedController;
-
-enum COLOR {
-    RED = 'red',
-    ORANGE = 'orange',
-    YELLOW = 'yellow',
-    LIME = 'lime',
-    GREEN = 'green',
-    TURQUOISE = 'turquoise',
-    BLUE = 'blue',
-    VIOLET = 'violet',
-    PURPLE = 'purple',
-    PINK = 'pink',
-    WHITE = 'white',
-}
