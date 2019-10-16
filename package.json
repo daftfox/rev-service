@@ -19,6 +19,9 @@
   "keywords": [
     "firmata",
     "web",
+    "realtime",
+    "wireless",
+    "serial",
     "service",
     "manager"
   ],
@@ -43,8 +46,8 @@
     "moment": "^2.23.0",
     "mysql2": "^1.7.0",
     "reflect-metadata": "^0.1.13",
-    "sequelize": "^5.8.6",
-    "sequelize-typescript": "^1.0.0-alpha.9",
+    "sequelize": "^5.19.6",
+    "sequelize-typescript": "^1.0.0",
     "serialport": "^7.1.0",
     "sqlite3": "^4.0.8",
     "supports-color": "^5.5.0",
