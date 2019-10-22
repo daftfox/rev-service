@@ -1,6 +1,6 @@
 import Boards from "../model/boards";
 import * as FirmataBoard from 'firmata';
-import Logger from "./logger";
+import LoggerService from "./logger-service";
 import * as net from "net";
 import IBoard from "../interface/board";
 import SerialPort = require("serialport");
@@ -21,7 +21,7 @@ class ConnectionService {
     protected model: Boards;
 
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @access protected
      * @type {string}
@@ -29,12 +29,12 @@ class ConnectionService {
     protected namespace = 'ConnectionService';
 
     /**
-     * Local instance of the {@link Logger} class.
+     * Local instance of the {@link LoggerService} class.
      *
      * @access protected
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    protected log: Logger;
+    protected log: LoggerService;
 
     /**
      * @constructor
@@ -43,7 +43,7 @@ class ConnectionService {
     constructor( model: Boards ) {
         this.model = model;
 
-        this.log = new Logger( this.namespace )
+        this.log = new LoggerService( this.namespace )
     }
 
     /**

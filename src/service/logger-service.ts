@@ -3,9 +3,9 @@ import * as moment from 'moment';
 
 /**
  * @classdesc
- * @namespace Logger
+ * @namespace LoggerService
  */
-class Logger {
+class LoggerService {
     /**
      * @access private
      * @type {string}
@@ -22,7 +22,7 @@ class Logger {
      * @param {string} message
      */
     public debug( message: string ): void {
-        if ( process.env.debug ) console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ Logger.formatMessage( this.namespace, message ) }` )
+        if ( process.env.debug ) console.log( `${ Chalk.black.bgWhite( 'DEBUG' ) } ${ LoggerService.formatMessage( this.namespace, message ) }` )
     }
 
     /**
@@ -30,7 +30,7 @@ class Logger {
      * @param {string} message
      */
     public info( message: string ): void {
-        console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ Logger.formatMessage( this.namespace, message ) }` );
+        console.info( `${ Chalk.black.bgBlue( ' INFO' ) } ${ LoggerService.formatMessage( this.namespace, message ) }` );
     }
 
     /**
@@ -38,7 +38,7 @@ class Logger {
      * @param {string} message
      */
     public warn( message: string ): void {
-        console.warn( `${ Chalk.black.bgYellow( ' WARN' ) } ${ Logger.formatMessage( this.namespace, message ) }` );
+        console.warn( `${ Chalk.black.bgYellow( ' WARN' ) } ${ LoggerService.formatMessage( this.namespace, message ) }` );
     }
 
     /**
@@ -52,7 +52,7 @@ class Logger {
         } else {
             errorMessage = <string> error;
         }
-        console.error( `${ Chalk.black.bgRed( 'ERROR' ) } ${ Logger.formatMessage( this.namespace, errorMessage ) }` );
+        console.error( `${ Chalk.black.bgRed( 'ERROR' ) } ${ LoggerService.formatMessage( this.namespace, errorMessage ) }` );
     }
 
     /**
@@ -61,7 +61,7 @@ class Logger {
      */
     public stack( error: Error ): void {
         const stack = error.stack.replace( /Error: /g, '' ); // No need to say error three times
-        console.log( `${ Chalk.black.bgRed( 'ERROR' ) } ${ Logger.formatMessage( this.namespace, stack ) }` );
+        console.log( `${ Chalk.black.bgRed( 'ERROR' ) } ${ LoggerService.formatMessage( this.namespace, stack ) }` );
     }
 
     /**
@@ -76,12 +76,12 @@ class Logger {
      * @access private
      * @param {string} namespace
      * @param {string | Error} message
-     * @param {boolean} timestamp Add timestamp to logged message
+     * @param {boolean} addTimestamp Add timestamp to logged message
      * @returns {string} Formatted message
      */
-    private static formatMessage( namespace: string, message: string | Error, timestamp: boolean = true ): string {
-        return `${ Chalk.red.bold( Logger.serviceName ) }:${ Chalk.rgb( 255, 136, 0 ).bold( namespace ) } ${ message } ${ timestamp ? Logger.getTimestamp() : '' }`;
+    private static formatMessage( namespace: string, message: string | Error, addTimestamp: boolean = true ): string {
+        return `${ Chalk.red.bold( LoggerService.serviceName ) }:${ Chalk.rgb( 255, 136, 0 ).bold( namespace ) } ${ message } ${ addTimestamp ? LoggerService.getTimestamp() : '' }`;
     }
 }
 
-export default Logger;
+export default LoggerService;

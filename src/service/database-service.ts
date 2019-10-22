@@ -1,8 +1,9 @@
 import { Sequelize } from 'sequelize-typescript';
 import Program, {defaultPrograms} from "../domain/program";
 import Board from "../domain/board";
-import Logger from "./logger";
+import LoggerService from "./logger-service";
 import { Dialect } from "sequelize";
+import IDatabaseOptions from "../interface/database-options";
 
 class DatabaseService {
     /**
@@ -22,11 +23,11 @@ class DatabaseService {
     /**
      * @static
      * @access private
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    private static log = new Logger( DatabaseService.namespace );
+    private static log = new LoggerService( DatabaseService.namespace );
 
-    constructor( options: { username: string, password: string, host: string, port: number, path: string, dialect: string, schema: string, debug: boolean } ) {
+    constructor( options: IDatabaseOptions ) {
         DatabaseService.database = new Sequelize( options.schema, options.username, options.password, {
             dialect: options.dialect as Dialect,
             storage: options.dialect === 'sqlite' ? options.path : null,

@@ -1,10 +1,11 @@
 import ConnectionService from "./connection-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
-import Logger from "./logger";
+import LoggerService from "./logger-service";
 import ISerialPort from "../interface/serial-port";
 import IBoard from "../interface/board";
 import Chalk from "chalk";
+import Timeout = NodeJS.Timeout;
 
 /**
  * @description Service that automatically connects to any Firmata compatible devices physically connected to the host.
@@ -21,6 +22,8 @@ class SerialService extends ConnectionService {
 
     private usedPorts: string[] = [];
 
+    private portScanInterval: Timeout;
+
     /**
      * @constructor
      * @param {Boards} model
@@ -29,10 +32,14 @@ class SerialService extends ConnectionService {
         super( model );
 
         this.namespace = 'serial';
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         this.log.info( `Listening on serial ports.` );
         this.startListening();
+    }
+
+    public closeServer(): void {
+        clearInterval( this.portScanInterval );
     }
 
     /**
@@ -40,7 +47,7 @@ class SerialService extends ConnectionService {
      * @access private
      */
     private startListening(): void {
-        setInterval( this.scanSerialPorts.bind( this ), 10000 );
+        this.portScanInterval = setInterval( this.scanSerialPorts.bind( this ), 10000 );
     }
 
     /**

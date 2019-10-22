@@ -1,7 +1,7 @@
 import Board, { PIN_MAPPING, PINOUT } from "./board";
 import { BuildOptions } from "sequelize";
 import * as FirmataBoard from 'firmata';
-import Logger from "../service/logger";
+import LoggerService from "../service/logger-service";
 import IPinMapping from "../interface/pin-mapping";
 
 class LedController extends Board {
@@ -45,7 +45,7 @@ class LedController extends Board {
 
         // override namespace and logger set by parent constructor
         this.namespace = `LedController_${ this.id }`;
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         this.availableActions = {
             RAINBOW: { requiresParams: false, method: () => { this.rainbow() } },

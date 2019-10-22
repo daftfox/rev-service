@@ -5,8 +5,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "postinstall": "tsc",
-    "test": "mocha -r ts-node/register test/**/*.spec.ts --exit",
-    "testWithCoverage": "nyc -r lcov -e .ts -x \"*.spec.ts\" mocha -r ts-node/register test/**/*.spec.ts --exit && nyc report",
+    "test": "jest",
     "start": "tsc && node ./dist/index.js --ethernet",
     "build": "tsc"
   },
@@ -56,13 +55,11 @@
     "websocket": "^1.0.28"
   },
   "devDependencies": {
-    "@types/chai": "^4.1.7",
-    "@types/mocha": "^5.2.6",
-    "chai": "^4.2.0",
-    "mocha": "^6.1.4",
+    "@types/jest": "^24.0.19",
+    "jest": "^24.9.0",
     "nyc": "^13.3.0",
     "promise": "^8.0.3",
-    "ts-mocha": "^6.0.0",
+    "ts-jest": "^24.1.0",
     "ts-node": "^8.0.3"
   }
 }

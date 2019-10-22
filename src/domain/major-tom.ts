@@ -1,6 +1,6 @@
 import Board, { PIN_MAPPING, PINOUT } from './board';
 import * as FirmataBoard from 'firmata';
-import Logger from '../service/logger';
+import LoggerService from '../service/logger-service';
 import IPinMapping from '../interface/pin-mapping';
 import { BuildOptions } from "sequelize";
 import Timeout = NodeJS.Timeout;
@@ -105,7 +105,7 @@ class MajorTom extends Board {
 
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${ this.id }`;
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         Object.assign( this.pinMapping, {
             FAN: 16,

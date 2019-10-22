@@ -1,5 +1,5 @@
 import Board, {IDLE} from '../domain/board';
-import Logger from '../service/logger';
+import LoggerService from '../service/logger-service';
 import Chalk from 'chalk';
 import IBoard from "../interface/board";
 import NotFound from "../domain/web-socket-message/error/not-found";
@@ -32,7 +32,7 @@ class Boards {
     };
 
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @static
      * @access private
@@ -41,13 +41,13 @@ class Boards {
     private static namespace = 'board-model';
 
     /**
-     * Local instance of the {@link Logger} class.
+     * Local instance of the {@link LoggerService} class.
      *
      * @static
      * @access private
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    private static log = new Logger( Boards.namespace );
+    private static log = new LoggerService( Boards.namespace );
 
     /**
      * Locally stored array of {@link Board} instances that are currently online.
@@ -72,7 +72,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private boardUpdatedListeners: ( ( IBoard ) => void )[] = [];
+    private boardUpdatedListeners: ( ( board: IBoard ) => void )[] = [];
 
     /**
      * Array of listener methods that are called as soon as a {@link Board} instance was removed from the {@link _boards} array.
@@ -80,10 +80,14 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private boardDisconnectedListeners: ( ( IBoard ) => void )[] = [];
+    private boardDisconnectedListeners: ( ( board: IBoard ) => void )[] = [];
 
     constructor() {
-         Board.findAll()
+
+    }
+
+    public async synchronise(): Promise<void> {
+        return Board.findAll()
             .then( boards => {
                 this._boards = boards.map( board => Boards.instantiateBoard( board ) );
             } );
@@ -94,6 +98,7 @@ class Boards {
      * Currently supported types are {@link Board} (default) and {@link MajorTom}, as dictated by {@link Boards.AVAILABLE_TYPES}.
      *
      * @param {Board} board - {@link Board} instance used to feed data values into the newly constructed instance.
+     * @param {boolean} serialConnection - Is the board connected over a serial connection.
      * @param {FirmataBoard} [firmataBoard] - Connected instance of {@link FirmataBoard} to attach to the newly created instance.
      * @returns {Board} New instance of {@link Board} or {@link MajorTom}.
      */

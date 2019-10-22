@@ -1,14 +1,14 @@
 import * as FirmataBoard from 'firmata';
-import Logger from '../service/logger';
-import CommandUnavailable from '../error/command-unavailable';
+import LoggerService from '../service/logger-service';
+import CommandUnavailableError from '../error/command-unavailable';
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from '../interface/board';
 import IPinMapping from '../interface/pin-mapping';
 import IPin from "../interface/pin";
 import CommandMalformed from "../error/command-malformed";
-import { Column, Model, Table } from "sequelize-typescript";
-import {BuildOptions, STRING} from "sequelize";
+import {Column, DataType, Model, Table} from "sequelize-typescript";
+import {BuildOptions} from "sequelize";
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -26,7 +26,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column( { primaryKey: true } )
+    @Column( { type: DataType.STRING, primaryKey: true } )
     public id: string;
 
     /**
@@ -36,7 +36,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column
+    @Column( DataType.STRING )
     public name: string;
 
     /**
@@ -46,7 +46,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column
+    @Column( DataType.STRING )
     public type: string;
 
     /**
@@ -88,16 +88,16 @@ class Board extends Model<Board> implements IBoard {
      * @access public
      * @type {string}
      */
-    @Column
+    @Column( DataType.STRING )
     public lastUpdateReceived: string;
 
     /**
-     * Local instance of {@link Logger}
+     * Local instance of {@link LoggerService}
      *
      * @access protected
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    protected log: Logger;
+    protected log: LoggerService;
 
     /**
      * This property is used to map available methods to string representations so we can easily
@@ -116,7 +116,7 @@ class Board extends Model<Board> implements IBoard {
 
 
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @type {string}
      * @access protected
@@ -157,7 +157,7 @@ class Board extends Model<Board> implements IBoard {
      */
     public pinMapping: IPinMapping = PIN_MAPPING.ARDUINO_UNO;
 
-    @Column( { type: STRING } )
+    @Column( DataType.STRING )
     public pinout: PINOUT = PINOUT.ARDUINO_UNO;
 
     /**
@@ -216,13 +216,14 @@ class Board extends Model<Board> implements IBoard {
 
         this.id = id;
         this.namespace = `board_${ this.id }`;
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         if ( firmataBoard ) {
             this.online = true;
             this.firmataBoard = firmataBoard;
             this.serialConnection = serialConnection;
 
+            // why???
             if ( this.pinout !== PINOUT.ARDUINO_UNO ) {
                 this.setPinout( this.pinout );
             }
@@ -268,7 +269,7 @@ class Board extends Model<Board> implements IBoard {
                 Object.assign( mappedPins, PIN_MAPPING.ESP_8266 );
                 break;
             default:
-                throw Error( 'This pinout is not supported.' );
+                throw new Error( 'This pinout is not supported.' );
         }
 
         this.pinout = pinout;
@@ -359,8 +360,8 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     public executeAction( action: string, parameters?: string[] ): void {
-        if ( !this.online ) throw new CommandUnavailable( `Unable to execute command on this board since it is not online.` );
-        if ( !this.isAvailableAction( action ) ) throw new CommandUnavailable( `'${ action }' is not a valid action for board with id ${this.id}.` );
+        if ( !this.online ) throw new CommandUnavailableError( `Unable to execute command on this board since it is not online.` );
+        if ( !this.isAvailableAction( action ) ) throw new CommandUnavailableError( `'${ action }' is not a valid action for this board.` );
 
         this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
 

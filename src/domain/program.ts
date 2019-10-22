@@ -1,4 +1,4 @@
-import {Column, DataType, Model, Table, Sequelize} from "sequelize-typescript";
+import {Column, DataType, Model, Table} from "sequelize-typescript";
 import ICommand from "../interface/command";
 
 @Table({
@@ -6,10 +6,10 @@ import ICommand from "../interface/command";
 })
 class Program extends Model<Program> {
 
-    @Column
+    @Column( DataType.STRING )
     public name: string;
 
-    @Column
+    @Column( DataType.STRING )
     public deviceType: string;
 
     @Column( DataType.TEXT )
