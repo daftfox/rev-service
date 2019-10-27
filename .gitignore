@@ -4,3 +4,4 @@ node_modules/
 coverage
 *.js
 *.js.map
+!jest.config.js
