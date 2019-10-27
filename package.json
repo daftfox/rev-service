@@ -13,7 +13,7 @@
     "rev-service": "./dist/index.js"
   },
   "engines": {
-    "node": "*"
+    "node": "11.14"
   },
   "keywords": [
     "firmata",
@@ -48,14 +48,18 @@
     "sequelize": "^5.19.6",
     "sequelize-typescript": "^1.0.0",
     "serialport": "^7.1.0",
-    "sqlite3": "^4.0.8",
+    "sqlite3": "^4.1.0",
     "supports-color": "^5.5.0",
     "typescript": "^3.2.2",
     "uuid": "^3.3.2",
     "websocket": "^1.0.28"
   },
   "devDependencies": {
+    "@babel/core": "^7.6.4",
+    "@babel/preset-env": "^7.6.3",
+    "@babel/preset-typescript": "^7.6.0",
     "@types/jest": "^24.0.19",
+    "babel-jest": "^24.9.0",
     "jest": "^24.9.0",
     "nyc": "^13.3.0",
     "promise": "^8.0.3",

@@ -17,7 +17,8 @@ cache:
   paths:
     - node_modules/
 
-test_async:
+test:
   script:
     - npm install
+    - npm install sqlite3
     - npm test
