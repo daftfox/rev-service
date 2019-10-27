@@ -55,11 +55,7 @@
     "websocket": "^1.0.28"
   },
   "devDependencies": {
-    "@babel/core": "^7.6.4",
-    "@babel/preset-env": "^7.6.3",
-    "@babel/preset-typescript": "^7.6.0",
     "@types/jest": "^24.0.19",
-    "babel-jest": "^24.9.0",
     "jest": "^24.9.0",
     "nyc": "^13.3.0",
     "promise": "^8.0.3",
