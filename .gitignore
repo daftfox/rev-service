@@ -5,3 +5,4 @@ coverage
 *.js
 *.js.map
 !jest.config.js
+dist/
