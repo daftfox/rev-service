@@ -2,8 +2,8 @@ import ConnectionService from "./connection-service";
 import Boards from "../model/boards";
 import * as Serialport from 'serialport';
 import LoggerService from "./logger-service";
-import ISerialPort from "../interface/serial-port";
-import IBoard from "../interface/board";
+import ISerialPort from "../domain/interface/serial-port";
+import IBoard from "../domain/interface/board";
 import Chalk from "chalk";
 import Timeout = NodeJS.Timeout;
 

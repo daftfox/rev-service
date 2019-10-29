@@ -1,13 +1,13 @@
 import Board, {IDLE} from '../domain/board';
 import LoggerService from '../service/logger-service';
 import Chalk from 'chalk';
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 import ServerError from "../domain/web-socket-message/error/server-error";
 import MajorTom from "../domain/major-tom";
 import * as FirmataBoard from 'firmata';
-import ICommand from "../interface/command";
+import ICommand from "../domain/interface/command";
 import Program from "../domain/program";
 import Conflict from "../domain/web-socket-message/error/conflict";
 import MethodNotAllowed from "../domain/web-socket-message/error/method-not-allowed";
@@ -86,7 +86,7 @@ class Boards {
 
     }
 
-    public async synchronise(): Promise<void> {
+    public synchronise(): Promise<void> {
         return Board.findAll()
             .then( boards => {
                 this._boards = boards.map( board => Boards.instantiateBoard( board ) );
@@ -313,8 +313,8 @@ class Boards {
                 Boards.log.debug( `Storing update for board with id ${ Chalk.rgb( 0, 143, 255 ).bold( boardUpdates.id ) } in the database.` );
                 board.save();
 
-                if ( board.previous( 'pinout' ) && board.previous( 'pinout' ) !== board.getDataValue( 'pinout' ) ) {
-                    board.setPinout( board.pinout );
+                if ( board.previous( 'architecture' ) && board.previous( 'architecture' ) !== board.getDataValue( 'architecture' ) ) {
+                    board.setArchitecture( board.architecture );
                 }
 
                 // re-instantiate previous board to reflect type changes

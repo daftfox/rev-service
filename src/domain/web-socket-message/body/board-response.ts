@@ -1,4 +1,4 @@
-import IBoard from "../../../interface/board";
+import IBoard from "../../interface/board";
 
 interface BoardResponse {
     boards: IBoard[];

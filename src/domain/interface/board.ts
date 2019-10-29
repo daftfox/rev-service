@@ -1,5 +1,5 @@
 import IPin from "./pin";
-import IPinMapping from "./pin-mapping";
+import BoardArchitecture from "../board-architecture";
 
 export default interface IBoard {
     id: string;
@@ -8,7 +8,7 @@ export default interface IBoard {
     currentProgram: string;
     online: boolean;
     lastUpdateReceived: string;
-    pinMapping: IPinMapping;
+    architecture: BoardArchitecture;
     serialConnection: boolean;
     availableCommands?: string[];
     refreshRate?: number;

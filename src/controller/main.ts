@@ -3,12 +3,12 @@ import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
 import LoggerService from '../service/logger-service';
 import Boards from '../model/boards';
-import IFlags from '../interface/flags';
+import IFlags from '../domain/interface/flags';
 import DatabaseService from "../service/database-service";
 import Programs from "../model/programs";
 import SerialService from "../service/serial-service";
-import IDatabaseOptions from "../interface/database-options";
-import IWebSocketOptions from "../interface/web-socket-options";
+import IDatabaseOptions from "../domain/interface/database-options";
+import IWebSocketOptions from "../domain/interface/web-socket-options";
 
 // only required during dev
 require('longjohn');
@@ -150,7 +150,7 @@ class MainController {
 
     private async startDatabaseService( options: IDatabaseOptions ): Promise<void> {
         this.databaseService =  new DatabaseService( options );
-        return this.databaseService.synchronise();
+        return await this.databaseService.synchronise();
     }
 
     private startEthernetService( boardModel: Boards, port: number ): void {
@@ -167,7 +167,7 @@ class MainController {
     }
 
     private async synchroniseDataModels(): Promise<void> {
-        await this.boardModel.synchronise();
+        return this.boardModel.synchronise();
         // todo: synch programs
     }
 }

@@ -2,7 +2,7 @@ import Boards from "../model/boards";
 import * as FirmataBoard from 'firmata';
 import LoggerService from "./logger-service";
 import * as net from "net";
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
 import SerialPort = require("serialport");
 import SerialService from "./serial-service";
 
@@ -66,9 +66,9 @@ class ConnectionService {
         const connectionTimeout = setTimeout( () => {
             this.log.warn( 'Timeout while connecting to device.' );
 
-            connectedBoard = null;
+            connectedBoard = undefined;
             firmataBoard.removeAllListeners();
-            firmataBoard = null;
+            firmataBoard = undefined;
 
             disconnected();
         }, 10000);
@@ -95,7 +95,7 @@ class ConnectionService {
 
         firmataBoard.on( 'error', ( err ) => {
             disconnected( connectedBoard );
-            connectedBoard = null;
+            connectedBoard = undefined;
         } );
 
         firmataBoard.on( 'update', ( boardUpdates: IBoard ) => {
@@ -104,7 +104,7 @@ class ConnectionService {
 
         firmataBoard.once( 'disconnect', () => {
             this.log.debug( 'Disconnect event received from firmataboard.' );
-            connectedBoard = null;
+            connectedBoard = undefined;
             disconnected( connectedBoard );
             this.model.disconnectBoard( id );
         } );

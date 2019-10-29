@@ -1,4 +1,4 @@
-export default interface IPinMapping {
+export default interface IPinMap {
     LED: number;
     TX: number;
     RX: number;

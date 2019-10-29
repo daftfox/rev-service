@@ -4,7 +4,7 @@ import LoggerService from './logger-service';
 import { Server, Socket } from 'net';
 import Chalk from 'chalk';
 import Board from '../domain/board';
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
 
 /**
  * @classdesc An ethernet service that opens a socket and attempts to connect to boards that knock on the proverbial door.

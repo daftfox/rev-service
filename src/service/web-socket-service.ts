@@ -7,7 +7,7 @@ import WebSocketMessage, {
 import LoggerService from "./logger-service";
 import Boards from "../model/boards";
 import Chalk from 'chalk';
-import ICommand from "../interface/command";
+import ICommand from "../domain/interface/command";
 import BoardRequest, { BoardAction } from "../domain/web-socket-message/body/board-request";
 import BoardResponse from "../domain/web-socket-message/body/board-response";
 import { ResponseCode } from "../domain/web-socket-message/response-code";
@@ -20,8 +20,8 @@ import ErrorResponse from "../domain/web-socket-message/body/error-response";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import MethodNotAllowed from "../domain/web-socket-message/error/method-not-allowed";
-import IBoard from "../interface/board";
-import IWebSocketOptions from "../interface/web-socket-options";
+import IBoard from "../domain/interface/board";
+import IWebSocketOptions from "../domain/interface/web-socket-options";
 import {
     CommandUnavailableError,
     CommandMalformedError

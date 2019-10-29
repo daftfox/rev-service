@@ -12,7 +12,8 @@ module.exports = {
     coverageDirectory: "coverage",
     collectCoverageFrom: [
         "**/*.ts",
+        "!**/major-tom.ts",
         "!**/node_modules/**",
         "!**/test/**"
-    ]
+    ],
 };

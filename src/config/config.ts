@@ -1,5 +1,5 @@
 import * as args from 'args';
-import IFlags from '../interface/flags';
+import IFlags from '../domain/interface/flags';
 
 /**
  * Configuration

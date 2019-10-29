@@ -3,12 +3,14 @@ import LoggerService from '../service/logger-service';
 import CommandUnavailableError from '../error/command-unavailable';
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
-import IBoard from '../interface/board';
-import IPinMapping from '../interface/pin-mapping';
-import IPin from "../interface/pin";
+import IBoard from './interface/board';
+import IPinMapping from './interface/pin-map';
+import IPin from "./interface/pin";
 import CommandMalformed from "../error/command-malformed";
 import {Column, DataType, Model, Table} from "sequelize-typescript";
 import {BuildOptions} from "sequelize";
+import BoardArchitecture from "./board-architecture";
+import {SupportedBoards} from "./supported-boards";
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -108,8 +110,8 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      */
     protected availableActions: any = {
-        BLINKON: { requiresParams: false, method: () => { this.enableBlinkLed( true ) } },
-        BLINKOFF: { requiresParams: false, method: () => { this.enableBlinkLed( false ) } },
+        BLINKON: { requiresParams: false, method: () => { this.setBlinkLEDEnabled( true ) } },
+        BLINKOFF: { requiresParams: false, method: () => { this.setBlinkLEDEnabled( false ) } },
         TOGGLELED: { requiresParams: false, method: () => { this.toggleLED() } },
         SETPINVALUE: { requiresParams: true, method: ( pin: string, value: string ) => { this.setPinValue( parseInt( pin , 10), parseInt( value, 10 ) ) } },
     };
@@ -155,10 +157,10 @@ class Board extends Model<Board> implements IBoard {
      * @type {IPinMapping}
      * @default [{ LED: 13, RX: 0, TX: 1 }]
      */
-    public pinMapping: IPinMapping = PIN_MAPPING.ARDUINO_UNO;
+    public architecture = SupportedBoards.ARDUINO_UNO;
 
-    @Column( DataType.STRING )
-    public pinout: PINOUT = PINOUT.ARDUINO_UNO;
+    // @Column( DataType.STRING )
+    // public pinout: IPinout;
 
     /**
      * The ID of the interval that's executed when we blink the builtin LED.
@@ -199,6 +201,7 @@ class Board extends Model<Board> implements IBoard {
      * @default [5000]
      */
     private static readonly heartbeatInterval = 10000;
+    private static readonly disconnectTimeout = 10000;
 
     public serialConnection: boolean = false;
 
@@ -222,11 +225,6 @@ class Board extends Model<Board> implements IBoard {
             this.online = true;
             this.firmataBoard = firmataBoard;
             this.serialConnection = serialConnection;
-
-            // why???
-            if ( this.pinout !== PINOUT.ARDUINO_UNO ) {
-                this.setPinout( this.pinout );
-            }
 
             if ( this.serialConnection ) {
                 this.firmataBoard.setSamplingInterval( 200 );
@@ -255,25 +253,15 @@ class Board extends Model<Board> implements IBoard {
      * Allows the user to define a different pinMapping for the device than is set by default.
      * Default is defined in {@link Board.pinMapping}
      *
-     * @param {IPinMapping} pinout - The pinMapping to save to this board.
+     * @param {IPinMapping} mapping - The pinMapping to save to this board.
      * @returns {void}
      */
-    public setPinout( pinout: PINOUT ): void {
-        let mappedPins = {};
-
-        switch ( pinout ) {
-            case PINOUT.ARDUINO_UNO:
-                Object.assign( mappedPins, PIN_MAPPING.ARDUINO_UNO );
-                break;
-            case PINOUT.ESP_8266:
-                Object.assign( mappedPins, PIN_MAPPING.ESP_8266 );
-                break;
-            default:
-                throw new Error( 'This pinout is not supported.' );
+    public setArchitecture( architecture: BoardArchitecture ): void {
+        if ( SupportedBoards.isSupported(architecture) ) {
+            this.architecture = architecture;
+        } else {
+            throw new Error( 'This architecture is not supported.' );
         }
-
-        this.pinout = pinout;
-        Object.assign( this.pinMapping, mappedPins );
     }
 
     /**
@@ -307,21 +295,19 @@ class Board extends Model<Board> implements IBoard {
     public static toDiscrete( board: Board ): IBoard {
         let discreteBoard;
 
-        if ( board ) {
-            discreteBoard = {
-                id: board.id,
-                name: board.name,
-                vendorId: board.vendorId,
-                productId: board.productId,
-                type: board.type,
-                currentProgram: board.currentProgram,
-                online: board.online,
-                serialConnection: board.serialConnection,
-                lastUpdateReceived: board.lastUpdateReceived,
-                pinout: board.pinout,
-                availableCommands: board.getAvailableActions(),
-            };
-        }
+        discreteBoard = {
+            id: board.id,
+            name: board.name,
+            vendorId: board.vendorId,
+            productId: board.productId,
+            type: board.type,
+            currentProgram: board.currentProgram,
+            online: board.online,
+            serialConnection: board.serialConnection,
+            lastUpdateReceived: board.lastUpdateReceived,
+            architecture: board.architecture,
+            availableCommands: board.getAvailableActions(),
+        };
 
         if ( board.firmataBoard ) {
             Object.assign( discreteBoard, {
@@ -380,7 +366,7 @@ class Board extends Model<Board> implements IBoard {
         this.clearAllTimers();
         this.online = false;
         this.firmataBoard.removeAllListeners();
-        this.firmataBoard = null;
+        this.firmataBoard = undefined;
     }
 
     /**
@@ -405,7 +391,7 @@ class Board extends Model<Board> implements IBoard {
             this.firmataBoard.removeListener( `analog-read-${index}`, this.emitUpdate );
         } );
 
-        this.firmataBoard.removeListener( 'queryfirmware', this.resetHeartbeatTimeout );
+        this.firmataBoard.removeListener( 'queryfirmware', this.clearHeartbeatTimeout );
     }
 
     /**
@@ -433,15 +419,14 @@ class Board extends Model<Board> implements IBoard {
     /**
      * Enable or disable the builtin LED blinking
      *
-     * @param {boolean} enable
+     * @param {boolean} enabled
      * @access protected
      * @returns {void}
      */
-    protected enableBlinkLed( enable: boolean ): void {
-        if ( enable ) {
+    protected setBlinkLEDEnabled(enabled: boolean ): void {
+        if ( enabled ) {
             if ( this.blinkInterval ) {
-                this.log.warn( `LED blink is already enabled.` );
-                return;
+                throw new CommandUnavailableError( `LED blink is already enabled.` );
             }
 
             this.blinkInterval = setInterval(
@@ -452,10 +437,8 @@ class Board extends Model<Board> implements IBoard {
             this.intervals.push( this.blinkInterval );
         } else {
 
-            // reset the current job to 'IDLE'
-            this.setIdle();
             this.clearInterval( this.blinkInterval );
-            this.blinkInterval = null;
+            this.blinkInterval = undefined;
         }
     }
 
@@ -466,7 +449,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected toggleLED(): void {
-        this.setPinValue( this.pinMapping.LED, this.firmataBoard.pins[ this.pinMapping.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
+        this.setPinValue( this.architecture.pinMap.LED, this.firmataBoard.pins[ this.architecture.pinMap.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
     }
 
     /**
@@ -488,21 +471,21 @@ class Board extends Model<Board> implements IBoard {
                 // emit disconnect event after which the board is removed from the data model
                 this.firmataBoard.emit( 'disconnect' );
                 this.clearInterval( heartbeat );
-                this.resetHeartbeatTimeout();
-            }, 10000 );
+                this.clearHeartbeatTimeout();
+            }, Board.disconnectTimeout );
 
             this.timeouts.push( this.heartbeatTimeout );
 
             // we utilize the queryFirmware method to emulate a heartbeat
-            this.firmataBoard.queryFirmware( this.resetHeartbeatTimeout );
+            this.firmataBoard.queryFirmware( this.clearHeartbeatTimeout );
         }, Board.heartbeatInterval );
 
         this.intervals.push ( heartbeat );
     }
 
-    private resetHeartbeatTimeout = () => {
+    private clearHeartbeatTimeout = () => {
         this.clearTimeout( this.heartbeatTimeout );
-        this.heartbeatTimeout = null;
+        this.heartbeatTimeout = undefined;
     };
 
     /**
@@ -530,6 +513,7 @@ class Board extends Model<Board> implements IBoard {
             bytesPayload.push( value );
         }
 
+        // fixme
         // const checkForAck = ( bytes: number[] ) => {
         //     // check if the first (and likely only) byte received is 0x06, which is an ACK
         //     if ( bytes[0] === 6 ) {
@@ -538,11 +522,11 @@ class Board extends Model<Board> implements IBoard {
         //         this.firmataBoard.removeListener( `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`, checkForAck );
         //     }
         // };
-
         //this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
 
         this.firmataBoard.serialWrite( serialPort, bytesPayload );
 
+        // fixme
         // this.serialRetry = setInterval( () => {
         //     this.firmataBoard.serialWrite( serialPort, bytesPayload );
         // }, 2000);
@@ -568,19 +552,23 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected setPinValue( pin: number, value: number ): void {
-        if ( pin === null ) {
+        if ( pin === undefined || pin === null ) {
             throw new CommandMalformed( `Method setPinValue requires 'pin' argument.` );
         }
 
-        if ( value === null ) {
+        if ( value === undefined || value === null ) {
             throw new CommandMalformed( `Method setPinValue requires 'value' argument.` );
         }
 
         if ( this.isAnalogPin( pin ) ) {
-            this.firmataBoard.analogWrite( pin, value );
+            if ( value < 0 || value >= 1024 ) {
+                throw new CommandMalformed( `Tried to write value ${ value } to analog pin ${ pin }. Only values between or equal to 0 and 1023 are allowed.` );
+            } else {
+                this.firmataBoard.analogWrite( pin, value );
+            }
         } else if ( this.isDigitalPin( pin ) ) {
             if ( value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW ) {
-                this.log.warn( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` );
+                throw new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` );
             } else {
                 this.firmataBoard.digitalWrite( pin, value );
             }
@@ -685,26 +673,10 @@ class Board extends Model<Board> implements IBoard {
      */
     private isAnalogPin( pinIndex: number ): boolean {
         const pin = this.firmataBoard.pins[ pinIndex ];
-        return pin.supportedModes.includes( FirmataBoard.PIN_MODE.ANALOG );
+        return pin.supportedModes.indexOf( FirmataBoard.PIN_MODE.ANALOG ) >= 0;
     }
 }
 
 export default Board;
 
 export const IDLE = "idle";
-export enum PINOUT {
-    ARDUINO_UNO = 'Arduino Uno',
-    ESP_8266 = 'ESP8266',
-}
-export const PIN_MAPPING = {
-    ARDUINO_UNO: {
-        LED: 13,
-        RX: 1,
-        TX: 0,
-    },
-    ESP_8266: {
-        LED: 2,
-        RX: 3,
-        TX: 1,
-    },
-};

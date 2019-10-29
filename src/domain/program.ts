@@ -1,5 +1,5 @@
 import {Column, DataType, Model, Table} from "sequelize-typescript";
-import ICommand from "../interface/command";
+import ICommand from "./interface/command";
 
 @Table({
     timestamps: true

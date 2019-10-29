@@ -1,5 +1,5 @@
-import Boards from "../model/boards";
-import Programs from "../model/programs";
+import Boards from "../../model/boards";
+import Programs from "../../model/programs";
 
 export default interface IWebSocketOptions {
     port: number;

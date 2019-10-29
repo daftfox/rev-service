@@ -1,7 +1,7 @@
 import LoggerService from '../service/logger-service';
 import Chalk from 'chalk';
 import Program from "../domain/program";
-import IProgram from "../interface/program";
+import IProgram from "../domain/interface/program";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 

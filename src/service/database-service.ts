@@ -3,7 +3,7 @@ import Program, {defaultPrograms} from "../domain/program";
 import Board from "../domain/board";
 import LoggerService from "./logger-service";
 import { Dialect } from "sequelize";
-import IDatabaseOptions from "../interface/database-options";
+import IDatabaseOptions from "../domain/interface/database-options";
 
 class DatabaseService {
     /**
