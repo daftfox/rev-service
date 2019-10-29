@@ -35,6 +35,10 @@ beforeAll(() => {
     ]);
 });
 
+afterAll(() => {
+    mockSocket.emit('close', {disconnect: true, disconnected: true});
+});
+
 beforeEach(() => {
     boardModel = new Boards();
     boardModel.addBoard = jest.fn((id, type, firmataBoard, serialConnection) => { return {id: id, name: 'berd'} });
@@ -67,6 +71,6 @@ describe('ConnectionService:', () => {
             cb();
         };
 
-        connectionService.connectToBoard( mockSocket, false, connected, undefined );
+        connectionService.connectToBoard( mockSocket, false, connected, () => {} );
     });
 });
