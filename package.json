@@ -4,7 +4,6 @@
   "description": "A webservice for managing and directing firmata-enabled microcontrollers",
   "main": "./dist/index.js",
   "scripts": {
-    "postinstall": "tsc",
     "test": "jest",
     "start": "tsc && node ./dist/index.js --ethernet",
     "build": "tsc"

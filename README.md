@@ -1,3 +1,8 @@
+|Branch|Build status|Code coverage|
+|:---- |:---------- |:----------- |
+|develop|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/develop/pipeline.svg)](https://gitlab.com/daftfox/rev-service/commits/develop)|[![coverage report](https://gitlab.com/daftfox/rev-service/badges/develop/coverage.svg)](https://gitlab.com/daftfox/rev-service/commits/develop)|
+|master|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/master/pipeline.svg)](https://gitlab.com/daftfox/rev-service/commits/master)|[![coverage report](https://gitlab.com/daftfox/rev-service/badges/master/coverage.svg)](https://gitlab.com/daftfox/rev-service/commits/master)|
+
 # rev-service
 Rev allows you to connect to, monitor and control devices supporting the
 firmataBoard protocol.
