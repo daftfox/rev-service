@@ -69,6 +69,11 @@ test:
 
 pages:
   stage: deploy
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - coverage/
+    policy: pull
   dependencies:
     - test
   script:
@@ -77,5 +82,5 @@ pages:
     paths:
       - public
     expire_in: 30 days
-  only:
-    - master
+#  only:
+#    - master
