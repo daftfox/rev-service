@@ -75,7 +75,7 @@ pages:
       - reports/
     policy: pull
   dependencies:
-    - test
+    - unit-test
   script:
     - mkdir public/
     - mkdir public/reports/
