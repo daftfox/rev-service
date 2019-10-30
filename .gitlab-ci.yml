@@ -77,11 +77,9 @@ pages:
   dependencies:
     - test
   script:
-    - mv reports/coverage/lcov-report/* public/reports/coverage/
-    - mv reports/test/* public/reports/test/
+    - mv reports/coverage/lcov-report/* public/reports/$CI_COMMIT_REF_NAME/coverage/
+    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test/
   artifacts:
     paths:
       - public
     expire_in: 30 days
-#  only:
-#    - master
