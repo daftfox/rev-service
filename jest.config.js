@@ -17,7 +17,7 @@ module.exports = {
         '!**/test/**',
     ],
     reporters: [
-        'jest-nyancat-reporter',
+        'default',
         'jest-junit',
     ]
 };
