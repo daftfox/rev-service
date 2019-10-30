@@ -61,7 +61,7 @@ test:
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   artifacts:
     paths:
-      - coverage/
+      - reports/
     reports:
       junit: junit.xml
   script:
@@ -72,7 +72,7 @@ pages:
   cache:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
-      - coverage/
+      - reports/
     policy: pull
   dependencies:
     - test

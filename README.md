@@ -1,7 +1,7 @@
-|Branch|Build status|Code coverage|
-|:---- |:---------- |:----------- |
-|develop|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/develop/pipeline.svg)](https://gitlab.com/daftfox/rev-service/pipelines)|![coverage report](https://gitlab.com/daftfox/rev-service/badges/develop/coverage.svg)|
-|master|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/master/pipeline.svg)](https://gitlab.com/daftfox/rev-service/pipelines)|[![coverage report](https://gitlab.com/daftfox/rev-service/badges/master/coverage.svg)](https://daftfox.gitlab.io/rev-service/reports/coverage/index.html)|
+|Branch|Build status|Code coverage|Test report|
+|:---- |:---------- |:----------- |:--------- |
+|develop|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/develop/pipeline.svg?style=flat-square)](https://gitlab.com/daftfox/rev-service/pipelines)|[![coverage report](https://gitlab.com/daftfox/rev-service/badges/develop/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/develop/coverage/index.html)|[Report](https://daftfox.gitlab.io/rev-service/reports/develop/test/index.html)|
+|master|[![pipeline status](https://gitlab.com/daftfox/rev-service/badges/master/pipeline.svg?style=flat-square)](https://gitlab.com/daftfox/rev-service/pipelines)|[![coverage report](https://gitlab.com/daftfox/rev-service/badges/master/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/master/coverage/index.html)|[Report](https://daftfox.gitlab.io/rev-service/reports/master/test/index.html)|
 
 # rev-service
 Rev allows you to connect to, monitor and control devices supporting the
