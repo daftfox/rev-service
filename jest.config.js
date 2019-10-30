@@ -27,7 +27,6 @@ module.exports = {
                 outputPath: 'reports/test/index.html',
                 theme: 'darkTheme',
                 dateFormat: 'dd-mm-yyyy HH:MM:ss',
-                useCssFile: true,
             },
         ],
     ]
