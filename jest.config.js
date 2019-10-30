@@ -9,6 +9,7 @@ module.exports = {
         'ts',
         'js',
     ],
+    collectCoverage: true,
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
         '**/*.ts',

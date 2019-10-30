@@ -29,4 +29,4 @@ test:
   script:
     - npm install
     - npm install sqlite3
-    - npm run test:coverage
+    - npm test

@@ -6,7 +6,6 @@
   "scripts": {
     "postinstall": "tsc",
     "test": "jest",
-    "test:coverage": "jest --coverage",
     "start": "tsc && node ./dist/index.js --ethernet",
     "build": "tsc"
   },
