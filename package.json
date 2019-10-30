@@ -1,47 +1,63 @@
 {
-  "name": "firmata-radar",
+  "name": "rev-service",
   "version": "0.0.1",
   "description": "A webservice for managing and directing firmata-enabled microcontrollers",
   "main": "./dist/index.js",
   "scripts": {
-    "postinstall": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "DEBUG=*,-serialport:*,-@serialport/*,-socket.io*,-engine* nodemon ./dist/index.js --serial"
+    "test": "jest",
+    "start": "tsc && node ./dist/index.js --ethernet",
+    "build": "tsc"
   },
   "bin": {
-    "firmata-radar": "./dist/index.js"
+    "rev-service": "./dist/index.js"
   },
   "engines": {
-    "node": "*"
+    "node": "11.14"
   },
   "keywords": [
     "firmata",
     "web",
+    "realtime",
+    "wireless",
+    "serial",
     "service",
     "manager"
   ],
   "author": {
     "name": "Timothy Claassens",
     "email": "tim.claassens@gmail.com",
-    "url": "timothy.fyi"
+    "url": "https://timothy.fyi"
   },
   "license": "ISC",
   "dependencies": {
-    "@types/node": "^10.12.12",
-    "@types/socket.io": "^2.1.2",
-    "args": "^5.0.0",
-    "debug": "^4.1.0",
-    "epress": "0.0.1-security",
-    "eslint": "^5.10.0",
-    "etherport": "^0.2.0",
-    "etherport-client": "^0.1.3",
-    "firmata": "^1.0.0",
-    "json2typescript": "^1.0.6",
-    "nodemon": "^1.18.8",
-    "npm": "^6.5.0",
+    "@types/firmata": "^0.19.1",
+    "@types/node": "^10.17.0",
+    "@types/node-fetch": "^2.5.2",
+    "@types/websocket": "0.0.40",
+    "args": "^5.0.1",
+    "chalk": "^2.4.2",
+    "command-line-usage": "^5.0.5",
+    "eslint": "^5.16.0",
+    "firmata": "^2.0.0",
+    "longjohn": "^0.2.12",
+    "moment": "^2.23.0",
+    "mysql2": "^1.7.0",
+    "reflect-metadata": "^0.1.13",
+    "sequelize": "^5.19.6",
+    "sequelize-typescript": "^1.0.0",
     "serialport": "^7.1.0",
-    "socket.io": "^2.2.0",
+    "sqlite3": "^4.1.0",
     "supports-color": "^5.5.0",
-    "typescript": "^3.2.2"
+    "typescript": "^3.2.2",
+    "uuid": "^3.3.2",
+    "websocket": "^1.0.28"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.19",
+    "jest": "^24.9.0",
+    "jest-junit": "^9.0.0",
+    "promise": "^8.0.3",
+    "ts-jest": "^24.1.0",
+    "ts-node": "^8.0.3"
   }
 }

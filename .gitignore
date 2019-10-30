@@ -1,1 +1,8 @@
 node_modules/
+.idea/
+junit.xml
+coverage
+*.js
+*.js.map
+!jest.config.js
+dist/

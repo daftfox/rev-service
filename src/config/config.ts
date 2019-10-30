@@ -1,23 +1,40 @@
 import * as args from 'args';
+import IFlags from '../domain/interface/flags';
 
-// Enable serial-servers: firmata-radar --serial
-
+/**
+ * Configuration
+ *
+ * @classdesc // todo
+ * @namespace Config
+ */
 export default class Config {
-    static options = args
-        .option('port', 'Port at which the websocket service will be served. Default: 9000', 9000)
-        .option('start-port', 'The starting port in the port-range for Firmata boards. Default: 3030', 3030)
-        .option('end-port', 'The end port in the port-range for Firmata boards. Default: 3031', 3031)
-        .option('serial', 'Enable serial interface. Default: false', false)
-        .option('ethernet', 'Enable ethernet interface. Default: false', false);
 
-    startPort: number;
-    s: number;              // startPort alias
-    endPort: number;
-    e: number;              // endPort alias
-    serial: boolean;
-    S: boolean;             // serial alias
-    ethernet: boolean;
-    E: boolean;             // ethernet alias
-    port: number;
-    p: number;              // port alias
+    /**
+     * @static
+     * @access private
+     */
+    private static flags = args
+        .option( 'port', 'Port from which the WebSocket service will be served.', 3001 )
+
+        // If you intend to use the provided firmware without changing any of its parameters, don't touch the setting below!
+        .option( 'ethernetPort', 'Port from which the ethernet service will be served.', 9000 )
+        .option( 'debug', 'Enable debug logging.', false )
+        .option( 'serial', 'Enable serial interface.', true )
+        .option( 'ethernet', 'Enable ethernet interface.', true )
+        .option( 'dbSchema', 'The default schema to use', 'rev' )
+        .option( 'dbHost', 'The database server\'s address.', 'localhost' )
+        .option( 'dbPort', 'Port on which the database server is running.', 3306 )
+        .option( 'dbUsername', 'Username to log in to database server.', '' )
+        .option( 'dbPassword', 'Password to log in to database server.', '' )
+        .option( 'dbDialect', 'The database server\'s dialect (mysql, postgres, mariadb, sqlite, mssql).', 'sqlite' )
+        .option( 'dbPath', 'Path to database file (optional, only for sqlite).', 'database/rev.db' );
+
+    /**
+     * @static
+     * @access public
+     * @returns {IFlags}
+     */
+    public static parseOptions( flags: any ): IFlags {
+        return Config.flags.parse( flags );
+    }
 }
