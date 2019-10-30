@@ -35,7 +35,6 @@ export default class Config {
      * @returns {IFlags}
      */
     public static parseOptions( flags: any ): IFlags {
-        console.log(flags);
         return Config.flags.parse( flags );
     }
 }

@@ -5,7 +5,8 @@
   "main": "./dist/index.js",
   "scripts": {
     "postinstall": "tsc",
-    "test": "jest --detectOpenHandles",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "start": "tsc && node ./dist/index.js --ethernet",
     "build": "tsc"
   },
