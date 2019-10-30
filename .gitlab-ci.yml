@@ -80,6 +80,8 @@ pages:
     - mkdir public/
     - mkdir public/reports/
     - mkdir public/reports/$CI_COMMIT_REF_NAME/
+    - mkdir public/reports/$CI_COMMIT_REF_NAME/coverage/
+    - mkdir public/reports/$CI_COMMIT_REF_NAME/test/
     - mv reports/coverage/lcov-report/* public/reports/$CI_COMMIT_REF_NAME/coverage/
     - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test/
   artifacts:
