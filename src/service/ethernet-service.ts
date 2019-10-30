@@ -1,10 +1,10 @@
 import ConnectionService from './connection-service';
 import Boards from '../model/boards';
-import Logger from './logger';
+import LoggerService from './logger-service';
 import { Server, Socket } from 'net';
 import Chalk from 'chalk';
 import Board from '../domain/board';
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
 
 /**
  * @classdesc An ethernet service that opens a socket and attempts to connect to boards that knock on the proverbial door.
@@ -27,7 +27,7 @@ class EthernetService extends ConnectionService{
         super( model );
 
         this.namespace = 'ethernet';
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         this.listen( port );
     }
@@ -39,7 +39,7 @@ class EthernetService extends ConnectionService{
     private listen( port: number ): void {
         this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( port.toString( 10 ) ) }.` );
 
-        this.server = new Server( this.handleConnectionRequest.bind( this ) ).listen( port );
+        this.server = new Server( this.handleConnectionRequest ).listen( port );
         this.server.on( 'error', console.log );
     }
 
@@ -49,7 +49,7 @@ class EthernetService extends ConnectionService{
      * @param {net.Socket} socket
      * @returns {void}
      */
-    private handleConnectionRequest( socket: Socket ): void {
+    private handleConnectionRequest = ( socket: Socket ): void => {
         let board: IBoard;
 
         this.log.debug( `New connection attempt.` );
@@ -66,6 +66,10 @@ class EthernetService extends ConnectionService{
                 this.handleDisconnected( socket, _board );
             }
         );
+    };
+
+    public closeServer(): void {
+        this.server.close();
     }
 
     /**

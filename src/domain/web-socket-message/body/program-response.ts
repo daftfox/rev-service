@@ -1,4 +1,4 @@
-import IProgram from "../../../interface/program";
+import IProgram from "../../interface/program";
 
 interface ProgramResponse {
     programs?: IProgram[];

@@ -1,9 +1,10 @@
-import Board, { PIN_MAPPING, PINOUT } from './board';
+import Board from './board';
 import * as FirmataBoard from 'firmata';
-import Logger from '../service/logger';
-import IPinMapping from '../interface/pin-mapping';
+import LoggerService from '../service/logger-service';
+import IPinMapping from './interface/pin-map';
 import { BuildOptions } from "sequelize";
 import Timeout = NodeJS.Timeout;
+import {SupportedBoards} from "./supported-boards";
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
@@ -80,7 +81,7 @@ class MajorTom extends Board {
      */
     private engineOn = false;
 
-    public pinout: PINOUT = PINOUT.ESP_8266;
+    public architecture = SupportedBoards.ESP_8266;
 
     /**
      * An instance of {@link IPinMapping} allowing for convenient mapping of device pinMapping.
@@ -93,7 +94,7 @@ class MajorTom extends Board {
      *
      * @type {IPinMapping}
      */
-    public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
+    //public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
 
     /**
      * @constructor
@@ -105,9 +106,9 @@ class MajorTom extends Board {
 
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${ this.id }`;
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
-        Object.assign( this.pinMapping, {
+        Object.assign( this.architecture.pinMap, {
             FAN: 16,
             POWER: 14,
         } );
@@ -127,14 +128,14 @@ class MajorTom extends Board {
         if ( firmataBoard ) {
 
             // set correct pin modes
-            this.firmataBoard.pinMode( this.pinMapping.FAN, FirmataBoard.PIN_MODE.OUTPUT );
-            this.firmataBoard.pinMode( this.pinMapping.POWER, FirmataBoard.PIN_MODE.PWM );
+            this.firmataBoard.pinMode( this.architecture.pinMap.FAN, FirmataBoard.PIN_MODE.OUTPUT );
+            this.firmataBoard.pinMode( this.architecture.pinMap.POWER, FirmataBoard.PIN_MODE.PWM );
 
             const serialOptions = {
                 portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
                 baud: MajorTom.EMULATOR_BAUD,
-                rxPin: this.pinMapping.RX,
-                txPin: this.pinMapping.TX
+                rxPin: this.architecture.pinMap.RX,
+                txPin: this.architecture.pinMap.TX
             };
 
             this.firmataBoard.serialConfig( serialOptions );
@@ -245,7 +246,7 @@ class MajorTom extends Board {
      */
     private setSupplyVoltage( voltage: number ): void {
         if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
-        this.firmataBoard.analogWrite( this.pinMapping.POWER, voltage );
+        this.firmataBoard.analogWrite( this.architecture.pinMap.POWER, voltage );
     }
 
     /**
@@ -317,8 +318,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private writeToEmulator( payload: string ): void {
-        // fixme
-        //this.serialWrite( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, payload );
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, [...payload] );
     }
 
     /**
@@ -350,7 +350,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private enableFan( enable: boolean ): void {
-        this.firmataBoard.digitalWrite( this.pinMapping.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
+        this.firmataBoard.digitalWrite( this.architecture.pinMap.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
     }
 
     /**
@@ -366,7 +366,7 @@ class MajorTom extends Board {
         const interval = Math.ceil( ( dipDuration >= 1000 ? dipDuration : 1500 ) / ( ( MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW ) / 10 ) );
 
         // dip it!
-        this.firmataBoard.analogWrite( this.pinMapping.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
+        this.firmataBoard.analogWrite( this.architecture.pinMap.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
 
         // ramp it!
         const rampUp = setInterval( () => {

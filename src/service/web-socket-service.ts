@@ -1,14 +1,13 @@
 import * as WebSocket from 'websocket';
-import { Server } from 'http';
+import {createServer, Server} from 'http';
 import WebSocketMessage, {
     WebSocketMessageKind,
     WebSocketMessageType
 } from "../domain/web-socket-message/web-socket-message";
-import Logger from "./logger";
+import LoggerService from "./logger-service";
 import Boards from "../model/boards";
-import HttpService from "./http-service";
 import Chalk from 'chalk';
-import ICommand from "../interface/command";
+import ICommand from "../domain/interface/command";
 import BoardRequest, { BoardAction } from "../domain/web-socket-message/body/board-request";
 import BoardResponse from "../domain/web-socket-message/body/board-response";
 import { ResponseCode } from "../domain/web-socket-message/response-code";
@@ -21,9 +20,12 @@ import ErrorResponse from "../domain/web-socket-message/body/error-response";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import MethodNotAllowed from "../domain/web-socket-message/error/method-not-allowed";
-import CommandMalformed from "../error/command-malformed";
-import CommandUnavailable from "../error/command-unavailable";
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
+import IWebSocketOptions from "../domain/interface/web-socket-options";
+import {
+    CommandUnavailableError,
+    CommandMalformedError
+} from '../error/errors';
 
 /**
  * @description Service that allows clients to interface using a near real-time web socket connection
@@ -32,24 +34,12 @@ import IBoard from "../interface/board";
 class WebSocketService {
 
     /**
-     * @readonly
-     * @type {module:http.Server}
-     * @access private
-     */
-    private readonly httpServer: Server;
-
-    /**
-     * @readonly
-     * @type {number}
-     * @access private
-     */
-    private readonly port: number;
-
-    /**
      * @type {WebSocket.server}
      * @access private
      */
     private webSocketServer: WebSocket.server;
+
+    private httpServer: Server;
 
     /**
      * @type {Boards}
@@ -72,10 +62,10 @@ class WebSocketService {
 
     /**
      * @static
-     * @type Logger
+     * @type LoggerService
      * @access private
      */
-    private static log = new Logger( WebSocketService.namespace );
+    private static log = new LoggerService( WebSocketService.namespace );
 
     /**
      * @constructor
@@ -83,18 +73,15 @@ class WebSocketService {
      * @param {Boards} boardModel - The {@link Board} instances model.
      * @param {Programs} programModel - The {@link Programs} instances model.
      */
-    constructor( port: number, boardModel: Boards, programModel: Programs ) {
-        this.port = port;
-        this.httpServer = new HttpService( this.port ).server;
+    constructor( options: IWebSocketOptions ) {
+        this.boardModel = options.boardModel;
+        this.programModel = options.programModel;
 
-        this.boardModel = boardModel;
-        this.programModel = programModel;
+        this.boardModel.addBoardConnectedListener( this.broadcastBoardConnected );
+        this.boardModel.addBoardUpdatedListener( this.broadcastBoardUpdated );
+        this.boardModel.addBoardDisconnectedListener( this.broadcastBoardDisconnected );
 
-        this.boardModel.addBoardConnectedListener( this.broadcastBoardConnected.bind( this ) );
-        this.boardModel.addBoardUpdatedListener( this.broadcastBoardUpdated.bind( this ) );
-        this.boardModel.addBoardDisconnectedListener( this.broadcastBoardDisconnected.bind( this ) );
-
-        this.startWebSocketServer();
+        this.startWebSocketServer( options.port );
     }
 
     /**
@@ -103,13 +90,19 @@ class WebSocketService {
      * @access private
      * @return {void}
      */
-    private startWebSocketServer(): void {
+    private startWebSocketServer( port: number ): void {
+        this.httpServer = createServer().listen( port );
         this.webSocketServer = new WebSocket.server( {
-            httpServer: this.httpServer
+            httpServer: this.httpServer,
         } );
 
-        WebSocketService.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( this.port ) ) ) }.` );
-        this.webSocketServer.on( 'request', this.handleConnectionRequest.bind( this ) );
+        WebSocketService.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( port ) ) ) }.` );
+        this.webSocketServer.on( 'request', this.handleConnectionRequest );
+    }
+
+    public closeServer(): void {
+        this.webSocketServer.shutDown();
+        this.httpServer.close();
     }
 
     /**
@@ -119,7 +112,7 @@ class WebSocketService {
      * @param {WebSocket.request} request - The connection request that was received
      * @return {void}
      */
-    private handleConnectionRequest( request: WebSocket.request ): void {
+    private handleConnectionRequest = ( request: WebSocket.request ): void => {
         let client = request.accept( null, request.origin );
 
         this.handleClientConnected()
@@ -133,7 +126,7 @@ class WebSocketService {
         client.on( 'close', () => {
             client = null;
         } );
-    }
+    };
 
     /**
      * Handles received WebSocket requests and routes it to the corresponding method to construct the response.
@@ -143,7 +136,7 @@ class WebSocketService {
      * @param {{ type: string, utf8Data: any }} message -
      * @return {Promise<WebSocketMessage<any>>} Promise resolving to a response in the shape of an instance of WebSocketMessage.
      */
-    private async handleMessageReceived( message: { type: string, utf8Data: any } ): Promise<WebSocketMessage<any>> {
+    private handleMessageReceived = async ( message: { type: string, utf8Data: any } ): Promise<WebSocketMessage<any>> => {
         if ( message.type !== "utf8" ) WebSocketService.log.warn( 'Message received in wrong encoding format. Supported format is utf8' );
 
         const request = WebSocketMessage.fromJSON( message.utf8Data );
@@ -193,7 +186,7 @@ class WebSocketService {
         }
 
         return Promise.resolve( response );
-    }
+    };
 
     /**
      * Construct an instance of {@link WebSocketMessage} with the provided parameters.
@@ -374,10 +367,10 @@ class WebSocketService {
             } else {
                 this.boardModel.executeActionOnBoard( board.id, command )
                     .catch( ( error ) => {
-                        if ( error instanceof CommandMalformed ) {
+                        if ( error instanceof CommandMalformedError ) {
                             // command is (likely) missing parameters
                             reject( new BadRequest( error.message ) );
-                        } else if ( error instanceof CommandUnavailable ) {
+                        } else if ( error instanceof CommandUnavailableError ) {
                             // board does not support this command
                             reject( new MethodNotAllowed( error.message ) );
                         } else {
@@ -468,9 +461,9 @@ class WebSocketService {
      * @param {IBoard} board - The board that was connected
      * @return {void}
      */
-    private broadcastBoardConnected( board: IBoard, newRecord: boolean ): void {
+    private broadcastBoardConnected = ( board: IBoard, newRecord: boolean ): void => {
         this.broadcastBoardUpdate( ( newRecord ? BOARD_BROADCAST_ACTION.NEW : BOARD_BROADCAST_ACTION.UPDATE ), board );
-    }
+    };
 
     /**
      * Broadcast the updated board to all connected clients.
@@ -479,9 +472,9 @@ class WebSocketService {
      * @param {IBoard} board - The board that was updated.
      * @return {void}
      */
-    private broadcastBoardUpdated( board: IBoard ): void {
+    private broadcastBoardUpdated = ( board: IBoard ): void => {
         this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.UPDATE, board );
-    }
+    };
 
     /**
      * Broadcast an update with the disconnected board to connected clients.
@@ -490,9 +483,9 @@ class WebSocketService {
      * @param {IBoard} board - The board that has disconnected.
      * @return {void}
      */
-    private broadcastBoardDisconnected( board: IBoard ): void {
+    private broadcastBoardDisconnected = ( board: IBoard ): void => {
         this.broadcastBoardUpdate( BOARD_BROADCAST_ACTION.UPDATE, board );
-    }
+    };
 
     /**
      * Broadcast a board property or status update.
@@ -502,7 +495,7 @@ class WebSocketService {
      * @param {IBoard} board - The board whose properties or status have updated.
      * @return {void}
      */
-    private broadcastBoardUpdate( action: BOARD_BROADCAST_ACTION, board: IBoard ): void {
+    private broadcastBoardUpdate = ( action: BOARD_BROADCAST_ACTION, board: IBoard ): void => {
         const body: BoardBroadcast = {
             action: action,
             boards: [ board ],
@@ -511,7 +504,7 @@ class WebSocketService {
         const message = WebSocketService.getWebSocketMessageBroadcast<BoardBroadcast>( WebSocketMessageType.BOARD_BROADCAST, body );
 
         this.broadcast( message );
-    }
+    };
 
     /**
      * Broadcast a message to all connected clients.

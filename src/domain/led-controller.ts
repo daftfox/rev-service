@@ -1,8 +1,9 @@
-import Board, { PIN_MAPPING, PINOUT } from "./board";
+import Board from "./board";
 import { BuildOptions } from "sequelize";
 import * as FirmataBoard from 'firmata';
-import Logger from "../service/logger";
-import IPinMapping from "../interface/pin-mapping";
+import LoggerService from "../service/logger-service";
+import IPinMapping from "./interface/pin-map";
+import {SupportedBoards} from "./supported-boards";
 
 class LedController extends Board {
 
@@ -37,15 +38,14 @@ class LedController extends Board {
      *
      * @type {IPinMapping}
      */
-    public pinout: PINOUT = PINOUT.ESP_8266;
-    public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
+    public architecture = SupportedBoards.ESP_8266;
 
     constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, serialConnection: boolean = false, id?: string ) {
         super( model, buildOptions, firmataBoard, serialConnection, id );
 
         // override namespace and logger set by parent constructor
         this.namespace = `LedController_${ this.id }`;
-        this.log = new Logger( this.namespace );
+        this.log = new LoggerService( this.namespace );
 
         this.availableActions = {
             RAINBOW: { requiresParams: false, method: () => { this.rainbow() } },
@@ -59,8 +59,8 @@ class LedController extends Board {
             const serialOptions = {
                 portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
                 baud: LedController.SERIAL_BAUD_RATE,
-                rxPin: this.pinMapping.RX,
-                txPin: this.pinMapping.TX
+                rxPin: this.architecture.pinMap.RX,
+                txPin: this.architecture.pinMap.TX
             };
 
             this.firmataBoard.serialConfig( serialOptions );

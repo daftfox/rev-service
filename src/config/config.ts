@@ -1,5 +1,5 @@
 import * as args from 'args';
-import IFlags from '../interface/flags';
+import IFlags from '../domain/interface/flags';
 
 /**
  * Configuration
@@ -19,8 +19,8 @@ export default class Config {
         // If you intend to use the provided firmware without changing any of its parameters, don't touch the setting below!
         .option( 'ethernetPort', 'Port from which the ethernet service will be served.', 9000 )
         .option( 'debug', 'Enable debug logging.', false )
-        .option( 'serial', 'Enable serial interface.', false )
-        .option( 'ethernet', 'Enable ethernet interface.', false )
+        .option( 'serial', 'Enable serial interface.', true )
+        .option( 'ethernet', 'Enable ethernet interface.', true )
         .option( 'dbSchema', 'The default schema to use', 'rev' )
         .option( 'dbHost', 'The database server\'s address.', 'localhost' )
         .option( 'dbPort', 'Port on which the database server is running.', 3306 )

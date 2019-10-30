@@ -1,16 +1,14 @@
 import Config from '../config/config';
 import EthernetService from '../service/ethernet-service';
 import WebSocketService from '../service/web-socket-service';
-import Logger from '../service/logger';
+import LoggerService from '../service/logger-service';
 import Boards from '../model/boards';
-import CommandUnavailable from '../error/command-unavailable';
-import NoAvailablePortError from '../error/no-available-port-error';
-import NotFoundError from '../error/not-found-error';
-import GenericBoardError from '../error/generic-board-error';
-import IFlags from '../interface/flags';
+import IFlags from '../domain/interface/flags';
 import DatabaseService from "../service/database-service";
 import Programs from "../model/programs";
 import SerialService from "../service/serial-service";
+import IDatabaseOptions from "../domain/interface/database-options";
+import IWebSocketOptions from "../domain/interface/web-socket-options";
 
 // only required during dev
 require('longjohn');
@@ -21,7 +19,7 @@ require('longjohn');
  */
 class MainController {
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @type {string}
      * @static
@@ -30,12 +28,12 @@ class MainController {
     private static namespace = `main`;
 
     /**
-     * Local instance of the {@link Logger} class.
+     * Local instance of the {@link LoggerService} class.
      *
      * @access private
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    private log = new Logger( MainController.namespace );
+    private static log = new LoggerService( MainController.namespace );
 
     /**
      * Object containing the parsed process arguments.
@@ -80,26 +78,26 @@ class MainController {
      */
     private serialService: SerialService;
 
+    private databaseService: DatabaseService;
+
     /**
      * Creates a new instance of MainController and starts required services.
      */
     constructor() {
         this.options = Config.parseOptions( process.argv );
-
-        this.log.info( 'Starting rev-service' );
-
         process.env.debug = this.options.debug ? 'true' : '';
-        this.startServices();
     }
 
     /**
      * Start services that are required to run the application.
      *
-     * @access private
+     * @access public
      * @returns {void}
      */
-    private startServices(): void {
-        const databaseOptions = {
+    public async startAllServices(): Promise<void> {
+        MainController.log.info( 'Starting rev-service' );
+
+        await this.startDatabaseService( {
             username: this.options.dbUsername,
             password: this.options.dbPassword,
             host: this.options.dbHost,
@@ -108,52 +106,74 @@ class MainController {
             dialect: this.options.dbDialect,
             schema: this.options.dbSchema,
             debug: this.options.debug
-        };
+        } );
 
-        new DatabaseService( databaseOptions )
-            .synchronise()
-            .then( () => {
-                this.boardModel = new Boards();
-                this.programModel = new Programs();
+        this.instantiateDataModels();
+        await this.synchroniseDataModels();
 
-                this.socketService = new WebSocketService(
-                    this.options.port,
-                    this.boardModel,
-                    this.programModel
-                );
+        this.startWebSocketService( {
+            port: this.options.port,
+            boardModel: this.boardModel,
+            programModel: this.programModel
+        } );
 
-                if ( this.options.ethernet ) {
-                    this.ethernetService = new EthernetService( this.boardModel, this.options.ethernetPort );
-                }
-                if ( this.options.serial ) {
-                    this.serialService = new SerialService( this.boardModel );
-                }
-            } );
+        if ( this.options.ethernet ) {
+            this.startEthernetService( this.boardModel, this.options.ethernetPort );
+        }
 
-        process.on('uncaughtException', this.handleError.bind( this ) );
+        if ( this.options.serial ) {
+            this.startSerialService( this.boardModel );
+        }
+
+        process.on('uncaughtException', MainController.log.stack );
     }
 
-    /**
-     * Handle errors.
-     *
-     * @access private
-     * @param {Error} error
-     * @returns {void}
-     */
-    private handleError( error: Error ): void {
-        switch( error.constructor ) {
-            case CommandUnavailable:
-            case NoAvailablePortError:
-            case NotFoundError:
-                this.log.warn( error.message );
-                break;
-            case Error:
-                this.log.stack( error );
-                break;
-            case GenericBoardError:
-            default:
-                this.log.stack( error );
+    public stopService(): void {
+        this.stopServices();
+    }
+
+    private stopServices(): void {
+        if ( this.ethernetService ) {
+            this.ethernetService.closeServer();
+            this.ethernetService = undefined;
         }
+
+        if ( this.serialService ) {
+            this.serialService.closeServer();
+            this.serialService = undefined;
+        }
+
+        if ( this.socketService ) {
+            this.socketService.closeServer();
+            this.socketService = undefined;
+        }
+    }
+
+    private startWebSocketService( options: IWebSocketOptions ): void {
+        this.socketService = new WebSocketService( options );
+    }
+
+    private async startDatabaseService( options: IDatabaseOptions ): Promise<void> {
+        this.databaseService =  new DatabaseService( options );
+        return await this.databaseService.synchronise();
+    }
+
+    private startEthernetService( boardModel: Boards, port: number ): void {
+        this.ethernetService = new EthernetService( boardModel, port );
+    }
+
+    private startSerialService( boardModel: Boards ): void {
+        this.serialService = new SerialService( boardModel );
+    }
+
+    private instantiateDataModels(): void {
+        this.boardModel = new Boards();
+        this.programModel = new Programs();
+    }
+
+    private async synchroniseDataModels(): Promise<void> {
+        return this.boardModel.synchronise();
+        // todo: synch programs
     }
 }
 

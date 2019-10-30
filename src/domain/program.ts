@@ -1,15 +1,15 @@
-import {Column, DataType, Model, Table, Sequelize} from "sequelize-typescript";
-import ICommand from "../interface/command";
+import {Column, DataType, Model, Table} from "sequelize-typescript";
+import ICommand from "./interface/command";
 
 @Table({
     timestamps: true
 })
 class Program extends Model<Program> {
 
-    @Column
+    @Column( DataType.STRING )
     public name: string;
 
-    @Column
+    @Column( DataType.STRING )
     public deviceType: string;
 
     @Column( DataType.TEXT )

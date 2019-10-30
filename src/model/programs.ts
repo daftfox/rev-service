@@ -1,7 +1,7 @@
-import Logger from '../service/logger';
+import LoggerService from '../service/logger-service';
 import Chalk from 'chalk';
 import Program from "../domain/program";
-import IProgram from "../interface/program";
+import IProgram from "../domain/interface/program";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 
@@ -19,7 +19,7 @@ class Programs {
     private _programs: Program[] = [];
 
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @static
      * @access private
@@ -52,12 +52,12 @@ class Programs {
     // private notifyBoardDisconnectedListeners: (( Board ) => void)[] = [];
 
     /**
-     * Local instance of the {@link Logger} class.
+     * Local instance of the {@link LoggerService} class.
      *
      * @access private
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    private log = new Logger( Programs.namespace );
+    private log = new LoggerService( Programs.namespace );
 
     // /**
     //  * Add a new listener method to be called as soon as a new board has connected.

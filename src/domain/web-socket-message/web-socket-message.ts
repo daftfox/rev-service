@@ -3,7 +3,7 @@ import BoardRequest from "./body/board-request";
 import BoardResponse from "./body/board-response";
 import ProgramRequest from "./body/program-request";
 import ProgramResponse from "./body/program-response";
-import Logger from "../../service/logger";
+import LoggerService from "../../service/logger-service";
 import CommandRequest from "./body/command-request";
 import * as uuid from 'uuid';
 import ErrorResponse from "./body/error-response";
@@ -22,7 +22,7 @@ class WebSocketMessage<T> {
     public code?: ResponseCode;
 
     private static namespace = `WebSocketMessage`;
-    private static log = new Logger( WebSocketMessage.namespace );
+    private static log = new LoggerService( WebSocketMessage.namespace );
 
     constructor( kind: WebSocketMessageKind, type: WebSocketMessageType, body?: any, reqId?: string, code?: ResponseCode, id?: string ) {
         this.type = type;

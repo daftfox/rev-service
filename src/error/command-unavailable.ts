@@ -1,7 +1,7 @@
-class CommandUnavailable extends Error {
+class CommandUnavailableError extends Error {
     constructor( message: string ) {
         super( message );
     }
 }
 
-export default CommandUnavailable;
+export default CommandUnavailableError;

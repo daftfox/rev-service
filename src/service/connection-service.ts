@@ -1,8 +1,8 @@
 import Boards from "../model/boards";
 import * as FirmataBoard from 'firmata';
-import Logger from "./logger";
+import LoggerService from "./logger-service";
 import * as net from "net";
-import IBoard from "../interface/board";
+import IBoard from "../domain/interface/board";
 import SerialPort = require("serialport");
 import SerialService from "./serial-service";
 
@@ -21,7 +21,7 @@ class ConnectionService {
     protected model: Boards;
 
     /**
-     * Namespace used by the local instance of {@link Logger}
+     * Namespace used by the local instance of {@link LoggerService}
      *
      * @access protected
      * @type {string}
@@ -29,12 +29,12 @@ class ConnectionService {
     protected namespace = 'ConnectionService';
 
     /**
-     * Local instance of the {@link Logger} class.
+     * Local instance of the {@link LoggerService} class.
      *
      * @access protected
-     * @type {Logger}
+     * @type {LoggerService}
      */
-    protected log: Logger;
+    protected log: LoggerService;
 
     /**
      * @constructor
@@ -43,7 +43,7 @@ class ConnectionService {
     constructor( model: Boards ) {
         this.model = model;
 
-        this.log = new Logger( this.namespace )
+        this.log = new LoggerService( this.namespace )
     }
 
     /**
@@ -66,9 +66,9 @@ class ConnectionService {
         const connectionTimeout = setTimeout( () => {
             this.log.warn( 'Timeout while connecting to device.' );
 
-            connectedBoard = null;
+            connectedBoard = undefined;
             firmataBoard.removeAllListeners();
-            firmataBoard = null;
+            firmataBoard = undefined;
 
             disconnected();
         }, 10000);
@@ -95,7 +95,7 @@ class ConnectionService {
 
         firmataBoard.on( 'error', ( err ) => {
             disconnected( connectedBoard );
-            connectedBoard = null;
+            connectedBoard = undefined;
         } );
 
         firmataBoard.on( 'update', ( boardUpdates: IBoard ) => {
@@ -104,7 +104,7 @@ class ConnectionService {
 
         firmataBoard.once( 'disconnect', () => {
             this.log.debug( 'Disconnect event received from firmataboard.' );
-            connectedBoard = null;
+            connectedBoard = undefined;
             disconnected( connectedBoard );
             this.model.disconnectBoard( id );
         } );
