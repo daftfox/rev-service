@@ -358,7 +358,6 @@ describe('Board:', () => {
         board.startHeartbeat();
 
         setTimeout(() => {
-
             expect(board.intervals.length).toEqual(1);
             expect(board.firmataBoard.queryFirmware).toHaveBeenCalledTimes(2);
             jest.setTimeout(5000);

@@ -84,6 +84,7 @@ class MainController {
      * Creates a new instance of MainController and starts required services.
      */
     constructor() {
+        console.log(process.argv);
         this.options = Config.parseOptions( process.argv );
         process.env.debug = this.options.debug ? 'true' : '';
     }
