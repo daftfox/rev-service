@@ -58,7 +58,7 @@ using `rev-service`. Rev-service supports the following flags:
 | --dbUsername   | Username to log in to the database server | null |
 | --dbPassword   | Password to log in to the database server | null |
 | --dbDialect    | The database server's dialect (mysql, postgres, mariadb, sqlite, mssql) | sqlite |
-| --dbPath       | Path to the database file (only when using sqlite) | database/rev.db |
+| --dbPath       | Path to the database file (only when using sqlite) | :memory: |
 
 Examples:
 ```sh

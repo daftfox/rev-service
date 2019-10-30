@@ -27,7 +27,7 @@ export default class Config {
         .option( 'dbUsername', 'Username to log in to database server.', '' )
         .option( 'dbPassword', 'Password to log in to database server.', '' )
         .option( 'dbDialect', 'The database server\'s dialect (mysql, postgres, mariadb, sqlite, mssql).', 'sqlite' )
-        .option( 'dbPath', 'Path to database file (optional, only for sqlite).', 'database/rev.db' );
+        .option( 'dbPath', 'Path to database file (optional, only for sqlite).', ':memory:' );
 
     /**
      * @static

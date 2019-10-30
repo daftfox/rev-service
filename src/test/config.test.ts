@@ -12,7 +12,7 @@ const defaultConfig = {
     dbUsername: '',
     dbPassword: '',
     dbDialect: 'sqlite',
-    dbPath: 'database/rev.db'
+    dbPath: ':memory:'
 };
 
 describe('Config:', () => {

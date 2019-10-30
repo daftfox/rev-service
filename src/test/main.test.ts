@@ -53,7 +53,7 @@ describe('MainController:', () => {
             username: '',
             password: '',
             dialect: 'sqlite',
-            path: 'database/rev.db'
+            path: ':memory:'
         };
 
         mainController.startDatabaseService( databaseOptions );
@@ -69,13 +69,16 @@ describe('MainController:', () => {
             username: '',
             password: '',
             dialect: 'sqlite',
-            path: 'database/rev.db'
+            path: ':memory:'
         };
 
-        mainController.startDatabaseService( databaseOptions );
-        mainController.instantiateDataModels();
+        mainController.startDatabaseService( databaseOptions )
+            .then(() => {
+                mainController.instantiateDataModels();
 
-        mainController.synchroniseDataModels().then(done);
+                mainController.synchroniseDataModels()
+                    .then(done);
+            });
     });
 
     test('.instantiateDataModels() instantiates models', () => {
@@ -97,7 +100,7 @@ describe('MainController:', () => {
             dbPassword: '',
             dbHost: 'localhost',
             dbPort: 3306,
-            dbPath: 'database/rev.db',
+            dbPath: ':memory:',
             dbDialect: 'sqlite',
             dbSchema: 'rev',
             port: 3001,
@@ -128,7 +131,7 @@ describe('MainController:', () => {
             dbPassword: '',
             dbHost: 'localhost',
             dbPort: 3306,
-            dbPath: 'database/rev.db',
+            dbPath: ':memory:',
             dbDialect: 'sqlite',
             dbSchema: 'rev',
             port: 3001,
