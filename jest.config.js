@@ -10,7 +10,7 @@ module.exports = {
         'js',
     ],
     collectCoverage: true,
-    coverageDirectory: 'coverage',
+    coverageDirectory: 'reports/coverage',
     collectCoverageFrom: [
         '**/*.ts',
         '!**/major-tom.ts',
@@ -20,5 +20,15 @@ module.exports = {
     reporters: [
         'default',
         'jest-junit',
+        [
+            'jest-html-reporter',
+            {
+                pageTitle: 'rev-service test report',
+                outputPath: 'reports/test/index.html',
+                theme: 'darkTheme',
+                dateFormat: 'dd-mm-yyyy HH:MM:ss',
+                useCssFile: true,
+            },
+        ],
     ]
 };

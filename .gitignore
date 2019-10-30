@@ -1,7 +1,7 @@
 node_modules/
 .idea/
 junit.xml
-coverage
+reports/
 *.js
 *.js.map
 !jest.config.js
