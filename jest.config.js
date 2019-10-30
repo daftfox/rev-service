@@ -1,19 +1,23 @@
 module.exports = {
     roots: [
-        "<rootDir>/src"
+        '<rootDir>/src',
     ],
     transform: {
-        "^.+\\.ts?$": "ts-jest"
+        '^.+\\.ts?$': 'ts-jest',
     },
     moduleFileExtensions: [
         'ts',
         'js',
     ],
-    coverageDirectory: "coverage",
+    coverageDirectory: 'coverage',
     collectCoverageFrom: [
-        "**/*.ts",
-        "!**/major-tom.ts",
-        "!**/node_modules/**",
-        "!**/test/**"
+        '**/*.ts',
+        '!**/major-tom.ts',
+        '!**/node_modules/**',
+        '!**/test/**',
+    ],
+    reporters: [
+        'jest-nyancat-reporter',
+        'jest-junit',
     ]
 };

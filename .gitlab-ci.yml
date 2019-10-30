@@ -17,8 +17,16 @@ cache:
   paths:
     - node_modules/
 
+stages:
+  - test
+
 test:
+  stage: test
+  coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
+  artifacts:
+    reports:
+      junit: junit.xml
   script:
     - npm install
     - npm install sqlite3
-    - npm test
+    - npm test:coverage
