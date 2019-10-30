@@ -3,6 +3,9 @@ import BoardsMock from "./mocks/boards.mock";
 
 let mainController: any;
 
+// keeps the terminal clean
+console.info = () => {};
+
 beforeEach(() => {
     mainController = new MainController();
 });

@@ -32,7 +32,7 @@ export default class FirmataBoardMock {
     analogPins = [
         0
     ];
-    queryFirmware = jest.fn( callback => setTimeout( callback, 1000 )) ;
+    queryFirmware = jest.fn( callback => setTimeout( callback, 500 ));
     serialWrite = jest.fn();
     analogWrite = jest.fn();
     digitalRead = jest.fn();

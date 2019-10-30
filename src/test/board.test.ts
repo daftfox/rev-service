@@ -20,6 +20,10 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+    // @ts-ignore
+    Board.heartbeatInterval = 1000;
+    // @ts-ignore
+    Board.disconnectTimeout = 1000;
     board = new Board(undefined, undefined, undefined, undefined, 'bacon');
 });
 
@@ -337,7 +341,6 @@ describe('Board:', () => {
     });
 
     test('.startHeartbeat() sets a heartbeat timeout', (done) => {
-        jest.setTimeout(12000);
         const mockFirmataBoard = new FirmataBoardMock();
         board.firmataBoard = mockFirmataBoard;
 
@@ -345,13 +348,11 @@ describe('Board:', () => {
 
         setTimeout(() => {
             expect(board.heartbeatTimeout).toBeDefined();
-            jest.setTimeout(5000);
             done();
-        }, 10100);
+        }, 1100);
     });
 
     test('heartbeat doesn\'t timeout if the board replies on time', (done) => {
-        jest.setTimeout(23000);
         const mockFirmataBoard = new FirmataBoardMock();
         board.firmataBoard = mockFirmataBoard;
 
@@ -360,16 +361,14 @@ describe('Board:', () => {
         setTimeout(() => {
             expect(board.intervals.length).toEqual(1);
             expect(board.firmataBoard.queryFirmware).toHaveBeenCalledTimes(2);
-            jest.setTimeout(5000);
             done();
-        }, 22000);
+        }, 3000);
     });
 
     test('connection times out if no response is received within 10 seconds', (done) => {
-        jest.setTimeout(30000);
         const mockFirmataBoard = new FirmataBoardMock();
         board.firmataBoard = mockFirmataBoard;
-        board.firmataBoard.queryFirmware = jest.fn();
+        board.firmataBoard.queryFirmware = jest.fn( callback => setTimeout( callback, 2500 ));
 
         board.startHeartbeat();
 
@@ -378,9 +377,8 @@ describe('Board:', () => {
             expect(board.timeouts.length).toEqual(0);
             expect(board.intervals.length).toEqual(0);
             expect(board.firmataBoard.emit).toHaveBeenCalledWith('disconnect');
-            jest.setTimeout(5000);
             done();
-        }, 22000);
+        }, 3000);
     });
 
     test('.clearHeartbeatTimeout() clears the heartbeat timeout', () => {
