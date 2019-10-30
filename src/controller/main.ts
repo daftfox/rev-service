@@ -84,7 +84,6 @@ class MainController {
      * Creates a new instance of MainController and starts required services.
      */
     constructor() {
-        console.log(process.argv);
         this.options = Config.parseOptions( process.argv );
         process.env.debug = this.options.debug ? 'true' : '';
     }
@@ -142,6 +141,11 @@ class MainController {
         if ( this.serialService ) {
             this.serialService.closeServer();
             this.serialService = undefined;
+        }
+
+        if ( this.socketService ) {
+            this.socketService.closeServer();
+            this.socketService = undefined;
         }
     }
 

@@ -1,5 +1,5 @@
 import * as WebSocket from 'websocket';
-import {createServer} from 'http';
+import {createServer, Server} from 'http';
 import WebSocketMessage, {
     WebSocketMessageKind,
     WebSocketMessageType
@@ -38,6 +38,8 @@ class WebSocketService {
      * @access private
      */
     private webSocketServer: WebSocket.server;
+
+    private httpServer: Server;
 
     /**
      * @type {Boards}
@@ -89,12 +91,18 @@ class WebSocketService {
      * @return {void}
      */
     private startWebSocketServer( port: number ): void {
+        this.httpServer = createServer().listen( port );
         this.webSocketServer = new WebSocket.server( {
-            httpServer: createServer().listen( port )
+            httpServer: this.httpServer,
         } );
 
         WebSocketService.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( port ) ) ) }.` );
         this.webSocketServer.on( 'request', this.handleConnectionRequest );
+    }
+
+    public closeServer(): void {
+        this.webSocketServer.shutDown();
+        this.httpServer.close();
     }
 
     /**
