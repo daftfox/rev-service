@@ -293,6 +293,10 @@ class Board extends Model<Board> implements IBoard {
      * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
      */
     public static toDiscrete( board: Board ): IBoard {
+        if ( typeof board !== 'object' ) {
+            throw new TypeError(`Parameter board should be of type object. Received type is ${typeof board}.`);
+        }
+
         let discreteBoard;
 
         discreteBoard = {
@@ -334,6 +338,12 @@ class Board extends Model<Board> implements IBoard {
      * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
      */
     public static toDiscreteArray( boards: Board[] ): IBoard[] {
+        if ( !Array.isArray(boards) ) {
+            throw new TypeError(`Parameter boards should be an array. Received type is ${ typeof boards }.`);
+        }
+        if ( !boards.length ) {
+            throw new Error(`Parameter boards should contain at least one element. Received array length is ${boards.length}.`);
+        }
         return boards.map( Board.toDiscrete );
     }
 
@@ -401,6 +411,10 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected clearInterval( interval: Timeout ): void {
+        if ( this.intervals.indexOf(interval) < 0 ) {
+            throw new Error('Interval doesn\'t exist.');
+        }
+
         this.intervals.splice( this.intervals.indexOf( interval ), 1 );
         clearInterval( interval );
     }
@@ -412,6 +426,10 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected clearTimeout( timeout: Timeout ): void {
+        if ( this.timeouts.indexOf(timeout) < 0 ) {
+            throw new Error('Timeout doesn\'t exist.');
+        }
+
         this.timeouts.splice( this.timeouts.indexOf( timeout ), 1 );
         clearTimeout( timeout );
     }
@@ -430,7 +448,7 @@ class Board extends Model<Board> implements IBoard {
             }
 
             this.blinkInterval = setInterval(
-                this.toggleLED.bind( this ),
+                this.toggleLED,
                 500
             );
 
@@ -448,9 +466,9 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      * @returns {void}
      */
-    protected toggleLED(): void {
+    protected toggleLED = (): void => {
         this.setPinValue( this.architecture.pinMap.LED, this.firmataBoard.pins[ this.architecture.pinMap.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
-    }
+    };
 
     /**
      * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
@@ -496,14 +514,16 @@ class Board extends Model<Board> implements IBoard {
      * @param {FirmataBoard.SERIAL_PORT_ID} serialPort Serial port on which to send
      * @returns {void}
      */
-    protected serialWriteBytes( serialPort: FirmataBoard.SERIAL_PORT_ID, payload: (string | number)[] ): void {
+    protected serialWriteBytes( serialPort: FirmataBoard.SERIAL_PORT_ID, payload: any[] ): void {
         const buffer = Buffer.allocUnsafe( payload.length );
 
-        payload.forEach( ( value: string | number, index: number) => {
+        payload.forEach( ( value: any, index: number) => {
             if ( typeof value === 'string' ) {
                 buffer.write( value, index );
             } else if ( typeof value === 'number' ) {
                 buffer.writeUInt8( value, index );
+            } else {
+                throw new TypeError(`Expected string or number. Received ${typeof value}.`);
             }
         } );
 
@@ -552,12 +572,8 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected setPinValue( pin: number, value: number ): void {
-        if ( pin === undefined || pin === null ) {
-            throw new CommandMalformed( `Method setPinValue requires 'pin' argument.` );
-        }
-
-        if ( value === undefined || value === null ) {
-            throw new CommandMalformed( `Method setPinValue requires 'value' argument.` );
+        if ( !this.firmataBoard.pins[pin] ) {
+            throw new Error("blargh");
         }
 
         if ( this.isAnalogPin( pin ) ) {
@@ -566,13 +582,14 @@ class Board extends Model<Board> implements IBoard {
             } else {
                 this.firmataBoard.analogWrite( pin, value );
             }
-        } else if ( this.isDigitalPin( pin ) ) {
+        } else {
             if ( value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW ) {
                 throw new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` );
             } else {
                 this.firmataBoard.digitalWrite( pin, value );
             }
         }
+
         this.emitUpdate();
     }
 

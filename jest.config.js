@@ -14,6 +14,7 @@ module.exports = {
     collectCoverageFrom: [
         '**/*.ts',
         '!**/major-tom.ts',
+        '!**/index.ts',
         '!**/node_modules/**',
         '!**/test/**',
     ],
@@ -29,5 +30,5 @@ module.exports = {
                 dateFormat: 'dd-mm-yyyy HH:MM:ss',
             },
         ],
-    ]
+    ],
 };

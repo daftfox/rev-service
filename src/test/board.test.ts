@@ -20,589 +20,684 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    // @ts-ignore
-    Board.heartbeatInterval = 1000;
-    // @ts-ignore
-    Board.disconnectTimeout = 1000;
     board = new Board(undefined, undefined, undefined, undefined, 'bacon');
+    const mockFirmataBoard = new FirmataBoardMock();
+    board.firmataBoard = mockFirmataBoard;
 });
 
-describe('Board:', () => {
-    test('is instantiated', () => {
-        expect(board).toBeDefined();
+// todo: separate happy and fail flow tests
+describe('Board', () => {
+    describe('constructor', () => {
+        test('is instantiated', () => {
+            expect(board).toBeDefined();
+        });
+
+        test('is instantiated with firmataBoard', () => {
+            // @ts-ignore
+            const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
+            board = new Board(undefined, undefined, firmataBoardMock , undefined, 'bacon' );
+
+            expect(board).toBeDefined();
+        });
+
+        test('is instantiated with firmataBoard and serial connection', () => {
+            // @ts-ignore
+            const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
+            board = new Board(undefined, undefined, firmataBoardMock , true, 'bacon' );
+
+            expect(board).toBeDefined();
+        });
     });
 
-    test('is instantiated with firmataBoard', () => {
-        // @ts-ignore
-        const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-        board = new Board(undefined, undefined, firmataBoardMock , undefined, 'bacon' );
+    describe('getAvailableActions', () => {
+        test('should return correct available actions', () => {
+            const availableActions = board.getAvailableActions();
 
-        expect(board).toBeDefined();
+            expect(availableActions).toBeDefined();
+            expect(Array.isArray(availableActions)).toBeTruthy();
+            expect(availableActions[0].name).toBe('BLINKON');
+            expect(availableActions[1].name).toBe('BLINKOFF');
+            expect(availableActions[2].name).toBe('TOGGLELED');
+            expect(availableActions[3].name).toBe('SETPINVALUE');
+            expect(availableActions[0].requiresParams).toBeFalsy();
+            expect(availableActions[1].requiresParams).toBeFalsy();
+            expect(availableActions[2].requiresParams).toBeFalsy();
+            expect(availableActions[3].requiresParams).toBeTruthy();
+        });
     });
 
-    test('is instantiated with firmataBoard and serial connection', () => {
-        // @ts-ignore
-        const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-        board = new Board(undefined, undefined, firmataBoardMock , true, 'bacon' );
+    describe('setArchitecture', () => {
+        describe('happy flows', () => {
+            test('should set board architecture to ESP8266', () => {
+                board.setArchitecture(SupportedBoards.ESP_8266);
 
-        expect(board).toBeDefined();
+                expect(board.architecture.pinMap.LED).toEqual(2);
+                expect(board.architecture.pinMap.RX).toEqual(3);
+                expect(board.architecture.pinMap.TX).toEqual(1);
+            });
+
+            test('should set board architecture to Arduino Uno', () => {
+                board.setArchitecture(SupportedBoards.ARDUINO_UNO);
+
+                expect(board.architecture.pinMap.LED).toEqual(13);
+                expect(board.architecture.pinMap.RX).toEqual(1);
+                expect(board.architecture.pinMap.TX).toEqual(0);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error when setting unsupported architecture', () => {
+                const badPinout = () => {
+                    board.setArchitecture('bacon');
+                };
+
+                expect(badPinout).toThrowError(new Error( 'This architecture is not supported.' ));
+            });
+        });
     });
 
-    test('.getAvailableActions() returns correct available actions', () => {
-        const availableActions = board.getAvailableActions();
+    describe('setIdle', () => {
+        test('should set current program to IDLE', () => {
+            board.setIdle();
 
-        expect(availableActions).toBeDefined();
-        expect(Array.isArray(availableActions)).toBeTruthy();
-        expect(availableActions[0].name).toBe('BLINKON');
-        expect(availableActions[1].name).toBe('BLINKOFF');
-        expect(availableActions[2].name).toBe('TOGGLELED');
-        expect(availableActions[3].name).toBe('SETPINVALUE');
-        expect(availableActions[0].requiresParams).toBeFalsy();
-        expect(availableActions[1].requiresParams).toBeFalsy();
-        expect(availableActions[2].requiresParams).toBeFalsy();
-        expect(availableActions[3].requiresParams).toBeTruthy();
+            expect(board.currentProgram).toBe(IDLE);
+        });
     });
 
-    test('.setArchitecture() sets board architecture to ESP8266', () => {
-        board.setArchitecture(SupportedBoards.ESP_8266);
+    describe('getFirmataBoard', () => {
+        test('should return undefined firmataboard object', () => {
+            board = new Board();
+            const firmataBoard = board.getFirmataBoard();
 
-        expect(board.architecture.pinMap.LED).toEqual(2);
-        expect(board.architecture.pinMap.RX).toEqual(3);
-        expect(board.architecture.pinMap.TX).toEqual(1);
+            expect(firmataBoard).toBeUndefined();
+        });
+
+        test('should return mock firmataboard object', () => {
+            const firmataBoard = board.getFirmataBoard();
+
+            expect(firmataBoard).toBeDefined();
+        });
     });
 
-    test('.setArchitecture() sets board architecture to Arduino Uno', () => {
-        board.setArchitecture(SupportedBoards.ARDUINO_UNO);
+    describe('toDiscrete', () => {
+        describe('happy flows', () => {
+            test('should return object with all the required properties', () => {
+                const discreteBoard = Board.toDiscrete(board);
 
-        expect(board.architecture.pinMap.LED).toEqual(13);
-        expect(board.architecture.pinMap.RX).toEqual(1);
-        expect(board.architecture.pinMap.TX).toEqual(0);
+                const requiredProperties = [
+                    'id',
+                    'name',
+                    'vendorId',
+                    'productId',
+                    'type',
+                    'currentProgram',
+                    'online',
+                    'serialConnection',
+                    'lastUpdateReceived',
+                    'architecture',
+                    'availableCommands',
+                    'pins',
+
+                    // optional. only when supplied board parameter has firmataBoard property
+                    'refreshRate',
+                ];
+
+                expect(discreteBoard).toBeDefined();
+
+                requiredProperties.forEach(property => {
+                    expect(property in discreteBoard).toEqual( true );
+                } );
+            });
+
+            test('should return object without refreshRate property', () => {
+                board.firmataBoard = undefined;
+                const discreteBoard = Board.toDiscrete(board);
+
+                expect(discreteBoard).toBeDefined();
+                expect('refreshRate' in discreteBoard).toEqual(false);
+            });
+        });
+
+        describe('exception flows', () => {
+            test.each(
+                [
+                    ['bacon', new TypeError('Parameter board should be of type object. Received type is string.')],
+                    [1337, new TypeError('Parameter board should be of type object. Received type is number.')],
+                ],
+            )('should throw TypeError', (board: any, error: TypeError) => {
+                const toDiscreteError = () => {
+                    Board.toDiscrete(board)
+                };
+
+                expect(toDiscreteError).toThrow(error);
+            });
+        });
     });
 
-    test('.setArchitecture() throws an error when setting unsupported architecture', () => {
-        const badPinout = () => {
-            board.setArchitecture('bacon');
-        };
+    describe('toDiscreteArray', () => {
+        describe('happy flows', () => {
+            test('should return array of objects reflecting IBoard interface', () => {
+                const discreteBoardArray = Board.toDiscreteArray([board]);
 
-        expect(badPinout).toThrowError(new Error( 'This architecture is not supported.' ));
+                expect(Array.isArray(discreteBoardArray)).toBeTruthy();
+            });
+        });
+
+        describe('exception flows', () => {
+            test.each(
+                [
+                    [ [], new Error(`Parameter boards should contain at least one element. Received array length is 0.`)],
+                    [ 'bacon', new TypeError(`Parameter boards should be an array. Received type is string.`)],
+                    [ 1337, new TypeError(`Parameter boards should be an array. Received type is number.`)],
+                    [ ['bacon'], new TypeError(`Parameter board should be of type object. Received type is string.`)],
+                    [ [1337], new TypeError(`Parameter board should be of type object. Received type is number.`)],
+                ]
+            )
+            ('should throw TypeError', (boards: any, error: Error) => {
+                const toDiscreteArrayError = () => {
+                    Board.toDiscreteArray(boards);
+                };
+
+                expect(toDiscreteArrayError).toThrow(error);
+            });
+        });
     });
 
-    test('.setIdle() sets current program to IDLE', () => {
-        board.setIdle();
+    describe('executeAction', () => {
+        describe('happy flows', () => {
+            test.each(
+                [
+                    ['TOGGLELED', 'toggleLED', []],
+                    ['BLINKON', 'setBlinkLEDEnabled', [true]],
+                    ['BLINKOFF', 'setBlinkLEDEnabled', [false]],
+                    ['SETPINVALUE', 'setPinValue', [0,128]],
+                ]
+            )
+            ('should run %s method and emit update', (action: string, method: string, parameters: any[]) => {
+                board.online = true;
+                board[method] = jest.fn();
 
-        expect(board.currentProgram).toBe(IDLE);
+                board.executeAction(action, parameters);
+
+                expect(board[method]).toHaveBeenCalledWith(...parameters);
+                expect(board.firmataBoard.emit).toHaveBeenCalled();
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw error when board not online', () => {
+                const executeAction = () => {
+                    board.executeAction('TOGGLELED');
+                };
+
+                expect(executeAction).toThrowError(new CommandUnavailableError( `Unable to execute command on this board since it is not online.` ));
+            });
+
+            // unavailable method should throw error when running executeAction method
+            test.each(
+                [
+                    ['bacon', new CommandUnavailableError( `'bacon' is not a valid action for this board.` )],
+                    [1337, new CommandUnavailableError( `'1337' is not a valid action for this board.` )],
+                ]
+            )
+            ('should should throw error when action not valid', ( invalidAction: any, error: Error ) => {
+                const executeAction = () => {
+                    board.executeAction(invalidAction);
+                };
+
+                board.online = true;
+
+                expect(executeAction).toThrowError(error);
+            });
+
+            test('should throw error when board not online', () => {
+                const executeAction = () => {
+                    board.executeAction('TOGGLELED');
+                };
+
+                expect(executeAction).toThrowError(new CommandUnavailableError( `Unable to execute command on this board since it is not online.` ));
+            });
+
+            test('should should throw error when action not valid', () => {
+                const executeAction = () => {
+                    board.executeAction('bacon');
+                };
+
+                board.online = true;
+
+                expect(executeAction).toThrowError(new CommandUnavailableError( `'bacon' is not a valid action for this board.` ));
+            });
+        });
     });
 
-    test('.getFirmataBoard() returns undefined firmataboard object', () => {
-        const firmataBoard = board.getFirmataBoard();
+    describe('disconnect', () => {
+        test('should disconnect the board and clear listeners', () => {
+            board.online = true;
+            board.clearAllTimers = jest.fn();
+            const removeAllListeners = board.firmataBoard.removeAllListeners;
 
-        expect(firmataBoard).toBeUndefined();
+            board.disconnect();
+
+            expect(removeAllListeners).toHaveBeenCalled();
+            expect(board.clearAllTimers).toHaveBeenCalled();
+            expect(board.online).toBeFalsy();
+            expect(board.firmataBoard).toBeFalsy();
+        });
     });
 
-    test('.getFirmataBoard() returns mock firmataboard object', () => {
-        board.firmataBoard = new FirmataBoardMock();
-        const firmataBoard = board.getFirmataBoard();
+    describe('clearAllTimers', () => {
+        test('should clear all timers and intervals', () => {
+            board.clearAllIntervals = jest.fn();
+            board.clearAllTimeouts = jest.fn();
+            board.clearListeners = jest.fn();
 
-        expect(firmataBoard).toBeDefined();
+            board.clearAllTimers();
+
+            expect(board.clearAllIntervals).toHaveBeenCalled();
+            expect(board.clearAllTimeouts).toHaveBeenCalled();
+            expect(board.clearListeners).toHaveBeenCalled();
+        });
     });
 
-    test('.toDiscrete() returns object with pins property', () => {
-        board.firmataBoard = new FirmataBoardMock();
-        const discreteBoard = Board.toDiscrete(board);
+    describe('clearListeners', () => {
+        test('should remove all listeners from pins and firmataBoard', () => {
+            board.clearListeners();
 
-        expect(discreteBoard).toBeDefined();
-        expect(discreteBoard.online).toBeFalsy();
-        expect(discreteBoard.pins).toBeDefined();
-        expect(discreteBoard.architecture).toBeDefined();
-        expect(Array.isArray(discreteBoard.pins)).toBeTruthy();
-        expect(discreteBoard.pins.length).toEqual(2);
-        expect(discreteBoard.id).toEqual('bacon');
-        expect(discreteBoard.serialConnection).toBeFalsy();
-        expect(discreteBoard.lastUpdateReceived).toBeUndefined();
-        expect(Array.isArray(discreteBoard.availableCommands)).toBeTruthy();
-        expect(Array.isArray(discreteBoard.pins)).toBeTruthy();
+            expect(board.firmataBoard.removeListener.mock.calls[0][0]).toEqual('digital-read-1');
+            expect(board.firmataBoard.removeListener.mock.calls[1][0]).toEqual('analog-read-0');
+            expect(board.firmataBoard.removeListener.mock.calls[2][0]).toEqual('queryfirmware');
+            expect(board.firmataBoard.removeListener).toHaveBeenCalledTimes(3);
+        });
     });
 
-    test('.toDiscrete() returns object without pins property', () => {
-        const discreteBoard = Board.toDiscrete(board);
+    describe('clearInterval', () => {
+        describe('happy flows', () => {
+            test('should clear the supplied interval', () => {
+                const interval = setInterval(jest.fn(), 1000);
+                board.intervals = [interval];
 
-        expect(discreteBoard).toBeDefined();
-        expect(discreteBoard.online).toBeFalsy();
-        expect(discreteBoard.architecture).toBeDefined();
-        expect(discreteBoard.pins.length).toEqual(0);
-        expect(discreteBoard.id).toEqual('bacon');
-        expect(discreteBoard.serialConnection).toBeFalsy();
-        expect(discreteBoard.lastUpdateReceived).toBeUndefined();
-        expect(Array.isArray(discreteBoard.availableCommands)).toBeTruthy();
-        expect(Array.isArray(discreteBoard.pins)).toBeTruthy();
+                board.clearInterval(interval);
+
+                expect(board.intervals.length).toEqual(0);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error if interval doesn\'t exist', () => {
+                const interval = setInterval(jest.fn(), 1000);
+
+                const clearIntervalError = () => {
+                    board.clearInterval(interval);
+                };
+
+                expect(clearIntervalError).toThrowError(new Error('Interval doesn\'t exist.'));
+            });
+        });
     });
 
-    test('.toDiscreteArray() returns array of objects reflecting IBoard interface', () => {
-        const discreteBoardArray = Board.toDiscreteArray([board]);
+    describe('clearTimeout', () => {
+        describe('happy flows', () => {
+            test('should clear the supplied timeout', () => {
+                const timeout = setTimeout(jest.fn(), 1000);
+                board.timeouts = [timeout];
 
-        expect(Array.isArray(discreteBoardArray)).toBeTruthy();
+                board.clearTimeout(timeout);
+
+                expect(board.timeouts.length).toEqual(0);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error if timeout doesn\'t exist', () => {
+                const timeout = setTimeout(jest.fn(), 1000);
+
+                const clearTimeoutError = () => {
+                    board.clearTimeout(timeout);
+                };
+
+                expect(clearTimeoutError).toThrowError(new Error('Timeout doesn\'t exist.'));
+            });
+        });
     });
 
-    // offline board should throw error when running executeAction method
-    test('.executeAction() should throw error when board not online', () => {
-        const executeAction = () => {
-            board.executeAction('TOGGLELED');
-        };
+    describe('setBlinkLEDEnabled', () => {
+        beforeAll(() => {
+            jest.useFakeTimers();
+        });
 
-        expect(executeAction).toThrowError(new CommandUnavailableError( `Unable to execute command on this board since it is not online.` ));
+        afterAll(() => {
+            jest.useRealTimers();
+        });
+
+        describe('happy flows', () => {
+            test('should execute toggleLED three times', () => {
+                board.toggleLED = jest.fn();
+
+                board.setBlinkLEDEnabled(true);
+
+                expect(setInterval).toHaveBeenCalledWith(board.toggleLED, 500);
+                expect(board.blinkInterval).toBeDefined();
+                expect(board.intervals.length).toEqual(1);
+
+                jest.advanceTimersByTime(1100);
+
+                expect(board.toggleLED).toHaveBeenCalledTimes(2);
+            });
+
+            test('should stop blinking the LED', () => {
+                board.toggleLED = jest.fn();
+                board.setBlinkLEDEnabled(true);
+
+                board.setBlinkLEDEnabled(false);
+
+                expect(board.blinkInterval).toBeUndefined();
+                expect(board.intervals.length).toEqual(0);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error when already blinking the LED', () => {
+                board.toggleLED = jest.fn();
+                board.blinkInterval = 1;
+
+                const blinkLed = () => {
+                    board.setBlinkLEDEnabled(true);
+                };
+
+                expect(blinkLed).toThrowError(new CommandUnavailableError( `LED blink is already enabled.` ));
+            });
+        });
     });
 
-    // unavailable method should throw error when running executeAction method
-    test('.executeAction() should throw error when action not valid', () => {
-        const executeAction = () => {
-            board.executeAction('bacon');
-        };
 
-        board.online = true;
+    describe('toggleLED', () => {
+        test('should set the value of the LED pin to HIGH when initial value is LOW', () => {
+            board.architecture.pinMap.LED = 1;
+            board.setPinValue = jest.fn();
 
-        expect(executeAction).toThrowError(new CommandUnavailableError( `'bacon' is not a valid action for this board.` ));
+            board.toggleLED();
+
+            expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.HIGH );
+        });
+
+        test('should set the value of the LED pin to LOW when initial value is HIGH', () => {
+            board.firmataBoard.pins[1].value = 1;
+
+            board.architecture.pinMap.LED = 1;
+            board.setPinValue = jest.fn();
+
+            board.toggleLED();
+
+            expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.LOW );
+        });
     });
 
-    test('.executeAction() should run TOGGLELED method and emit update', () => {
-        const action = 'TOGGLELED';
-        board.online = true;
-        board.toggleLED = jest.fn();
-        board.firmataBoard = new FirmataBoardMock();
+    describe('startHeartbeat', () => {
+        beforeAll(() => {
+            jest.useFakeTimers();
+        });
 
-        board.executeAction(action);
+        afterAll(() => {
+            jest.useRealTimers();
+        });
 
-        expect(board.toggleLED).toHaveBeenCalled();
-        expect(board.firmataBoard.emit).toHaveBeenCalled();
+        describe('happy flows', () => {
+            test('should set a heartbeat interval', () => {
+                board.startHeartbeat();
+
+                // @ts-ignore
+                jest.advanceTimersByTime(Board.heartbeatInterval);
+
+                expect(setInterval).toHaveBeenCalled();
+                expect(board.intervals.length).toEqual(1);
+            });
+
+            test('should set a heartbeat timeout', () => {
+                board.startHeartbeat();
+
+                // @ts-ignore
+                jest.advanceTimersByTime(Board.heartbeatInterval);
+
+                expect(board.heartbeatTimeout).toBeDefined();
+            });
+
+            test('shouldn\'t timeout if the board replies on time', () => {
+                const numheartbeats = 2;
+
+                board.startHeartbeat();
+
+                // @ts-ignore
+                jest.advanceTimersByTime(Board.heartbeatInterval * numheartbeats);
+
+                expect(board.firmataBoard.queryFirmware).toHaveBeenCalledTimes(numheartbeats);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should timeout if no response is received within 10 seconds', () => {
+                // @ts-ignore
+                board.firmataBoard.queryFirmware = jest.fn( callback => setTimeout( callback, Board.disconnectTimeout + 1000 ));
+
+                board.startHeartbeat();
+
+                // @ts-ignore
+                jest.advanceTimersByTime(Board.heartbeatInterval + Board.disconnectTimeout + 100);
+
+                expect(board.heartbeatTimeout).toBeUndefined();
+                expect(board.firmataBoard.emit).toHaveBeenCalledWith('disconnect');
+            });
+        });
     });
 
-    test('.executeAction() should run .setBlinkLEDEnabled(true) method and emit update', () => {
-        const action = 'BLINKON';
-        board.online = true;
-        board.setBlinkLEDEnabled = jest.fn();
-        board.firmataBoard = new FirmataBoardMock();
+    describe('clearHeartbeatTimeout', () => {
+        test('should clear the heartbeat timeout', () => {
+            board.heartbeatTimeout = setTimeout(() => {});
+            board.timeouts.push(board.heartbeatTimeout);
 
-        board.executeAction(action);
+            board.clearHeartbeatTimeout();
 
-        expect(board.setBlinkLEDEnabled).toHaveBeenCalled();
-        expect(board.firmataBoard.emit).toHaveBeenCalled();
-    });
-
-    test('.executeAction() should run .setBlinkLEDEnabled(false) method and emit update', () => {
-        const action = 'BLINKOFF';
-        board.online = true;
-        board.setBlinkLEDEnabled = jest.fn();
-        board.firmataBoard = new FirmataBoardMock();
-
-        board.executeAction(action);
-
-        expect(board.setBlinkLEDEnabled).toHaveBeenCalled();
-        expect(board.firmataBoard.emit).toHaveBeenCalled();
-    });
-
-    test('.executeAction() should run action method with parameters and emit update when given correct action', () => {
-        const action = 'SETPINVALUE';
-        const parameters = [ 0, 128 ];
-        board.online = true;
-        board.setPinValue = jest.fn();
-        board.firmataBoard = new FirmataBoardMock();
-
-        board.executeAction(action, parameters);
-
-        expect(board.setPinValue).toHaveBeenCalled();
-        expect(board.firmataBoard.emit).toHaveBeenCalled();
-    });
-
-    test('.disconnect() should disconnect the board and clear listeners', () => {
-        board.online = true;
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-        board.clearAllTimers = jest.fn();
-
-        board.disconnect();
-
-        expect(mockFirmataBoard.removeAllListeners).toHaveBeenCalled();
-        expect(board.clearAllTimers).toHaveBeenCalled();
-        expect(board.online).toBeFalsy();
-        expect(board.firmataBoard).toBeFalsy();
-    });
-
-    test('.clearAllTimers() should clear all timers and intervals', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-        board.clearAllIntervals = jest.fn();
-        board.clearAllTimeouts = jest.fn();
-        board.clearListeners = jest.fn();
-
-        board.clearAllTimers();
-
-        expect(board.clearAllIntervals).toHaveBeenCalled();
-        expect(board.clearAllTimeouts).toHaveBeenCalled();
-        expect(board.clearListeners).toHaveBeenCalled();
-    });
-
-    test('.clearListeners() should remove all listeners from pins and firmataBoard', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-
-        board.clearListeners();
-
-        expect(mockFirmataBoard.removeListener.mock.calls[0][0]).toEqual('digital-read-1');
-        expect(mockFirmataBoard.removeListener.mock.calls[1][0]).toEqual('analog-read-0');
-        expect(mockFirmataBoard.removeListener.mock.calls[2][0]).toEqual('queryfirmware');
-        expect(mockFirmataBoard.removeListener).toHaveBeenCalledTimes(3);
-    });
-
-    test('.clearInterval() should clear the supplied interval', () => {
-        const interval = setInterval(jest.fn(), 1000);
-        board.intervals = [interval];
-
-        board.clearInterval(interval);
-
-        expect(board.intervals.length).toEqual(0);
-    });
-
-    test('.clearTimeout() should clear the supplied timeout', () => {
-        const timeout = setTimeout(jest.fn(), 1000);
-        board.timeouts = [timeout];
-
-        board.clearTimeout(timeout);
-
-        expect(board.timeouts.length).toEqual(0);
-    });
-
-    test('.setBlinkLEDEnabled() should blink the LED', (done) => {
-        board.toggleLED = jest.fn();
-
-        board.setBlinkLEDEnabled(true);
-
-        expect(board.blinkInterval).toBeDefined();
-        expect(board.intervals.length).toEqual(1);
-
-        // wait for the interval to call the toggleLED method
-        setTimeout(() => {
-            expect(board.toggleLED).toHaveBeenCalled();
-            done();
-        }, 1000);
-    });
-
-    test('.setBlinkLEDEnabled() should throw an error when already blinking the LED', () => {
-        board.toggleLED = jest.fn();
-        board.blinkInterval = 1;
-
-        const blinkLed = () => {
-            board.setBlinkLEDEnabled(true);
-        };
-
-        expect(blinkLed).toThrowError(new CommandUnavailableError( `LED blink is already enabled.` ));
-    });
-
-    test('.setBlinkLEDEnabled() should stop blinking the LED', () => {
-        board.toggleLED = jest.fn();
-        board.setBlinkLEDEnabled(true);
-
-        board.setBlinkLEDEnabled(false);
-
-        expect(board.blinkInterval).toBeUndefined();
-        expect(board.intervals.length).toEqual(0);
-    });
-
-    test('.toggleLED() sets the value of the LED pin to HIGH when initial value is LOW', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-
-        board.architecture.pinMap.LED = 1;
-        board.setPinValue = jest.fn();
-
-        board.toggleLED();
-
-        expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.HIGH );
-    });
-
-    test('.toggleLED() sets the value of the LED pin to LOW when initial value is HIGH', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-        board.firmataBoard.pins[1].value = 1;
-
-        board.architecture.pinMap.LED = 1;
-        board.setPinValue = jest.fn();
-
-        board.toggleLED();
-
-        expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.LOW );
-    });
-
-    test('.startHeartbeat() sets a heartbeat interval', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-
-        board.startHeartbeat();
-
-        expect(board.intervals.length).toEqual(1);
-    });
-
-    test('.startHeartbeat() sets a heartbeat timeout', (done) => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-
-        board.startHeartbeat();
-
-        setTimeout(() => {
-            expect(board.heartbeatTimeout).toBeDefined();
-            done();
-        }, 1100);
-    });
-
-    test('heartbeat doesn\'t timeout if the board replies on time', (done) => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-
-        board.startHeartbeat();
-
-        setTimeout(() => {
-            expect(board.intervals.length).toEqual(1);
-            expect(board.firmataBoard.queryFirmware).toHaveBeenCalledTimes(2);
-            done();
-        }, 3000);
-    });
-
-    test('connection times out if no response is received within 10 seconds', (done) => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-        board.firmataBoard.queryFirmware = jest.fn( callback => setTimeout( callback, 2500 ));
-
-        board.startHeartbeat();
-
-        setTimeout(() => {
             expect(board.heartbeatTimeout).toBeUndefined();
             expect(board.timeouts.length).toEqual(0);
-            expect(board.intervals.length).toEqual(0);
-            expect(board.firmataBoard.emit).toHaveBeenCalledWith('disconnect');
-            done();
-        }, 3000);
-    });
-
-    test('.clearHeartbeatTimeout() clears the heartbeat timeout', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
-        board.heartbeatTimeout = setTimeout(() => {});
-        board.timeouts.push(board.heartbeatTimeout);
-
-        board.clearHeartbeatTimeout();
-
-        expect(board.heartbeatTimeout).toBeUndefined();
-        expect(board.timeouts.length).toEqual(0);
+        });
     });
 
     // fixme this fails if I use bytes, why? numbers should also be converted to bytes, shouldn't they? Returned value is [1, 3, 3, 7]
-    test('.serialWriteBytes() writes an array of numbers converted to bytes to a serial port', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
+    describe('serialWriteBytes', () => {
+        describe('happy flows', () => {
+            test('should write an array of numbers converted to bytes to a serial port', () => {
+                board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 'h', 1, 3, 3, 7 ]);
 
-        board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 'h', 1, 3, 3, 7 ]);
+                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 1, 3, 3, 7 ] );
+            });
 
-        expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 1, 3, 3, 7 ] );
+            test('should write an array of characters converted to bytes to a serial port', () => {
+                board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 'e', 'l', 'l', 'o']);
+
+                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 101, 108, 108, 111 ] );
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw TypeError', () => {
+                const serialWriteBytesError = () => {
+                    board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [{}, {}]);
+                };
+
+                expect(serialWriteBytesError).toThrowError(new TypeError(`Expected string or number. Received object.`));
+            });
+        });
     });
 
-    test('.serialWriteBytes() writes an array of characters converted to bytes to a serial port', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
+    describe('emitUpdate', () => {
+        test('should emit an update event containing a discrete copy of the board instance', () => {
+            board.emitUpdate();
 
-        board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 'e', 'l', 'l', 'o']);
-
-        expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 101, 108, 108, 111 ] );
+            expect(board.firmataBoard.emit).toHaveBeenCalledWith( 'update', Board.toDiscrete(board) )
+        });
     });
 
-    test('.emitUpdate() emits an update event containing a discrete copy of the board instance', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        board.firmataBoard = mockFirmataBoard;
+    describe('setPinValue', () => {
+        describe('happy flows', () => {
+            test('should call analogWrite when supplied with an analog pin', () => {
+                const value = 128;
+                const pin = 0;
+                board.emitUpdate = jest.fn();
 
-        board.emitUpdate();
+                board.setPinValue(pin, value);
 
-        expect(board.firmataBoard.emit).toHaveBeenCalledWith( 'update', Board.toDiscrete(board) )
+                expect( board.firmataBoard.analogWrite ).toHaveBeenCalledWith( pin, value );
+                expect(board.emitUpdate).toHaveBeenCalled();
+            });
+
+            test('should call digitalWrite when supplied with a digital pin', () => {
+                const value = 1;
+                const pin = 1;
+                board.emitUpdate = jest.fn();
+
+                board.setPinValue(pin, value);
+
+                expect( board.firmataBoard.digitalWrite ).toHaveBeenCalledWith( pin, value );
+                expect(board.emitUpdate).toHaveBeenCalled();
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error if non existent pin is supplied', () => {
+                const value = 1;
+                const pin = 1337;
+
+                const setPinValue = () => {
+                    board.setPinValue(pin, value);
+                };
+
+                expect( setPinValue ).toThrowError( new Error("blargh") );
+            });
+
+            test.each(
+                [
+                    [0, -20, new CommandMalformed( `Tried to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )],
+                    [0, 2000, new CommandMalformed( `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )]
+                ])('should throw an error if an invalid value is supplied for an analog pin', (pin: number, value: number, expectedError: Error) => {
+                const setPinValue = () => {
+                    board.setPinValue(pin, value);
+                };
+
+                expect( setPinValue ).toThrowError( expectedError );
+            });
+
+            test('should throw an error if a non-binary value is supplied while setting a digital pin', () => {
+                const value = 2;
+                const pin = 1;
+
+                const setPinValue = () => {
+                    board.setPinValue(pin, value);
+                };
+
+                expect( setPinValue ).toThrowError( new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` ) );
+            });
+        });
     });
 
-    test('.setPinValue() throws an error if no pin is supplied', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const value = 1;
-        const pin = undefined;
-        board.firmataBoard = mockFirmataBoard;
+    describe('attachDigitalPinListeners', () => {
+        test('should attach listeners to all digital pins', () => {
+            const pin = 1;
 
-        const setPinValue = () => {
-            board.setPinValue(pin, value);
-        };
+            board.attachDigitalPinListeners();
 
-        expect( setPinValue ).toThrowError( new CommandMalformed( `Method setPinValue requires 'pin' argument.` ) );
+            expect(board.firmataBoard.digitalRead).toHaveBeenCalledTimes(1);
+            expect(board.firmataBoard.digitalRead).toHaveBeenCalledWith( pin, board.emitUpdate);
+        });
     });
 
-    test('.setPinValue() throws an error if no value is supplied', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const value = undefined;
-        const pin = 1;
-        board.firmataBoard = mockFirmataBoard;
+    describe('attachAnalogPinListeners', () => {
+        test('should attach listeners to all analog pins', () => {
+            const pin = 0;
 
-        const setPinValue = () => {
-            board.setPinValue(pin, value);
-        };
+            board.attachAnalogPinListeners();
 
-        expect( setPinValue ).toThrowError( new CommandMalformed( `Method setPinValue requires 'value' argument.` ) );
+            expect(board.firmataBoard.analogRead).toHaveBeenCalledTimes(1);
+            expect(board.firmataBoard.analogRead).toHaveBeenCalledWith( pin, board.emitUpdate);
+        });
     });
 
-    test('.setPinValue() throws an error if an invalid value is supplied for an analog pin', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        let value = -20;
-        const pin = 0;
-        board.firmataBoard = mockFirmataBoard;
+    describe('compareAnalogReadout', () => {
+        test('should update the previous analog value', () => {
+            board.emitUpdate = jest.fn();
+            const pin = 0;
+            const value = 700;
 
-        const setPinValue = () => {
-            board.setPinValue(pin, value);
-        };
+            board.compareAnalogReadout(pin, value);
 
-        expect( setPinValue ).toThrowError( new CommandMalformed( `Tried to write value ${ value } to analog pin ${ pin }. Only values between or equal to 0 and 1023 are allowed.` ) );
+            expect(board.previousAnalogValue[pin]).toEqual(value);
+            expect(board.emitUpdate).toHaveBeenCalledTimes(1);
+        });
 
-        value = 2000;
+        test('should retain the previous analog value', () => {
+            board.emitUpdate = jest.fn();
+            const pin = 0;
+            const value = 512;
 
-        expect( setPinValue ).toThrowError( new CommandMalformed( `Tried to write value ${ value } to analog pin ${ pin }. Only values between or equal to 0 and 1023 are allowed.` ) );
+            board.compareAnalogReadout(pin, value);
+            board.compareAnalogReadout(pin, value);
+
+            expect(board.previousAnalogValue[pin]).toEqual(value);
+            expect(board.emitUpdate).toHaveBeenCalledTimes(1);
+        });
     });
 
-    test('.setPinValue() throws an error if a non-binary value is supplied while setting a digital pin', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const value = 2;
-        const pin = 1;
-        board.firmataBoard = mockFirmataBoard;
+    describe('clearAllIntervals', () => {
+        test('should clear all intervals', () => {
+            board.intervals.push(setInterval(() => {}, 1000));
+            board.clearAllIntervals();
 
-        const setPinValue = () => {
-            board.setPinValue(pin, value);
-        };
-
-        expect( setPinValue ).toThrowError( new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` ) );
+            expect(board.intervals.length).toEqual(0);
+        });
     });
 
-    test('.setPinValue() calls .analogWrite() method when supplied with an analog pin', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const value = 128;
-        const pin = 0;
-        board.firmataBoard = mockFirmataBoard;
-        board.emitUpdate = jest.fn();
+    describe('clearAllTimeouts', () => {
+        test('should clear all timeouts', () => {
+            board.timeouts.push(setTimeout(() => {}, 1000));
+            board.clearAllTimeouts();
 
-        board.setPinValue(pin, value);
-
-        expect( board.firmataBoard.analogWrite ).toHaveBeenCalledWith( pin, value );
-        expect(board.emitUpdate).toHaveBeenCalled();
+            expect(board.timeouts.length).toEqual(0);
+        });
     });
 
-    test('.setPinValue() calls .digitalWrite() method when supplied with a digital pin', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const value = 1;
-        const pin = 1;
-        board.firmataBoard = mockFirmataBoard;
-        board.emitUpdate = jest.fn();
+    describe('isAvailableAction', () => {
+        test('should return true if action is available', () => {
+            expect(board.isAvailableAction('TOGGLELED')).toEqual(true);
+        });
 
-        board.setPinValue(pin, value);
-
-        expect( board.firmataBoard.digitalWrite ).toHaveBeenCalledWith( pin, value );
-        expect(board.emitUpdate).toHaveBeenCalled();
+        test('should return false if action is not available', () => {
+            expect(board.isAvailableAction('bacon')).toEqual(false);
+        });
     });
 
-    test('.attachDigitalPinListeners() attaches listeners to all digital pins', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pin = 1;
-        board.firmataBoard = mockFirmataBoard;
+    describe('isDigitalPin', () => {
+        test('should return true when a digital pin\'s index is passed in', () => {
+            const pinIndex = 1;
 
-        board.attachDigitalPinListeners();
+            expect(board.isDigitalPin(pinIndex)).toEqual(true);
+        });
 
-        expect(board.firmataBoard.digitalRead).toHaveBeenCalledTimes(1);
-        expect(board.firmataBoard.digitalRead).toHaveBeenCalledWith( pin, board.emitUpdate);
+        test('should return false when an analog pin\'s index is passed in', () => {
+            const pinIndex = 0;
+
+            expect(board.isDigitalPin(pinIndex)).toEqual(false);
+        });
     });
 
-    test('.attachAnalogPinListeners() attaches listeners to all analog pins', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pin = 0;
-        board.firmataBoard = mockFirmataBoard;
+    describe('isAnalogPin', () => {
+        test('should return true when an analog pin\'s index is passed in', () => {
+            const pinIndex = 0;
 
-        board.attachAnalogPinListeners();
+            expect(board.isAnalogPin(pinIndex)).toEqual(true);
+        });
 
-        expect(board.firmataBoard.analogRead).toHaveBeenCalledTimes(1);
-        expect(board.firmataBoard.analogRead).toHaveBeenCalledWith( pin, board.emitUpdate);
-    });
+        test('should return false when a digital pin\'s index is passed in', () => {
+            const pinIndex = 1;
 
-    test('.compareAnalogReadout() updates the previous analog value', () => {
-        board.emitUpdate = jest.fn();
-        const pin = 0;
-        const value = 700;
-
-        board.compareAnalogReadout(pin, value);
-
-        expect(board.previousAnalogValue[pin]).toEqual(value);
-        expect(board.emitUpdate).toHaveBeenCalledTimes(1);
-    });
-
-    test('.compareAnalogReadout() retains the previous analog value', () => {
-        board.emitUpdate = jest.fn();
-        const pin = 0;
-        const value = 512;
-
-        board.compareAnalogReadout(pin, value);
-        board.compareAnalogReadout(pin, value);
-
-        expect(board.previousAnalogValue[pin]).toEqual(value);
-        expect(board.emitUpdate).toHaveBeenCalledTimes(1);
-    });
-
-    test('.clearAllIntervals() clears all intervals', () => {
-        board.intervals.push(setInterval(() => {}, 1000));
-        board.clearAllIntervals();
-
-        expect(board.intervals.length).toEqual(0);
-    });
-
-    test('.clearAllTimeouts() clears all timeouts', () => {
-        board.timeouts.push(setTimeout(() => {}, 1000));
-        board.clearAllTimeouts();
-
-        expect(board.timeouts.length).toEqual(0);
-    });
-
-    test('.isAvailableAction() returns true if action is available', () => {
-        expect(board.isAvailableAction('TOGGLELED')).toEqual(true);
-    });
-
-    test('.isAvailableAction() returns false if action is not available', () => {
-        expect(board.isAvailableAction('bacon')).toEqual(false);
-    });
-
-    test('.isDigitalPin() returns true when a digital pin\'s index is passed in', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pinIndex = 1;
-        board.firmataBoard = mockFirmataBoard;
-
-
-        expect(board.isDigitalPin(pinIndex)).toEqual(true);
-    });
-
-    test('.isDigitalPin() returns false when an analog pin\'s index is passed in', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pinIndex = 0;
-        board.firmataBoard = mockFirmataBoard;
-
-
-        expect(board.isDigitalPin(pinIndex)).toEqual(false);
-    });
-
-    test('.isAnalogPin() returns true when an analog pin\'s index is passed in', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pinIndex = 0;
-        board.firmataBoard = mockFirmataBoard;
-
-
-        expect(board.isAnalogPin(pinIndex)).toEqual(true);
-    });
-
-    test('.isAnalogPin() returns false when an digital pin\'s index is passed in', () => {
-        const mockFirmataBoard = new FirmataBoardMock();
-        const pinIndex = 1;
-        board.firmataBoard = mockFirmataBoard;
-
-
-        expect(board.isAnalogPin(pinIndex)).toEqual(false);
+            expect(board.isAnalogPin(pinIndex)).toEqual(false);
+        });
     });
 });
