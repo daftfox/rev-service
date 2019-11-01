@@ -8,7 +8,7 @@
         "start": "tsc && node ./dist/index.js --ethernet",
         "build": "tsc",
         "lint": "tslint --fix -p tsconfig.json",
-        "lint:check": "tslint --fix -p tsconfig.json",
+        "lint:check": "tslint -p tsconfig.json",
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "format:check": "prettier --list-different \"**/*.{ts,json,md}\""
     },
