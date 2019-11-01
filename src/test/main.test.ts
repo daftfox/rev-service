@@ -1,5 +1,5 @@
 import MainController from '../controller/main';
-import BoardsMock from "./mocks/boards.mock";
+import BoardsMock from './mocks/boards.mock';
 
 let mainController: any;
 
@@ -28,11 +28,11 @@ describe('MainController:', () => {
             expect(process.env.debug).toEqual('');
         });
 
-        test('should have set debug env parameter to \'true\'', async () => {
+        test("should have set debug env parameter to 'true'", async () => {
             process.argv = [
                 '/usr/local/bin/node',
                 '/Users/tim/Projects/rev/rev-back-end/node_modules/jest-worker/build/workers/processChild.js',
-                '--debug'
+                '--debug',
             ];
             const _mainController = new MainController();
 
@@ -42,7 +42,7 @@ describe('MainController:', () => {
 
     describe('startSerialService', () => {
         test('should instantiate serial service', () => {
-            mainController.startSerialService( undefined );
+            mainController.startSerialService(undefined);
 
             expect(mainController.serialService).toBeDefined();
         });
@@ -50,7 +50,7 @@ describe('MainController:', () => {
 
     describe('startEthernetService', () => {
         test('should instantiate ethernet service', () => {
-            mainController.startEthernetService( undefined, 9000 );
+            mainController.startEthernetService(undefined, 9000);
 
             expect(mainController.ethernetService).toBeDefined();
         });
@@ -62,10 +62,10 @@ describe('MainController:', () => {
             const webSocketOptions = {
                 port: 3001,
                 boardModel: boardsMock,
-                programModel: {}
+                programModel: {},
             };
 
-            mainController.startWebSocketService( webSocketOptions );
+            mainController.startWebSocketService(webSocketOptions);
 
             expect(mainController.socketService).toBeDefined();
         });
@@ -80,10 +80,10 @@ describe('MainController:', () => {
                 username: '',
                 password: '',
                 dialect: 'sqlite',
-                path: ':memory:'
+                path: ':memory:',
             };
 
-            mainController.startDatabaseService( databaseOptions );
+            mainController.startDatabaseService(databaseOptions);
 
             expect(mainController.databaseService).toBeDefined();
         });
@@ -98,15 +98,14 @@ describe('MainController:', () => {
                 username: '',
                 password: '',
                 dialect: 'sqlite',
-                path: ':memory:'
+                path: ':memory:',
             };
 
-            return mainController.startDatabaseService( databaseOptions )
-                .then(() => {
-                    mainController.instantiateDataModels();
+            return mainController.startDatabaseService(databaseOptions).then(() => {
+                mainController.instantiateDataModels();
 
-                    return mainController.synchroniseDataModels();
-                });
+                return mainController.synchroniseDataModels();
+            });
         });
     });
 
@@ -143,30 +142,28 @@ describe('MainController:', () => {
         });
 
         test('should start all services', () => {
-            return mainController.startAllServices()
-                .then(() => {
-                    expect(mainController.startDatabaseService).toHaveBeenCalled();
-                    expect(mainController.instantiateDataModels).toHaveBeenCalled();
-                    expect(mainController.synchroniseDataModels).toHaveBeenCalled();
-                    expect(mainController.startWebSocketService).toHaveBeenCalled();
-                    expect(mainController.startEthernetService).toHaveBeenCalled();
-                    expect(mainController.startSerialService).toHaveBeenCalled();
-                });
+            return mainController.startAllServices().then(() => {
+                expect(mainController.startDatabaseService).toHaveBeenCalled();
+                expect(mainController.instantiateDataModels).toHaveBeenCalled();
+                expect(mainController.synchroniseDataModels).toHaveBeenCalled();
+                expect(mainController.startWebSocketService).toHaveBeenCalled();
+                expect(mainController.startEthernetService).toHaveBeenCalled();
+                expect(mainController.startSerialService).toHaveBeenCalled();
+            });
         });
 
         test('should start all services except serial and ethernet', () => {
             mainController.options.ethernet = false;
             mainController.options.serial = false;
 
-            return mainController.startAllServices()
-                .then(() => {
-                    expect(mainController.startDatabaseService).toHaveBeenCalled();
-                    expect(mainController.instantiateDataModels).toHaveBeenCalled();
-                    expect(mainController.synchroniseDataModels).toHaveBeenCalled();
-                    expect(mainController.startWebSocketService).toHaveBeenCalled();
-                    expect(mainController.startEthernetService).toHaveBeenCalledTimes(0);
-                    expect(mainController.startSerialService).toHaveBeenCalledTimes(0);
-                });
+            return mainController.startAllServices().then(() => {
+                expect(mainController.startDatabaseService).toHaveBeenCalled();
+                expect(mainController.instantiateDataModels).toHaveBeenCalled();
+                expect(mainController.synchroniseDataModels).toHaveBeenCalled();
+                expect(mainController.startWebSocketService).toHaveBeenCalled();
+                expect(mainController.startEthernetService).toHaveBeenCalledTimes(0);
+                expect(mainController.startSerialService).toHaveBeenCalledTimes(0);
+            });
         });
     });
 });

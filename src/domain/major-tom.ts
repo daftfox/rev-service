@@ -2,9 +2,9 @@ import Board from './board';
 import * as FirmataBoard from 'firmata';
 import LoggerService from '../service/logger-service';
 import IPinMapping from './interface/pin-map';
-import { BuildOptions } from "sequelize";
+import { BuildOptions } from 'sequelize';
 import Timeout = NodeJS.Timeout;
-import {SupportedBoards} from "./supported-boards";
+import { SupportedBoards } from './supported-boards';
 
 // https://freematics.com/pages/products/freematics-obd-emulator-mk2/control-command-set/
 
@@ -17,7 +17,6 @@ import {SupportedBoards} from "./supported-boards";
  * @namespace MajorTom
  */
 class MajorTom extends Board {
-
     /**
      * Analog values that represent certain voltage levels the device is able to supply.
      * HIGH     ~13.5v
@@ -34,7 +33,7 @@ class MajorTom extends Board {
         HIGH: 550,
         GOOD: 410,
         LOW: 240,
-        CRITICAL: 0
+        CRITICAL: 0,
     };
 
     /**
@@ -101,46 +100,86 @@ class MajorTom extends Board {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, serialConnection: boolean = false, id?: string ) {
-        super( model, buildOptions, firmataBoard, serialConnection, id );
+    constructor(
+        model?: any,
+        buildOptions?: BuildOptions,
+        firmataBoard?: FirmataBoard,
+        serialConnection: boolean = false,
+        id?: string,
+    ) {
+        super(model, buildOptions, firmataBoard, serialConnection, id);
 
         // override namespace and logger set by parent constructor
-        this.namespace = `MajorTom_${ this.id }`;
-        this.log = new LoggerService( this.namespace );
+        this.namespace = `MajorTom_${this.id}`;
+        this.log = new LoggerService(this.namespace);
 
-        Object.assign( this.architecture.pinMap, {
+        Object.assign(this.architecture.pinMap, {
             FAN: 16,
             POWER: 14,
-        } );
+        });
 
-        Object.assign( this.availableActions, {
-            ENGINEON: { requiresParams: false, method: () => { this.startEngine() } },
-            ENGINEOFF: { requiresParams: false, method: () => { this.stopEngine() } },
-            SETSPEED: { requiresParams: true, method: ( speed: string ) => { this.setSpeed( speed ) } },
-            SETRPM: { requiresParams: true, method: ( rpm: string ) => { this.setRPM( rpm ) } },
-            SETDTC: { requiresParams: true, method: ( dtc: string, mode: string ) => { this.setDTC( dtc, mode ) } },
-            CLEARDTCS: { requiresParams: false, method: () => { this.clearAllDTCs() } },
+        Object.assign(this.availableActions, {
+            ENGINEON: {
+                requiresParams: false,
+                method: () => {
+                    this.startEngine();
+                },
+            },
+            ENGINEOFF: {
+                requiresParams: false,
+                method: () => {
+                    this.stopEngine();
+                },
+            },
+            SETSPEED: {
+                requiresParams: true,
+                method: (speed: string) => {
+                    this.setSpeed(speed);
+                },
+            },
+            SETRPM: {
+                requiresParams: true,
+                method: (rpm: string) => {
+                    this.setRPM(rpm);
+                },
+            },
+            SETDTC: {
+                requiresParams: true,
+                method: (dtc: string, mode: string) => {
+                    this.setDTC(dtc, mode);
+                },
+            },
+            CLEARDTCS: {
+                requiresParams: false,
+                method: () => {
+                    this.clearAllDTCs();
+                },
+            },
             // DEBUGON: () => { this.enableEmulatorDebugMode( true ) },
             // DEBUGOFF: () => { this.enableEmulatorDebugMode( false ) },
-            SETVIN: { requiresParams: true, method: ( vin: string ) => { this.setVIN( vin ) } },
-        } );
+            SETVIN: {
+                requiresParams: true,
+                method: (vin: string) => {
+                    this.setVIN(vin);
+                },
+            },
+        });
 
-        if ( firmataBoard ) {
-
+        if (firmataBoard) {
             // set correct pin modes
-            this.firmataBoard.pinMode( this.architecture.pinMap.FAN, FirmataBoard.PIN_MODE.OUTPUT );
-            this.firmataBoard.pinMode( this.architecture.pinMap.POWER, FirmataBoard.PIN_MODE.PWM );
+            this.firmataBoard.pinMode(this.architecture.pinMap.FAN, FirmataBoard.PIN_MODE.OUTPUT);
+            this.firmataBoard.pinMode(this.architecture.pinMap.POWER, FirmataBoard.PIN_MODE.PWM);
 
             const serialOptions = {
                 portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
                 baud: MajorTom.EMULATOR_BAUD,
                 rxPin: this.architecture.pinMap.RX,
-                txPin: this.architecture.pinMap.TX
+                txPin: this.architecture.pinMap.TX,
             };
 
-            this.firmataBoard.serialConfig( serialOptions );
+            this.firmataBoard.serialConfig(serialOptions);
 
-            this.log.debug( "🚀 ‍This is Major Tom to ground control." );
+            this.log.debug('🚀 ‍This is Major Tom to ground control.');
         }
     }
 
@@ -152,8 +191,8 @@ class MajorTom extends Board {
      * @param {string} dtc - DTC to validate
      * @returns {boolean}
      */
-    private static isValidDTC( dtc: string ): boolean {
-        return /^P[0-3][A-Z0-9][A-Z0-9][A-Z0-9]$/.exec( dtc ) !== null;
+    private static isValidDTC(dtc: string): boolean {
+        return /^P[0-3][A-Z0-9][A-Z0-9][A-Z0-9]$/.exec(dtc) !== null;
     }
 
     /**
@@ -163,8 +202,8 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private enableEmulatorIgnition( enable: boolean ): void {
-        this.writeToEmulator( `ATACC${ enable ? 1 : 0 }` );
+    private enableEmulatorIgnition(enable: boolean): void {
+        this.writeToEmulator(`ATACC${enable ? 1 : 0}`);
     }
 
     /**
@@ -175,26 +214,25 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private setDTC( dtc: string, mode: string ): void {
-        if ( !MajorTom.isValidDTC( dtc ) ) {
-            throw new Error( `${ dtc } is not a valid DTC.` );
+    private setDTC(dtc: string, mode: string): void {
+        if (!MajorTom.isValidDTC(dtc)) {
+            throw new Error(`${dtc} is not a valid DTC.`);
         }
 
         let _mode: string;
-        switch ( mode ) {
-
+        switch (mode) {
             // pending DTC
-            case "0x07":
+            case '0x07':
                 _mode = `7`;
                 break;
 
             // stored DTC
-            case "0x0A":
+            case '0x0A':
                 _mode = `A`;
                 break;
         }
 
-        this.writeToEmulator( `ATSET DTC${ _mode }=${ dtc }` );
+        this.writeToEmulator(`ATSET DTC${_mode}=${dtc}`);
     }
 
     /**
@@ -204,7 +242,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private clearAllDTCs(): void {
-        this.writeToEmulator( `ATCLR DTC` );
+        this.writeToEmulator(`ATCLR DTC`);
     }
 
     /**
@@ -214,8 +252,8 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private setRPM( rpm: string ): void {
-        this.writeToEmulator( `ATSET 010C=${ rpm }` );
+    private setRPM(rpm: string): void {
+        this.writeToEmulator(`ATSET 010C=${rpm}`);
     }
 
     /**
@@ -225,8 +263,8 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private setSpeed( speed: string ): void {
-        this.writeToEmulator( `ATSET 0113=${ speed }` );
+    private setSpeed(speed: string): void {
+        this.writeToEmulator(`ATSET 0113=${speed}`);
     }
 
     /**
@@ -236,8 +274,8 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private enableEmulatorDebugMode( enable: boolean ): void {
-        this.writeToEmulator( `ATINF${ enable ? 1 : 0 }` );
+    private enableEmulatorDebugMode(enable: boolean): void {
+        this.writeToEmulator(`ATINF${enable ? 1 : 0}`);
     }
 
     /**
@@ -247,8 +285,8 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private setVIN( vin: string ): void {
-        this.writeToEmulator( `ATSET VIN=${ vin }` );
+    private setVIN(vin: string): void {
+        this.writeToEmulator(`ATSET VIN=${vin}`);
     }
 
     /**
@@ -258,11 +296,11 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private setSupplyVoltage( voltage: number ): void {
-        if ( voltage > 600 ) {
-            throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
+    private setSupplyVoltage(voltage: number): void {
+        if (voltage > 600) {
+            throw new Error(`Better not play with fire. Do not set supply voltage higher than 600 (for now).`);
         }
-        this.firmataBoard.analogWrite( this.architecture.pinMap.POWER, voltage );
+        this.firmataBoard.analogWrite(this.architecture.pinMap.POWER, voltage);
     }
 
     /**
@@ -274,12 +312,12 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private startEngine(): void {
-        if ( this.engineOn ) {
-            throw new Error( `Engine has already been started.` );
+        if (this.engineOn) {
+            throw new Error(`Engine has already been started.`);
         }
         this.engineOn = true;
-        this.enableEmulatorIgnition( true );
-        this.dipPowerSupply( MajorTom.DEFAULT_POWER_DIP_DURATION );
+        this.enableEmulatorIgnition(true);
+        this.dipPowerSupply(MajorTom.DEFAULT_POWER_DIP_DURATION);
         this.shake();
     }
 
@@ -292,8 +330,8 @@ class MajorTom extends Board {
     private stopEngine(): void {
         this.setIdle();
         this.engineOn = false;
-        this.enableEmulatorIgnition( false );
-        this.clearInterval( this.shakeInterval );
+        this.enableEmulatorIgnition(false);
+        this.clearInterval(this.shakeInterval);
     }
 
     /**
@@ -303,8 +341,8 @@ class MajorTom extends Board {
      * @param {boolean} enable
      * @returns {void}
      */
-    private enableEmulatorCharacterEcho( enable: boolean ): void {
-        this.writeToEmulator( `ATE${ enable ? 1 : 0 }` );
+    private enableEmulatorCharacterEcho(enable: boolean): void {
+        this.writeToEmulator(`ATE${enable ? 1 : 0}`);
     }
 
     /**
@@ -314,7 +352,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private initializeEmulator(): void {
-        this.writeToEmulator( `ATZ` );
+        this.writeToEmulator(`ATZ`);
     }
 
     /**
@@ -324,7 +362,7 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private resetEmulator(): void {
-        this.writeToEmulator( `ATR` );
+        this.writeToEmulator(`ATR`);
     }
 
     /**
@@ -335,8 +373,8 @@ class MajorTom extends Board {
      * @param {string} payload AT-method to send
      * @returns {void}
      */
-    private writeToEmulator( payload: string ): void {
-        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, [...payload] );
+    private writeToEmulator(payload: string): void {
+        this.serialWriteBytes(this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, [...payload]);
     }
 
     /**
@@ -348,16 +386,15 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private shake(): void {
-        this.shakeInterval = setInterval( () => {
-            this.enableFan( true );
+        this.shakeInterval = setInterval(() => {
+            this.enableFan(true);
 
-            setTimeout( () => {
-                this.enableFan( false );
-            }, MajorTom.DEFAULT_SHAKE_DURATION );
+            setTimeout(() => {
+                this.enableFan(false);
+            }, MajorTom.DEFAULT_SHAKE_DURATION);
+        }, MajorTom.DEFAULT_SHAKE_DURATION + 1000);
 
-        }, MajorTom.DEFAULT_SHAKE_DURATION + 1000 );
-
-        this.intervals.push( this.shakeInterval );
+        this.intervals.push(this.shakeInterval);
     }
 
     /**
@@ -367,8 +404,11 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private enableFan( enable: boolean ): void {
-        this.firmataBoard.digitalWrite( this.architecture.pinMap.FAN, enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW );
+    private enableFan(enable: boolean): void {
+        this.firmataBoard.digitalWrite(
+            this.architecture.pinMap.FAN,
+            enable ? FirmataBoard.PIN_STATE.HIGH : FirmataBoard.PIN_STATE.LOW,
+        );
     }
 
     /**
@@ -379,23 +419,26 @@ class MajorTom extends Board {
      * @access private
      * @returns {void}
      */
-    private dipPowerSupply( dipDuration: number ): void {
+    private dipPowerSupply(dipDuration: number): void {
         let ramped = 0;
-        const interval = Math.ceil( ( dipDuration >= 1000 ? dipDuration : 1500 ) / ( ( MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW ) / 10 ) );
+        const interval = Math.ceil(
+            (dipDuration >= 1000 ? dipDuration : 1500) /
+                ((MajorTom.SUPPLY_VOLTAGE.GOOD - MajorTom.SUPPLY_VOLTAGE.LOW) / 10),
+        );
 
         // dip it!
-        this.firmataBoard.analogWrite( this.architecture.pinMap.POWER, MajorTom.SUPPLY_VOLTAGE.LOW );
+        this.firmataBoard.analogWrite(this.architecture.pinMap.POWER, MajorTom.SUPPLY_VOLTAGE.LOW);
 
         // ramp it!
-        const rampUp = setInterval( () => {
+        const rampUp = setInterval(() => {
             ramped += 10;
-            this.setSupplyVoltage( MajorTom.SUPPLY_VOLTAGE.LOW + ramped );
-            if ( ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD ) {
-                this.clearInterval( rampUp );
+            this.setSupplyVoltage(MajorTom.SUPPLY_VOLTAGE.LOW + ramped);
+            if (ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD) {
+                this.clearInterval(rampUp);
             }
-        }, interval );
+        }, interval);
 
-        this.intervals.push( rampUp );
+        this.intervals.push(rampUp);
     }
 }
 

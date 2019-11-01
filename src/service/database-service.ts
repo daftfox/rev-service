@@ -1,10 +1,10 @@
 import { Sequelize } from 'sequelize-typescript';
-import Program from "../domain/program";
-import Board from "../domain/board";
-import LoggerService from "./logger-service";
-import { Dialect } from "sequelize";
-import IDatabaseOptions from "../domain/interface/database-options";
-import DefaultPrograms from "../domain/programs/default";
+import Program from '../domain/program';
+import Board from '../domain/board';
+import LoggerService from './logger-service';
+import { Dialect } from 'sequelize';
+import IDatabaseOptions from '../domain/interface/database-options';
+import DefaultPrograms from '../domain/programs/default';
 
 class DatabaseService {
     /**
@@ -26,19 +26,16 @@ class DatabaseService {
      * @access private
      * @type {LoggerService}
      */
-    private static log = new LoggerService( DatabaseService.namespace );
+    private static log = new LoggerService(DatabaseService.namespace);
 
-    constructor( options: IDatabaseOptions ) {
-        DatabaseService.database = new Sequelize( options.schema, options.username, options.password, {
+    constructor(options: IDatabaseOptions) {
+        DatabaseService.database = new Sequelize(options.schema, options.username, options.password, {
             dialect: options.dialect as Dialect,
             storage: options.dialect === 'sqlite' ? options.path : undefined,
             logging: options.debug,
-        } );
+        });
 
-        DatabaseService.database.addModels( [
-            Program,
-            Board,
-        ] );
+        DatabaseService.database.addModels([Program, Board]);
     }
 
     /**
@@ -50,17 +47,13 @@ class DatabaseService {
     public async synchronise(): Promise<void> {
         DatabaseService.log.info(`Synchronising database model.`);
 
-        await DatabaseService.database
-            .sync()
-            .then(
-                () => {
-                    const blinkProgram = Program.build( DefaultPrograms.BLINK);
-                    blinkProgram.save();
+        await DatabaseService.database.sync().then(() => {
+            const blinkProgram = Program.build(DefaultPrograms.BLINK);
+            blinkProgram.save();
 
-                    const sosProgram = Program.build( DefaultPrograms.SOS );
-                    sosProgram.save();
-                }
-        );
+            const sosProgram = Program.build(DefaultPrograms.SOS);
+            sosProgram.save();
+        });
     }
 }
 

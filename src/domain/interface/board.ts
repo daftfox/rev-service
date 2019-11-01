@@ -1,5 +1,5 @@
-import IPin from "./pin";
-import BoardArchitecture from "../board-architecture";
+import IPin from './pin';
+import BoardArchitecture from '../board-architecture';
 
 export default interface IBoard {
     id: string;

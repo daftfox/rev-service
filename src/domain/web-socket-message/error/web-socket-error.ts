@@ -5,8 +5,8 @@ class WebSocketError extends Error {
         message: undefined,
     };
 
-    constructor( message: string ) {
-        super( message );
+    constructor(message: string) {
+        super(message);
 
         this.responseBody.message = message;
     }

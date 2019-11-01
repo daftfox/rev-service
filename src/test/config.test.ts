@@ -12,12 +12,12 @@ const defaultOptions = {
     dbUsername: '',
     dbPassword: '',
     dbDialect: 'sqlite',
-    dbPath: ':memory:'
+    dbPath: ':memory:',
 };
 
 describe('Config:', () => {
     test('default options are set', () => {
-        const options = Config.parseOptions( process.argv );
+        const options = Config.parseOptions(process.argv);
 
         expect(options.port).toBe(defaultOptions.port);
         expect(options.ethernetPort).toBe(defaultOptions.ethernetPort);

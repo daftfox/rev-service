@@ -76,7 +76,18 @@ lint:
     policy: pull
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   script:
-    - npm run lint
+    - npm run lint:check
+
+format:
+  stage: test
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - node_modules/
+    policy: pull
+  coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
+  script:
+    - npm run format:check
 
 pages:
   stage: deploy

@@ -5,33 +5,28 @@ export default class FirmataBoardMock {
     emit = jest.fn();
     removeListener = jest.fn();
     removeAllListeners = jest.fn();
-    setSamplingInterval = jest.fn((interval: number) => this.samplingInterval = interval);
+    setSamplingInterval = jest.fn((interval: number) => (this.samplingInterval = interval));
     getSamplingInterval = jest.fn(() => this.samplingInterval);
     pins: FirmataBoard.Pins[] = [
         {
             analogChannel: 0,
-            supportedModes: [
-                FirmataBoard.PIN_MODE.ANALOG
-            ],
+            supportedModes: [FirmataBoard.PIN_MODE.ANALOG],
             value: 512,
             mode: FirmataBoard.PIN_MODE.ANALOG,
             report: FirmataBoard.REPORTING.ON,
-            state: FirmataBoard.PIN_STATE.LOW
-        }, {
+            state: FirmataBoard.PIN_STATE.LOW,
+        },
+        {
             analogChannel: 127,
-            supportedModes: [
-                FirmataBoard.PIN_MODE.INPUT
-            ],
+            supportedModes: [FirmataBoard.PIN_MODE.INPUT],
             value: 0,
             mode: FirmataBoard.PIN_MODE.INPUT,
             report: FirmataBoard.REPORTING.ON,
-            state: FirmataBoard.PIN_STATE.LOW
-        }
+            state: FirmataBoard.PIN_STATE.LOW,
+        },
     ];
-    analogPins = [
-        0
-    ];
-    queryFirmware = jest.fn( callback => setTimeout( callback, 500 ));
+    analogPins = [0];
+    queryFirmware = jest.fn(callback => setTimeout(callback, 500));
     serialWrite = jest.fn();
     analogWrite = jest.fn();
     digitalRead = jest.fn();

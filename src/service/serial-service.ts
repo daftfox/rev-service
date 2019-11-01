@@ -1,10 +1,10 @@
-import ConnectionService from "./connection-service";
-import Boards from "../model/boards";
+import ConnectionService from './connection-service';
+import Boards from '../model/boards';
 import * as Serialport from 'serialport';
-import LoggerService from "./logger-service";
-import ISerialPort from "../domain/interface/serial-port";
-import IBoard from "../domain/interface/board";
-import Chalk from "chalk";
+import LoggerService from './logger-service';
+import ISerialPort from '../domain/interface/serial-port';
+import IBoard from '../domain/interface/board';
+import Chalk from 'chalk';
 import Timeout = NodeJS.Timeout;
 
 /**
@@ -12,7 +12,6 @@ import Timeout = NodeJS.Timeout;
  * @namespace SerialService
  */
 class SerialService extends ConnectionService {
-
     /**
      * A list of port IDs in which an unsupported device is plugged in.
      * @access private
@@ -28,18 +27,18 @@ class SerialService extends ConnectionService {
      * @constructor
      * @param {Boards} model
      */
-    constructor( model: Boards ) {
-        super( model );
+    constructor(model: Boards) {
+        super(model);
 
         this.namespace = 'serial';
-        this.log = new LoggerService( this.namespace );
+        this.log = new LoggerService(this.namespace);
 
-        this.log.info( `Listening on serial ports.` );
+        this.log.info(`Listening on serial ports.`);
         this.startListening();
     }
 
     public closeServer(): void {
-        clearInterval( this.portScanInterval );
+        clearInterval(this.portScanInterval);
     }
 
     /**
@@ -47,7 +46,7 @@ class SerialService extends ConnectionService {
      * @access private
      */
     private startListening(): void {
-        this.portScanInterval = setInterval( this.scanSerialPorts.bind( this ), 10000 );
+        this.portScanInterval = setInterval(this.scanSerialPorts.bind(this), 10000);
     }
 
     /**
@@ -55,35 +54,36 @@ class SerialService extends ConnectionService {
      * @access private
      */
     private scanSerialPorts(): void {
-        Serialport.list( ( error: any, ports: ISerialPort[] ) => {       // list all connected serial devices
+        Serialport.list((error: any, ports: ISerialPort[]) => {
+            // list all connected serial devices
 
             const availablePort = ports
-                .filter( port => port.productId !== undefined )
-                .filter( port => this.usedPorts.indexOf( port.comName ) < 0)
-                .filter( port => this.unsupportedDevices.indexOf( port.comName ) < 0).pop();
+                .filter(port => port.productId !== undefined)
+                .filter(port => this.usedPorts.indexOf(port.comName) < 0)
+                .filter(port => this.unsupportedDevices.indexOf(port.comName) < 0)
+                .pop();
 
-            if ( availablePort ) {
-                this.usedPorts.push( availablePort.comName );
+            if (availablePort) {
+                this.usedPorts.push(availablePort.comName);
                 this.connectToBoard(
                     availablePort.comName,
                     true,
-                    ( board: IBoard ) => {
-                        this.log.info( `Device ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } connected.` );
+                    (board: IBoard) => {
+                        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
                     },
-                    ( board?: IBoard ) => {
+                    (board?: IBoard) => {
+                        this.usedPorts.splice(this.usedPorts.indexOf(availablePort.comName), 1);
+                        if (board) {
+                            this.log.info(`Device ${board.id} disconnected.`);
 
-                        this.usedPorts.splice( this.usedPorts.indexOf( availablePort.comName ), 1 );
-                        if ( board ) {
-                            this.log.info( `Device ${ board.id } disconnected.` );
-
-                            this.model.disconnectBoard( board.id );
+                            this.model.disconnectBoard(board.id);
                         } else {
-                            this.unsupportedDevices.push( availablePort.comName );
+                            this.unsupportedDevices.push(availablePort.comName);
                         }
-                    }
+                    },
                 );
             }
-        } );
+        });
     }
 }
 

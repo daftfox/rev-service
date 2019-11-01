@@ -1,10 +1,10 @@
-import Board, {IDLE} from '../domain/board';
-import {Sequelize} from 'sequelize-typescript';
-import CommandUnavailableError from "../error/command-unavailable";
-import FirmataBoardMock from "./mocks/firmata-board.mock";
+import Board, { IDLE } from '../domain/board';
+import { Sequelize } from 'sequelize-typescript';
+import CommandUnavailableError from '../error/command-unavailable';
+import FirmataBoardMock from './mocks/firmata-board.mock';
 import * as FirmataBoard from 'firmata';
-import {SupportedBoards} from "../domain/supported-boards";
-import CommandMalformed from "../error/command-malformed";
+import { SupportedBoards } from '../domain/supported-boards';
+import CommandMalformed from '../error/command-malformed';
 
 let board: any;
 let sequelize: Sequelize;
@@ -14,9 +14,7 @@ beforeAll(() => {
         dialect: 'sqlite',
         storage: ':memory:',
     });
-    sequelize.addModels([
-        Board,
-    ]);
+    sequelize.addModels([Board]);
 });
 
 beforeEach(() => {
@@ -34,7 +32,7 @@ describe('Board', () => {
         test('is instantiated with firmataBoard', () => {
             // @ts-ignore
             const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-            board = new Board(undefined, undefined, firmataBoardMock , undefined, 'bacon' );
+            board = new Board(undefined, undefined, firmataBoardMock, undefined, 'bacon');
 
             expect(board).toBeDefined();
         });
@@ -42,7 +40,7 @@ describe('Board', () => {
         test('is instantiated with firmataBoard and serial connection', () => {
             // @ts-ignore
             const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-            board = new Board(undefined, undefined, firmataBoardMock , true, 'bacon' );
+            board = new Board(undefined, undefined, firmataBoardMock, true, 'bacon');
 
             expect(board).toBeDefined();
         });
@@ -92,7 +90,7 @@ describe('Board', () => {
                     board.setArchitecture('bacon');
                 };
 
-                expect(badPinout).toThrowError(new Error( 'This architecture is not supported.' ));
+                expect(badPinout).toThrowError(new Error('This architecture is not supported.'));
             });
         });
     });
@@ -146,8 +144,8 @@ describe('Board', () => {
                 expect(discreteBoard).toBeDefined();
 
                 requiredProperties.forEach(property => {
-                    expect(property in discreteBoard).toEqual( true );
-                } );
+                    expect(property in discreteBoard).toEqual(true);
+                });
             });
 
             test('should return object without refreshRate property', () => {
@@ -160,14 +158,12 @@ describe('Board', () => {
         });
 
         describe('exception flows', () => {
-            test.each(
-                [
-                    ['bacon', new TypeError('Parameter board should be of type object. Received type is string.')],
-                    [1337, new TypeError('Parameter board should be of type object. Received type is number.')],
-                ],
-            )('should throw TypeError when running toDiscrete(%p)', (_board: any, error: TypeError) => {
+            test.each([
+                ['bacon', new TypeError('Parameter board should be of type object. Received type is string.')],
+                [1337, new TypeError('Parameter board should be of type object. Received type is number.')],
+            ])('should throw TypeError when running toDiscrete(%p)', (_board: any, error: TypeError) => {
                 const toDiscreteError = () => {
-                    Board.toDiscrete(_board)
+                    Board.toDiscrete(_board);
                 };
 
                 expect(toDiscreteError).toThrow(error);
@@ -185,16 +181,13 @@ describe('Board', () => {
         });
 
         describe('exception flows', () => {
-            test.each(
-                [
-                    [ [], new Error(`Parameter boards should contain at least one element. Received array length is 0.`)],
-                    [ 'bacon', new TypeError(`Parameter boards should be an array. Received type is string.`)],
-                    [ 1337, new TypeError(`Parameter boards should be an array. Received type is number.`)],
-                    [ ['bacon'], new TypeError(`Parameter board should be of type object. Received type is string.`)],
-                    [ [1337], new TypeError(`Parameter board should be of type object. Received type is number.`)],
-                ]
-            )
-            ('should throw TypeError when running toDiscreteArray(%p)', (boards: any, error: Error) => {
+            test.each([
+                [[], new Error(`Parameter boards should contain at least one element. Received array length is 0.`)],
+                ['bacon', new TypeError(`Parameter boards should be an array. Received type is string.`)],
+                [1337, new TypeError(`Parameter boards should be an array. Received type is number.`)],
+                [['bacon'], new TypeError(`Parameter board should be of type object. Received type is string.`)],
+                [[1337], new TypeError(`Parameter board should be of type object. Received type is number.`)],
+            ])('should throw TypeError when running toDiscreteArray(%p)', (boards: any, error: Error) => {
                 const toDiscreteArrayError = () => {
                     Board.toDiscreteArray(boards);
                 };
@@ -206,23 +199,23 @@ describe('Board', () => {
 
     describe('executeAction', () => {
         describe('happy flows', () => {
-            test.each(
-                [
-                    ['TOGGLELED', 'toggleLED', []],
-                    ['BLINKON', 'setBlinkLEDEnabled', [true]],
-                    ['BLINKOFF', 'setBlinkLEDEnabled', [false]],
-                    ['SETPINVALUE', 'setPinValue', [0,128]],
-                ]
-            )
-            ('should run %s method and emit update when running executeAction(%p, %p)', (action: string, method: string, parameters: any[]) => {
-                board.online = true;
-                board[method] = jest.fn();
+            test.each([
+                ['TOGGLELED', 'toggleLED', []],
+                ['BLINKON', 'setBlinkLEDEnabled', [true]],
+                ['BLINKOFF', 'setBlinkLEDEnabled', [false]],
+                ['SETPINVALUE', 'setPinValue', [0, 128]],
+            ])(
+                'should run %s method and emit update when running executeAction(%p, %p)',
+                (action: string, method: string, parameters: any[]) => {
+                    board.online = true;
+                    board[method] = jest.fn();
 
-                board.executeAction(action, parameters);
+                    board.executeAction(action, parameters);
 
-                expect(board[method]).toHaveBeenCalledWith(...parameters);
-                expect(board.firmataBoard.emit).toHaveBeenCalled();
-            });
+                    expect(board[method]).toHaveBeenCalledWith(...parameters);
+                    expect(board.firmataBoard.emit).toHaveBeenCalled();
+                },
+            );
         });
 
         describe('exception flows', () => {
@@ -231,17 +224,16 @@ describe('Board', () => {
                     board.executeAction('TOGGLELED');
                 };
 
-                expect(executeAction).toThrowError(new CommandUnavailableError( `Unable to execute command on this board since it is not online.` ));
+                expect(executeAction).toThrowError(
+                    new CommandUnavailableError(`Unable to execute command on this board since it is not online.`),
+                );
             });
 
             // unavailable method should throw error when running executeAction method
-            test.each(
-                [
-                    ['bacon', new CommandUnavailableError( `'bacon' is not a valid action for this board.` )],
-                    [1337, new CommandUnavailableError( `'1337' is not a valid action for this board.` )],
-                ]
-            )
-            ('should should throw error when running executeAction(%p)', ( invalidAction: any, error: Error ) => {
+            test.each([
+                ['bacon', new CommandUnavailableError(`'bacon' is not a valid action for this board.`)],
+                [1337, new CommandUnavailableError(`'1337' is not a valid action for this board.`)],
+            ])('should should throw error when running executeAction(%p)', (invalidAction: any, error: Error) => {
                 const executeAction = () => {
                     board.executeAction(invalidAction);
                 };
@@ -256,7 +248,9 @@ describe('Board', () => {
                     board.executeAction('TOGGLELED');
                 };
 
-                expect(executeAction).toThrowError(new CommandUnavailableError( `Unable to execute command on this board since it is not online.` ));
+                expect(executeAction).toThrowError(
+                    new CommandUnavailableError(`Unable to execute command on this board since it is not online.`),
+                );
             });
 
             test('should should throw error when action not valid', () => {
@@ -266,7 +260,9 @@ describe('Board', () => {
 
                 board.online = true;
 
-                expect(executeAction).toThrowError(new CommandUnavailableError( `'bacon' is not a valid action for this board.` ));
+                expect(executeAction).toThrowError(
+                    new CommandUnavailableError(`'bacon' is not a valid action for this board.`),
+                );
             });
         });
     });
@@ -324,14 +320,14 @@ describe('Board', () => {
         });
 
         describe('exception flows', () => {
-            test('should throw an error if interval doesn\'t exist', () => {
+            test("should throw an error if interval doesn't exist", () => {
                 const interval = setInterval(jest.fn(), 1000);
 
                 const clearIntervalError = () => {
                     board.clearInterval(interval);
                 };
 
-                expect(clearIntervalError).toThrowError(new Error('Interval doesn\'t exist.'));
+                expect(clearIntervalError).toThrowError(new Error("Interval doesn't exist."));
             });
         });
     });
@@ -349,14 +345,14 @@ describe('Board', () => {
         });
 
         describe('exception flows', () => {
-            test('should throw an error if timeout doesn\'t exist', () => {
+            test("should throw an error if timeout doesn't exist", () => {
                 const timeout = setTimeout(jest.fn(), 1000);
 
                 const clearTimeoutError = () => {
                     board.clearTimeout(timeout);
                 };
 
-                expect(clearTimeoutError).toThrowError(new Error('Timeout doesn\'t exist.'));
+                expect(clearTimeoutError).toThrowError(new Error("Timeout doesn't exist."));
             });
         });
     });
@@ -405,11 +401,10 @@ describe('Board', () => {
                     board.setBlinkLEDEnabled(true);
                 };
 
-                expect(blinkLed).toThrowError(new CommandUnavailableError( `LED blink is already enabled.` ));
+                expect(blinkLed).toThrowError(new CommandUnavailableError(`LED blink is already enabled.`));
             });
         });
     });
-
 
     describe('toggleLED', () => {
         test('should set the value of the LED pin to HIGH when initial value is LOW', () => {
@@ -418,7 +413,7 @@ describe('Board', () => {
 
             board.toggleLED();
 
-            expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.HIGH );
+            expect(board.setPinValue).toHaveBeenCalledWith(board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.HIGH);
         });
 
         test('should set the value of the LED pin to LOW when initial value is HIGH', () => {
@@ -429,7 +424,7 @@ describe('Board', () => {
 
             board.toggleLED();
 
-            expect(board.setPinValue).toHaveBeenCalledWith( board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.LOW );
+            expect(board.setPinValue).toHaveBeenCalledWith(board.architecture.pinMap.LED, FirmataBoard.PIN_STATE.LOW);
         });
     });
 
@@ -462,7 +457,7 @@ describe('Board', () => {
                 expect(board.heartbeatTimeout).toBeDefined();
             });
 
-            test('shouldn\'t timeout if the board replies on time', () => {
+            test("shouldn't timeout if the board replies on time", () => {
                 const numheartbeats = 2;
 
                 board.startHeartbeat();
@@ -477,7 +472,9 @@ describe('Board', () => {
         describe('exception flows', () => {
             test('should timeout if no response is received within 10 seconds', () => {
                 // @ts-ignore
-                board.firmataBoard.queryFirmware = jest.fn( callback => setTimeout( callback, Board.disconnectTimeout + 1000 ));
+                board.firmataBoard.queryFirmware = jest.fn(callback =>
+                    setTimeout(callback, Board.disconnectTimeout + 1000),
+                );
 
                 board.startHeartbeat();
 
@@ -506,15 +503,27 @@ describe('Board', () => {
     describe('serialWriteBytes', () => {
         describe('happy flows', () => {
             test('should write an array of numbers converted to bytes to a serial port', () => {
-                board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 'h', 1, 3, 3, 7 ]);
+                board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 1, 3, 3, 7]);
 
-                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 1, 3, 3, 7 ] );
+                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [
+                    104,
+                    1,
+                    3,
+                    3,
+                    7,
+                ]);
             });
 
             test('should write an array of characters converted to bytes to a serial port', () => {
                 board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 'e', 'l', 'l', 'o']);
 
-                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith( FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [ 104, 101, 108, 108, 111 ] );
+                expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [
+                    104,
+                    101,
+                    108,
+                    108,
+                    111,
+                ]);
             });
         });
 
@@ -524,7 +533,9 @@ describe('Board', () => {
                     board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [{}, {}]);
                 };
 
-                expect(serialWriteBytesError).toThrowError(new TypeError(`Expected string or number. Received object.`));
+                expect(serialWriteBytesError).toThrowError(
+                    new TypeError(`Expected string or number. Received object.`),
+                );
             });
         });
     });
@@ -533,7 +544,7 @@ describe('Board', () => {
         test('should emit an update event containing a discrete copy of the board instance', () => {
             board.emitUpdate();
 
-            expect(board.firmataBoard.emit).toHaveBeenCalledWith( 'update', Board.toDiscrete(board) )
+            expect(board.firmataBoard.emit).toHaveBeenCalledWith('update', Board.toDiscrete(board));
         });
     });
 
@@ -546,7 +557,7 @@ describe('Board', () => {
 
                 board.setPinValue(pin, value);
 
-                expect( board.firmataBoard.analogWrite ).toHaveBeenCalledWith( pin, value );
+                expect(board.firmataBoard.analogWrite).toHaveBeenCalledWith(pin, value);
                 expect(board.emitUpdate).toHaveBeenCalled();
             });
 
@@ -557,7 +568,7 @@ describe('Board', () => {
 
                 board.setPinValue(pin, value);
 
-                expect( board.firmataBoard.digitalWrite ).toHaveBeenCalledWith( pin, value );
+                expect(board.firmataBoard.digitalWrite).toHaveBeenCalledWith(pin, value);
                 expect(board.emitUpdate).toHaveBeenCalled();
             });
         });
@@ -571,21 +582,41 @@ describe('Board', () => {
                     board.setPinValue(pin, value);
                 };
 
-                expect( setPinValue ).toThrowError( new Error("blargh") );
+                expect(setPinValue).toThrowError(new Error('blargh'));
             });
 
-            test.each(
+            test.each([
                 [
-                    [0, -20, new CommandMalformed( `Tried to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )],
-                    [0, 2000, new CommandMalformed( `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )],
-                    [1, 2, new CommandMalformed( `Tried to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.` )]
-                ])('should throw an error when running setPinValue(%p, %p)', (pin: number, value: number, expectedError: Error) => {
-                const setPinValue = () => {
-                    board.setPinValue(pin, value);
-                };
+                    0,
+                    -20,
+                    new CommandMalformed(
+                        `Tried to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    ),
+                ],
+                [
+                    0,
+                    2000,
+                    new CommandMalformed(
+                        `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    ),
+                ],
+                [
+                    1,
+                    2,
+                    new CommandMalformed(
+                        `Tried to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
+                    ),
+                ],
+            ])(
+                'should throw an error when running setPinValue(%p, %p)',
+                (pin: number, value: number, expectedError: Error) => {
+                    const setPinValue = () => {
+                        board.setPinValue(pin, value);
+                    };
 
-                expect( setPinValue ).toThrowError( expectedError );
-            });
+                    expect(setPinValue).toThrowError(expectedError);
+                },
+            );
         });
     });
 
@@ -596,7 +627,7 @@ describe('Board', () => {
             board.attachDigitalPinListeners();
 
             expect(board.firmataBoard.digitalRead).toHaveBeenCalledTimes(1);
-            expect(board.firmataBoard.digitalRead).toHaveBeenCalledWith( pin, board.emitUpdate);
+            expect(board.firmataBoard.digitalRead).toHaveBeenCalledWith(pin, board.emitUpdate);
         });
     });
 
@@ -607,7 +638,7 @@ describe('Board', () => {
             board.attachAnalogPinListeners();
 
             expect(board.firmataBoard.analogRead).toHaveBeenCalledTimes(1);
-            expect(board.firmataBoard.analogRead).toHaveBeenCalledWith( pin, board.emitUpdate);
+            expect(board.firmataBoard.analogRead).toHaveBeenCalledWith(pin, board.emitUpdate);
         });
     });
 
@@ -665,13 +696,13 @@ describe('Board', () => {
     });
 
     describe('isDigitalPin', () => {
-        test('should return true when a digital pin\'s index is passed in', () => {
+        test("should return true when a digital pin's index is passed in", () => {
             const pinIndex = 1;
 
             expect(board.isDigitalPin(pinIndex)).toEqual(true);
         });
 
-        test('should return false when an analog pin\'s index is passed in', () => {
+        test("should return false when an analog pin's index is passed in", () => {
             const pinIndex = 0;
 
             expect(board.isDigitalPin(pinIndex)).toEqual(false);
@@ -679,13 +710,13 @@ describe('Board', () => {
     });
 
     describe('isAnalogPin', () => {
-        test('should return true when an analog pin\'s index is passed in', () => {
+        test("should return true when an analog pin's index is passed in", () => {
             const pinIndex = 0;
 
             expect(board.isAnalogPin(pinIndex)).toEqual(true);
         });
 
-        test('should return false when a digital pin\'s index is passed in', () => {
+        test("should return false when a digital pin's index is passed in", () => {
             const pinIndex = 1;
 
             expect(board.isAnalogPin(pinIndex)).toEqual(false);
@@ -693,35 +724,24 @@ describe('Board', () => {
     });
 
     describe('is8BitNumber', () => {
-        test.each(
-            [
-                [0],
-                [32],
-                [64],
-                [128],
-                [255],
-            ]
-        )('should return true when running is8BitNumber(%p)', ( value: number ) => {
-            // @ts-ignore
-            const result = Board.is8BitNumber(value);
+        test.each([[0], [32], [64], [128], [255]])(
+            'should return true when running is8BitNumber(%p)',
+            (value: number) => {
+                // @ts-ignore
+                const result = Board.is8BitNumber(value);
 
-            expect(result).toEqual(true);
-        });
+                expect(result).toEqual(true);
+            },
+        );
 
-        test.each(
-            [
-                [-1],
-                ["0"],
-                ["a"],
-                [268],
-                [{}],
-                [[]],
-            ]
-        )('should return false when running is8BitNumber(%p)', ( value: any ) => {
-            // @ts-ignore
-            const result = Board.is8BitNumber(value);
+        test.each([[-1], ['0'], ['a'], [268], [{}], [[]]])(
+            'should return false when running is8BitNumber(%p)',
+            (value: any) => {
+                // @ts-ignore
+                const result = Board.is8BitNumber(value);
 
-            expect(result).toEqual(false);
-        });
+                expect(result).toEqual(false);
+            },
+        );
     });
 });

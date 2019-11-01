@@ -1,6 +1,6 @@
 class CommandMalformed extends Error {
-    constructor( message: string ) {
-        super( message );
+    constructor(message: string) {
+        super(message);
     }
 }
 

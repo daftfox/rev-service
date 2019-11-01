@@ -1,7 +1,7 @@
 import Board from '../domain/board';
-import {Sequelize} from 'sequelize-typescript';
-import LedController from "../domain/led-controller";
-import FirmataBoardMock from "./mocks/firmata-board.mock";
+import { Sequelize } from 'sequelize-typescript';
+import LedController from '../domain/led-controller';
+import FirmataBoardMock from './mocks/firmata-board.mock';
 import * as FirmataBoard from 'firmata';
 
 let board: any;
@@ -12,9 +12,7 @@ beforeAll(() => {
         dialect: 'sqlite',
         storage: ':memory:',
     });
-    sequelize.addModels([
-        Board,
-    ]);
+    sequelize.addModels([Board]);
 });
 
 beforeEach(() => {

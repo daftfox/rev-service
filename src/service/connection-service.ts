@@ -1,10 +1,10 @@
-import Boards from "../model/boards";
+import Boards from '../model/boards';
 import * as FirmataBoard from 'firmata';
-import LoggerService from "./logger-service";
-import * as net from "net";
-import IBoard from "../domain/interface/board";
-import SerialPort = require("serialport");
-import SerialService from "./serial-service";
+import LoggerService from './logger-service';
+import * as net from 'net';
+import IBoard from '../domain/interface/board';
+import SerialPort = require('serialport');
+import SerialService from './serial-service';
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
@@ -40,10 +40,10 @@ class ConnectionService {
      * @constructor
      * @param {Boards} model - Data model.
      */
-    constructor( model: Boards ) {
+    constructor(model: Boards) {
         this.model = model;
 
-        this.log = new LoggerService( this.namespace )
+        this.log = new LoggerService(this.namespace);
     }
 
     /**
@@ -53,18 +53,23 @@ class ConnectionService {
      * @param {function(IBoard):void} [connected] - Callback for when device successfully connects, containing an object implementing the {@link IBoard} interface.
      * @param {function(IBoard):void} [disconnected] - Callback when device disconnects containing an object implementing the {@link IBoard} interface.
      */
-    protected connectToBoard( port: net.Socket | string, serialConnection: boolean, connected?: ( board: IBoard ) => void, disconnected?: ( board?: IBoard ) => void ): void {
+    protected connectToBoard(
+        port: net.Socket | string,
+        serialConnection: boolean,
+        connected?: (board: IBoard) => void,
+        disconnected?: (board?: IBoard) => void,
+    ): void {
         let connectedBoard: IBoard;
         let id: string;
 
-        let firmataBoard = new FirmataBoard( port );
+        let firmataBoard = new FirmataBoard(port);
 
         /*
          * Set a 10 second timeout.
          * The device is deemed unsupported if a connection could not be made within that period.
          */
-        const connectionTimeout = setTimeout( () => {
-            this.log.warn( 'Timeout while connecting to device.' );
+        const connectionTimeout = setTimeout(() => {
+            this.log.warn('Timeout while connecting to device.');
 
             connectedBoard = undefined;
             firmataBoard.removeAllListeners();
@@ -74,40 +79,43 @@ class ConnectionService {
         }, 10000);
 
         const connectionEstablished = async () => {
-            clearTimeout( connectionTimeout );
+            clearTimeout(connectionTimeout);
 
             /*
              * The type and ID are defined by the name of the Arduino sketch file.
              * For now the following devices have a tailor made class:
              * - Major Tom ( MajorTom_<unique_identifier>.ino )
              */
-            const type = firmataBoard.firmware.name.split( '_' ).shift();
-            id = firmataBoard.firmware.name.split( '_' ).pop().replace( '.ino', '' );
+            const type = firmataBoard.firmware.name.split('_').shift();
+            id = firmataBoard.firmware.name
+                .split('_')
+                .pop()
+                .replace('.ino', '');
 
             // add connected device to list of available devices and / or persist to the data storage if new
-            connectedBoard = await this.model.addBoard( id, type, firmataBoard, serialConnection );
+            connectedBoard = await this.model.addBoard(id, type, firmataBoard, serialConnection);
 
             // callback to connection interface service
-            connected( connectedBoard );
+            connected(connectedBoard);
         };
 
-        firmataBoard.on( 'ready', connectionEstablished );
+        firmataBoard.on('ready', connectionEstablished);
 
-        firmataBoard.on( 'error', ( err ) => {
-            disconnected( connectedBoard );
+        firmataBoard.on('error', err => {
+            disconnected(connectedBoard);
             connectedBoard = undefined;
-        } );
+        });
 
-        firmataBoard.on( 'update', ( boardUpdates: IBoard ) => {
-            this.model.updateBoard( boardUpdates );
-        } );
+        firmataBoard.on('update', (boardUpdates: IBoard) => {
+            this.model.updateBoard(boardUpdates);
+        });
 
-        firmataBoard.once( 'disconnect', () => {
-            this.log.debug( 'Disconnect event received from firmataboard.' );
+        firmataBoard.once('disconnect', () => {
+            this.log.debug('Disconnect event received from firmataboard.');
             connectedBoard = undefined;
-            disconnected( connectedBoard );
-            this.model.disconnectBoard( id );
-        } );
+            disconnected(connectedBoard);
+            this.model.disconnectBoard(id);
+        });
     }
 }
 

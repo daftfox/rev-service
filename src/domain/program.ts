@@ -1,26 +1,25 @@
-import {Column, DataType, Model, Table} from "sequelize-typescript";
-import ICommand from "./interface/command";
+import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import ICommand from './interface/command';
 
 @Table({
-    timestamps: true
+    timestamps: true,
 })
 class Program extends Model<Program> {
-
-    @Column( DataType.STRING )
+    @Column(DataType.STRING)
     public name: string;
 
-    @Column( DataType.STRING )
+    @Column(DataType.STRING)
     public deviceType: string;
 
-    @Column( DataType.TEXT )
+    @Column(DataType.TEXT)
     private commands: string;
 
     public getCommands(): ICommand[] {
-        return JSON.parse( this.commands );
+        return JSON.parse(this.commands);
     }
 
-    public setCommands( commands: ICommand[] ): void {
-        this.commands = JSON.stringify( commands );
+    public setCommands(commands: ICommand[]): void {
+        this.commands = JSON.stringify(commands);
     }
 }
 
