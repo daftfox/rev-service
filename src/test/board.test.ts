@@ -471,8 +471,8 @@ describe('Board', () => {
 
         describe('exception flows', () => {
             test('should timeout if no response is received within 10 seconds', () => {
-                // @ts-ignore
                 board.firmataBoard.queryFirmware = jest.fn(callback =>
+                    // @ts-ignore
                     setTimeout(callback, Board.disconnectTimeout + 1000),
                 );
 
