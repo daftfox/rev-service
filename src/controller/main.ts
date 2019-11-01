@@ -10,9 +10,6 @@ import SerialService from "../service/serial-service";
 import IDatabaseOptions from "../domain/interface/database-options";
 import IWebSocketOptions from "../domain/interface/web-socket-options";
 
-// only required during dev
-require('longjohn');
-
 /**
  * The MainController is the main controller. 'nuff said.
  * @namespace MainController
@@ -172,7 +169,7 @@ class MainController {
     }
 
     private async synchroniseDataModels(): Promise<void> {
-        return this.boardModel.synchronise();
+        await this.boardModel.synchronise();
         // todo: synch programs
     }
 }

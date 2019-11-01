@@ -94,7 +94,7 @@ class MajorTom extends Board {
      *
      * @type {IPinMapping}
      */
-    //public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
+    // public pinMapping: IPinMapping = PIN_MAPPING.ESP_8266;
 
     /**
      * @constructor
@@ -145,6 +145,18 @@ class MajorTom extends Board {
     }
 
     /**
+     * Validates a DTC.
+     *
+     * @access private
+     * @static
+     * @param {string} dtc - DTC to validate
+     * @returns {boolean}
+     */
+    private static isValidDTC( dtc: string ): boolean {
+        return /^P[0-3][A-Z0-9][A-Z0-9][A-Z0-9]$/.exec( dtc ) !== null;
+    }
+
+    /**
      * Enable or disable the emulator's ignition.
      *
      * @param {boolean} enable
@@ -164,7 +176,9 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private setDTC( dtc: string, mode: string ): void {
-        if ( !MajorTom.isValidDTC( dtc ) ) throw new Error( `${ dtc } is not a valid DTC.` );
+        if ( !MajorTom.isValidDTC( dtc ) ) {
+            throw new Error( `${ dtc } is not a valid DTC.` );
+        }
 
         let _mode: string;
         switch ( mode ) {
@@ -245,7 +259,9 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private setSupplyVoltage( voltage: number ): void {
-        if ( voltage > 600 ) throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
+        if ( voltage > 600 ) {
+            throw new Error( `Better not play with fire. Do not set supply voltage higher than 600 (for now).` );
+        }
         this.firmataBoard.analogWrite( this.architecture.pinMap.POWER, voltage );
     }
 
@@ -258,7 +274,9 @@ class MajorTom extends Board {
      * @returns {void}
      */
     private startEngine(): void {
-        if ( this.engineOn ) throw new Error( `Engine has already been started.` );
+        if ( this.engineOn ) {
+            throw new Error( `Engine has already been started.` );
+        }
         this.engineOn = true;
         this.enableEmulatorIgnition( true );
         this.dipPowerSupply( MajorTom.DEFAULT_POWER_DIP_DURATION );
@@ -372,22 +390,12 @@ class MajorTom extends Board {
         const rampUp = setInterval( () => {
             ramped += 10;
             this.setSupplyVoltage( MajorTom.SUPPLY_VOLTAGE.LOW + ramped );
-            if ( ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD ) this.clearInterval( rampUp );
+            if ( ramped + MajorTom.SUPPLY_VOLTAGE.LOW >= MajorTom.SUPPLY_VOLTAGE.GOOD ) {
+                this.clearInterval( rampUp );
+            }
         }, interval );
 
         this.intervals.push( rampUp );
-    }
-
-    /**
-     * Validates a DTC.
-     *
-     * @access private
-     * @static
-     * @param {string} dtc - DTC to validate
-     * @returns {boolean}
-     */
-    private static isValidDTC( dtc: string ): boolean {
-        return /^P[0-3][A-Z0-9][A-Z0-9][A-Z0-9]$/.exec( dtc ) !== null;
     }
 }
 

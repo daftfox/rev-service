@@ -1,5 +1,4 @@
 import * as FirmataBoard from 'firmata';
-import {Pins} from "firmata";
 
 export default class FirmataBoardMock {
     samplingInterval: number;
@@ -8,7 +7,7 @@ export default class FirmataBoardMock {
     removeAllListeners = jest.fn();
     setSamplingInterval = jest.fn((interval: number) => this.samplingInterval = interval);
     getSamplingInterval = jest.fn(() => this.samplingInterval);
-    pins: Pins[] = [
+    pins: FirmataBoard.Pins[] = [
         {
             analogChannel: 0,
             supportedModes: [

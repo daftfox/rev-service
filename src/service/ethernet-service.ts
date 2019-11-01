@@ -40,7 +40,6 @@ class EthernetService extends ConnectionService{
         this.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( port.toString( 10 ) ) }.` );
 
         this.server = new Server( this.handleConnectionRequest ).listen( port );
-        this.server.on( 'error', console.log );
     }
 
     /**
@@ -62,7 +61,7 @@ class EthernetService extends ConnectionService{
                 this.log.info( `Device ${ Chalk.rgb( 0, 143, 255 ).bold( board.id ) } connected.` );
             },
             ( _board: IBoard ) => {
-                board = null;
+                board = undefined;
                 this.handleDisconnected( socket, _board );
             }
         );

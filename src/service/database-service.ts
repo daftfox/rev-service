@@ -1,9 +1,10 @@
 import { Sequelize } from 'sequelize-typescript';
-import Program, {defaultPrograms} from "../domain/program";
+import Program from "../domain/program";
 import Board from "../domain/board";
 import LoggerService from "./logger-service";
 import { Dialect } from "sequelize";
 import IDatabaseOptions from "../domain/interface/database-options";
+import DefaultPrograms from "../domain/programs/default";
 
 class DatabaseService {
     /**
@@ -30,7 +31,7 @@ class DatabaseService {
     constructor( options: IDatabaseOptions ) {
         DatabaseService.database = new Sequelize( options.schema, options.username, options.password, {
             dialect: options.dialect as Dialect,
-            storage: options.dialect === 'sqlite' ? options.path : null,
+            storage: options.dialect === 'sqlite' ? options.path : undefined,
             logging: options.debug,
         } );
 
@@ -46,19 +47,17 @@ class DatabaseService {
      * @access public
      * @returns {Promise<void>}
      */
-    public synchronise(): Promise<void> {
+    public async synchronise(): Promise<void> {
         DatabaseService.log.info(`Synchronising database model.`);
 
-        return DatabaseService.database
+        await DatabaseService.database
             .sync()
             .then(
                 () => {
-                    const blinkProgram = Program.build( defaultPrograms.BLINK_PROGRAM );
-                    blinkProgram.setCommands( defaultPrograms.BLINK_PROGRAM.commands );
+                    const blinkProgram = Program.build( DefaultPrograms.BLINK);
                     blinkProgram.save();
 
-                    const sosProgram = Program.build( defaultPrograms.SOS_PROGRAM );
-                    sosProgram.setCommands( defaultPrograms.SOS_PROGRAM.commands );
+                    const sosProgram = Program.build( DefaultPrograms.SOS );
                     sosProgram.save();
                 }
         );

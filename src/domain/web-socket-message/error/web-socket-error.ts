@@ -1,8 +1,8 @@
 class WebSocketError extends Error {
     public code: number;
     public responseBody = {
-        error: null,
-        message: null,
+        error: undefined,
+        message: undefined,
     };
 
     constructor( message: string ) {

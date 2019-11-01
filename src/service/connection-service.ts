@@ -91,7 +91,7 @@ class ConnectionService {
             connected( connectedBoard );
         };
 
-        firmataBoard.on( 'ready', connectionEstablished.bind(this) );
+        firmataBoard.on( 'ready', connectionEstablished );
 
         firmataBoard.on( 'error', ( err ) => {
             disconnected( connectedBoard );

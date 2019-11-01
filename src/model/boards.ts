@@ -64,7 +64,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private boardConnectedListeners: ( ( board: IBoard, newRecord: boolean ) => void )[] = [];
+    private boardConnectedListeners: Array<( ( board: IBoard, newRecord: boolean ) => void )> = [];
 
     /**
      * Array of listener methods that are called as soon as a {@link Board} instance has updated.
@@ -72,7 +72,7 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private boardUpdatedListeners: ( ( board: IBoard ) => void )[] = [];
+    private boardUpdatedListeners: Array<( ( board: IBoard ) => void )> = [];
 
     /**
      * Array of listener methods that are called as soon as a {@link Board} instance was removed from the {@link _boards} array.
@@ -80,17 +80,10 @@ class Boards {
      *
      * @type {(function(IBoard) => void)[]}
      */
-    private boardDisconnectedListeners: ( ( board: IBoard ) => void )[] = [];
+    private boardDisconnectedListeners: Array<( ( board: IBoard ) => void )> = [];
 
     constructor() {
 
-    }
-
-    public synchronise(): Promise<void> {
-        return Board.findAll()
-            .then( boards => {
-                this._boards = boards.map( board => Boards.instantiateBoard( board ) );
-            } );
     }
 
     /**
@@ -125,6 +118,40 @@ class Boards {
         }
 
         return boardInstance;
+    }
+
+    /**
+     * Find or instantiate a {@link Board} instance.
+     *
+     * @async
+     * @static
+     * @access private
+     * @param {string} id - ID of the {@link Board} instance to retrieve.
+     * @param {string} type - {@link Board.AVAILABLE_TYPES} type to use as default to create a new {@link Board} instance if no existing instances can be found.
+     * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
+     * @returns {Promise<Board>} Promise that resolves to an instance of {@link Board} after an instance has been found or created.
+     */
+    private static async findOrBuildBoard( id: string, type: string, firmataBoard: FirmataBoard, serialConnection: boolean ): Promise<Board> {
+        let [ board ] = await Board.findOrBuild( {
+            where: {
+                id,
+            },
+            defaults: {
+                id,
+                type,
+            }
+        });
+
+        board = Boards.instantiateBoard( board, serialConnection, firmataBoard );
+
+        return Promise.resolve( board );
+    }
+
+    public synchronise(): Promise<void> {
+        return Board.findAll()
+            .then( boards => {
+                this._boards = boards.map( board => Boards.instantiateBoard( board ) );
+            } );
     }
 
     /**
@@ -185,7 +212,7 @@ class Boards {
         }
 
         const board = this._boards
-            .find( board => board.id === id );
+            .find( _board => _board.id === id );
 
         if ( !board ) {
             throw new NotFound( `Board with id ${id} could not be found.` );
@@ -227,7 +254,7 @@ class Boards {
         } else {
 
             // replace existing Board instance in the local storage array with the newly instantiated Board
-            this._boards[ this._boards.findIndex( board => board.id === board.id ) ] = board;
+            this._boards[ this._boards.findIndex( _board => _board.id === _board.id ) ] = board;
 
         }
 
@@ -248,7 +275,7 @@ class Boards {
     public deleteBoard( id: string ): void {
         Boards.log.debug( `Deleting board with id ${ Chalk.rgb( 0, 143, 255 ).bold( id ) } from the database.` );
         this.disconnectBoard( id );
-        this._boards.find( board => board.id === id ).destroy();
+        this._boards.find( _board => _board.id === id ).destroy();
     }
 
     /**
@@ -261,14 +288,14 @@ class Boards {
     public disconnectBoard( id: string ): void {
         Boards.log.debug( `Setting board with id ${ Chalk.rgb( 0, 143, 255 ).bold( id ) }'s status to disconnected.` );
 
-        const board = this._boards.find( board => board.id === id );
+        const board = this._boards.find( _board => _board.id === id );
 
         if ( board ) {
             board.disconnect();
             board.save();
 
             const discreteBoard = Board.toDiscrete( board );
-            const index = this._boards.findIndex( board => board.id === id );
+            const index = this._boards.findIndex( _board => _board.id === id );
             this._boards[ index ] = board;
 
             this.boardDisconnectedListeners.forEach( listener => listener( discreteBoard ) );
@@ -295,7 +322,7 @@ class Boards {
             throw new BadRequest( `Parameter board id is missing.` );
         }
 
-        let board = this._boards.find( board => board.id === boardUpdates.id );
+        let board = this._boards.find( _board => _board.id === boardUpdates.id );
 
         if ( board ) {
 
@@ -319,7 +346,7 @@ class Boards {
 
                 // re-instantiate previous board to reflect type changes
                 if ( board.previous( 'type' ) && board.previous( 'type' ) !== board.getDataValue( 'type' ) ) {
-                    const index = this._boards.findIndex( board => board.id === boardUpdates.id );
+                    const index = this._boards.findIndex( _board => _board.id === boardUpdates.id );
 
                     // clear non-essential timers and listeners
                     if ( board.online ) {
@@ -348,7 +375,7 @@ class Boards {
      * @returns {Promise<void>} A promise that resolves once the action has been executed successfully.
      */
     public executeActionOnBoard( id: string, command: ICommand ): Promise<void> {
-        const board = this._boards.find( board => board.id === id );
+        const board = this._boards.find( _board => _board.id === id );
         let timeout;
 
         return new Promise( ( resolve, reject ) => {
@@ -369,7 +396,7 @@ class Boards {
      * @param {string} id - ID of the {@link Board} instance that should stop running its {@link Program}.
      */
     public stopProgram( id: string ): void {
-        const board = this._boards.find( board => board.id === id );
+        const board = this._boards.find( _board => _board.id === id );
         board.currentProgram = IDLE;
     }
 
@@ -386,7 +413,7 @@ class Boards {
      * @returns {Promise<void>} Promise that resolves once the program has executed successfully.
      */
     public async executeProgramOnBoard( id: string, program: Program, repeat: number = 1 ): Promise<void> {
-        const board = this._boards.find( board => board.id === id );
+        const board = this._boards.find( _board => _board.id === id );
 
         // do not allow the user to execute a program on the board if it is already busy executing one
         if ( board.currentProgram !== IDLE ) {
@@ -419,40 +446,13 @@ class Boards {
                 }
             }
         } catch ( error ) {
-            new MethodNotAllowed( error.message );
+            throw new MethodNotAllowed( error.message );
         }
 
         // set the board's current program status to 'idle'
         this.stopProgram( board.id );
 
         return Promise.resolve();
-    }
-
-    /**
-     * Find or instantiate a {@link Board} instance.
-     *
-     * @async
-     * @static
-     * @access private
-     * @param {string} id - ID of the {@link Board} instance to retrieve.
-     * @param {string} type - {@link Board.AVAILABLE_TYPES} type to use as default to create a new {@link Board} instance if no existing instances can be found.
-     * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
-     * @returns {Promise<Board>} Promise that resolves to an instance of {@link Board} after an instance has been found or created.
-     */
-    private static async findOrBuildBoard( id: string, type: string, firmataBoard: FirmataBoard, serialConnection: boolean ): Promise<Board> {
-        let [ board ] = await Board.findOrBuild( {
-            where: {
-                id: id,
-            },
-            defaults: {
-                id: id,
-                type: type,
-            }
-        });
-
-        board = Boards.instantiateBoard( board, serialConnection, firmataBoard );
-
-        return Promise.resolve( board );
     }
 
     /**
@@ -466,7 +466,7 @@ class Boards {
      * @returns {Promise<void>} Promise that resolves when a program has finished running.
      */
     private async runProgram( board: IBoard, program: Program ): Promise<void> {
-        for ( let command of program.getCommands() ) {
+        for ( const command of program.getCommands() ) {
 
             // stop executing the program as soon as the board's program status changes
             if ( board.currentProgram !== program.name ) {

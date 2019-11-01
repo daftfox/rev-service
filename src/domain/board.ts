@@ -20,6 +20,20 @@ import {SupportedBoards} from "./supported-boards";
 @Table( { timestamps: true } )
 class Board extends Model<Board> implements IBoard {
     /**
+     * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
+     * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
+     * and removed from the data model until it attempts reconnecting.
+     *
+     * @static
+     * @readonly
+     * @access private
+     * @type {number}
+     * @default [5000]
+     */
+    private static readonly heartbeatInterval = 10000;
+    private static readonly disconnectTimeout = 10000;
+
+    /**
      * The unique identifier by which the board will be known to the outside world. The ID is defined by the filename
      * of the firmware that is flashed to the device. The filename should look like the following example:
      * <generic_name>_<unique_identifier>.ino
@@ -57,7 +71,7 @@ class Board extends Model<Board> implements IBoard {
      * @access public
      * @default [false]
      */
-    public online: boolean = false;
+    public online = false;
 
     /**
      * Unique identifier of the physical device's vendor (if available).
@@ -189,21 +203,7 @@ class Board extends Model<Board> implements IBoard {
      */
     private previousAnalogValue: number[] = [];
 
-    /**
-     * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
-     * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
-     * and removed from the data model until it attempts reconnecting.
-     *
-     * @static
-     * @readonly
-     * @access private
-     * @type {number}
-     * @default [5000]
-     */
-    private static readonly heartbeatInterval = 10000;
-    private static readonly disconnectTimeout = 10000;
-
-    public serialConnection: boolean = false;
+    public serialConnection = false;
 
     /**
      * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
@@ -239,12 +239,82 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
+     * Return an {@link IBoard}.
+     *
+     * @static
+     * @access public
+     * @param {Board} board - The {@link Board} instance to convert to an object implementing the {@link IBoard} interface.
+     * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
+     */
+    public static toDiscrete( board: Board ): IBoard {
+        if ( typeof board !== 'object' ) {
+            throw new TypeError(`Parameter board should be of type object. Received type is ${typeof board}.`);
+        }
+
+        let discreteBoard;
+
+        discreteBoard = {
+            id: board.id,
+            name: board.name,
+            vendorId: board.vendorId,
+            productId: board.productId,
+            type: board.type,
+            currentProgram: board.currentProgram,
+            online: board.online,
+            serialConnection: board.serialConnection,
+            lastUpdateReceived: board.lastUpdateReceived,
+            architecture: board.architecture,
+            availableCommands: board.getAvailableActions(),
+        };
+
+        if ( board.firmataBoard ) {
+            Object.assign( discreteBoard, {
+                refreshRate: board.firmataBoard.getSamplingInterval(),
+                pins: board.firmataBoard.pins
+                    .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel !== 127 }, pin ) )
+                    .filter( ( pin: IPin ) => pin.supportedModes.length > 0 ),
+            } );
+        } else {
+            Object.assign( discreteBoard, {
+                pins: [],
+            } );
+        }
+
+        return discreteBoard;
+    }
+
+    /**
+     * Return an array of {@link IBoard}.
+     *
+     * @static
+     * @access public
+     * @param {Board[]} boards - An array of {@link Board} instances to convert.
+     * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
+     */
+    public static toDiscreteArray( boards: Board[] ): IBoard[] {
+        if ( !Array.isArray(boards) ) {
+            throw new TypeError(`Parameter boards should be an array. Received type is ${ typeof boards }.`);
+        }
+        if ( !boards.length ) {
+            throw new Error(`Parameter boards should contain at least one element. Received array length is ${boards.length}.`);
+        }
+        return boards.map( Board.toDiscrete );
+    }
+
+    protected static is8BitNumber( value: number ): boolean {
+        if ( typeof value !== 'number' ) {
+            return false;
+        }
+        return value <= 255 && value >= 0;
+    }
+
+    /**
      * Method returning a string array containing the actions this device is able to execute.
      *
      * @access public
      * @return {{action: string, requiresParams: boolean}[]} String array containing the available actions.
      */
-    public getAvailableActions(): {name: string, requiresParams: boolean}[] {
+    public getAvailableActions(): Array<{name: string, requiresParams: boolean}> {
         const actionNames = Object.keys( this.availableActions );
         return actionNames.map( action => ( { name: action, requiresParams: this.availableActions[ action ].requiresParams } ) );
     }
@@ -285,69 +355,6 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
-     * Return an {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board} board - The {@link Board} instance to convert to an object implementing the {@link IBoard} interface.
-     * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
-     */
-    public static toDiscrete( board: Board ): IBoard {
-        if ( typeof board !== 'object' ) {
-            throw new TypeError(`Parameter board should be of type object. Received type is ${typeof board}.`);
-        }
-
-        let discreteBoard;
-
-        discreteBoard = {
-            id: board.id,
-            name: board.name,
-            vendorId: board.vendorId,
-            productId: board.productId,
-            type: board.type,
-            currentProgram: board.currentProgram,
-            online: board.online,
-            serialConnection: board.serialConnection,
-            lastUpdateReceived: board.lastUpdateReceived,
-            architecture: board.architecture,
-            availableCommands: board.getAvailableActions(),
-        };
-
-        if ( board.firmataBoard ) {
-            Object.assign( discreteBoard, {
-                refreshRate: board.firmataBoard.getSamplingInterval(),
-                pins: board.firmataBoard.pins
-                    .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel != 127 }, pin ) )
-                    .filter( ( pin: IPin ) => pin.supportedModes.length > 0 ),
-            } );
-        } else {
-            Object.assign( discreteBoard, {
-                pins: [],
-            } );
-        }
-
-        return discreteBoard;
-    }
-
-    /**
-     * Return an array of {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board[]} boards - An array of {@link Board} instances to convert.
-     * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
-     */
-    public static toDiscreteArray( boards: Board[] ): IBoard[] {
-        if ( !Array.isArray(boards) ) {
-            throw new TypeError(`Parameter boards should be an array. Received type is ${ typeof boards }.`);
-        }
-        if ( !boards.length ) {
-            throw new Error(`Parameter boards should contain at least one element. Received array length is ${boards.length}.`);
-        }
-        return boards.map( Board.toDiscrete );
-    }
-
-    /**
      * Execute an action. Checks if the action is actually available before attempting to execute it.
      *
      * @access public
@@ -356,8 +363,12 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     public executeAction( action: string, parameters?: string[] ): void {
-        if ( !this.online ) throw new CommandUnavailableError( `Unable to execute command on this board since it is not online.` );
-        if ( !this.isAvailableAction( action ) ) throw new CommandUnavailableError( `'${ action }' is not a valid action for this board.` );
+        if ( !this.online ) {
+            throw new CommandUnavailableError( `Unable to execute command on this board since it is not online.` );
+        }
+        if ( !this.isAvailableAction( action ) ) {
+            throw new CommandUnavailableError( `'${ action }' is not a valid action for this board.` );
+        }
 
         this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
 
@@ -542,7 +553,7 @@ class Board extends Model<Board> implements IBoard {
         //         this.firmataBoard.removeListener( `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`, checkForAck );
         //     }
         // };
-        //this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
+        // this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
 
         this.firmataBoard.serialWrite( serialPort, bytesPayload );
 

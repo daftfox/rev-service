@@ -49,9 +49,9 @@ class LedController extends Board {
 
         this.availableActions = {
             RAINBOW: { requiresParams: false, method: () => { this.rainbow() } },
-            KITT: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.kitt( hue, saturation, value ) } },
-            PULSECOLOR: { requiresParams: true, method: ( hue: string, saturation: string ) => { this.pulseColor( hue, saturation ) } },
-            SETCOLOR: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.setColor( hue, saturation, value ) } },
+            KITT: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.kitt( parseInt(hue, 10), parseInt(saturation, 10), parseInt(value, 10) ) } },
+            PULSECOLOR: { requiresParams: true, method: ( hue: string, saturation: string ) => { this.pulseColor( parseInt(hue, 10), parseInt(saturation, 10) ) } },
+            SETCOLOR: { requiresParams: true, method: ( hue: string, saturation: string, value: string ) => { this.setColor( parseInt(hue, 10), parseInt(saturation, 10), parseInt(value, 10) ) } },
         };
 
         if ( firmataBoard ) {
@@ -71,20 +71,39 @@ class LedController extends Board {
         return [ LedController.PAYLOAD_HEADER, command, ...parameters, LedController.PAYLOAD_FOOTER ];
     }
 
-    private pulseColor( hue: string, saturation: string ): void {
-        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.PULSECOLOR, parseInt( hue, 10 ), parseInt( saturation, 10 ) ) );
+    private static parametersAreValid( args: IArguments ): boolean {
+        const parameters = Array.from(args)
+            .map(  Board.is8BitNumber );
+
+        return !parameters.includes( false );
     }
 
-    private setColor( hue: string, saturation: string, brightness: string ): void {
-        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.SETCOLOR, parseInt( hue, 10 ), parseInt( saturation, 10 ), parseInt( brightness, 10 ) ) );
+    private pulseColor( hue: number, saturation: number ): void {
+        if ( !LedController.parametersAreValid( arguments ) ) {
+            throw new Error(`Parameters should be 8 bit numbers (0-255).`);
+        }
+
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.PULSECOLOR, hue, saturation ) );
+    }
+
+    private setColor( hue: number, saturation: number, value: number ): void {
+        if ( !LedController.parametersAreValid( arguments ) ) {
+            throw new Error(`Parameters should be 8 bit numbers (0-255).`);
+        }
+
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.SETCOLOR, hue, saturation, value ) );
     }
 
     private rainbow(): void {
         this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.RAINBOW ) );
     }
 
-    private kitt( hue: string, saturation: string, brightness: string ): void {
-        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.KITT, parseInt( hue, 10 ), parseInt( saturation, 10 ), parseInt( brightness, 10 ) ) );
+    private kitt( hue: number, saturation: number, value: number ): void {
+        if ( !LedController.parametersAreValid( arguments ) ) {
+            throw new Error(`Parameters should be 8 bit numbers (0-255).`);
+        }
+
+        this.serialWriteBytes( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, LedController.buildPayload( LedController.LED_COMMANDS.KITT, hue, saturation, value ) );
     }
 }
 

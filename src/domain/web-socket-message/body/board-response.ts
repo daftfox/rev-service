@@ -1,7 +1,7 @@
 import IBoard from "../../interface/board";
 
-interface BoardResponse {
+interface IBoardResponse {
     boards: IBoard[];
 }
 
-export default BoardResponse;
+export default IBoardResponse;

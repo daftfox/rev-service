@@ -1,7 +1,7 @@
-interface CommandRequest {
+interface ICommandRequest {
     boardId: string;
     action: string;
     parameters?: string[];
 }
 
-export default CommandRequest;
+export default ICommandRequest;

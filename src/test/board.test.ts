@@ -25,7 +25,6 @@ beforeEach(() => {
     board.firmataBoard = mockFirmataBoard;
 });
 
-// todo: separate happy and fail flow tests
 describe('Board', () => {
     describe('constructor', () => {
         test('is instantiated', () => {
@@ -74,6 +73,7 @@ describe('Board', () => {
                 expect(board.architecture.pinMap.LED).toEqual(2);
                 expect(board.architecture.pinMap.RX).toEqual(3);
                 expect(board.architecture.pinMap.TX).toEqual(1);
+                expect(board.architecture.name).toEqual(SupportedBoards.ESP_8266.name);
             });
 
             test('should set board architecture to Arduino Uno', () => {
@@ -82,6 +82,7 @@ describe('Board', () => {
                 expect(board.architecture.pinMap.LED).toEqual(13);
                 expect(board.architecture.pinMap.RX).toEqual(1);
                 expect(board.architecture.pinMap.TX).toEqual(0);
+                expect(board.architecture.name).toEqual(SupportedBoards.ARDUINO_UNO.name);
             });
         });
 
@@ -164,9 +165,9 @@ describe('Board', () => {
                     ['bacon', new TypeError('Parameter board should be of type object. Received type is string.')],
                     [1337, new TypeError('Parameter board should be of type object. Received type is number.')],
                 ],
-            )('should throw TypeError', (board: any, error: TypeError) => {
+            )('should throw TypeError when running toDiscrete(%p)', (_board: any, error: TypeError) => {
                 const toDiscreteError = () => {
-                    Board.toDiscrete(board)
+                    Board.toDiscrete(_board)
                 };
 
                 expect(toDiscreteError).toThrow(error);
@@ -193,7 +194,7 @@ describe('Board', () => {
                     [ [1337], new TypeError(`Parameter board should be of type object. Received type is number.`)],
                 ]
             )
-            ('should throw TypeError', (boards: any, error: Error) => {
+            ('should throw TypeError when running toDiscreteArray(%p)', (boards: any, error: Error) => {
                 const toDiscreteArrayError = () => {
                     Board.toDiscreteArray(boards);
                 };
@@ -213,7 +214,7 @@ describe('Board', () => {
                     ['SETPINVALUE', 'setPinValue', [0,128]],
                 ]
             )
-            ('should run %s method and emit update', (action: string, method: string, parameters: any[]) => {
+            ('should run %s method and emit update when running executeAction(%p, %p)', (action: string, method: string, parameters: any[]) => {
                 board.online = true;
                 board[method] = jest.fn();
 
@@ -240,7 +241,7 @@ describe('Board', () => {
                     [1337, new CommandUnavailableError( `'1337' is not a valid action for this board.` )],
                 ]
             )
-            ('should should throw error when action not valid', ( invalidAction: any, error: Error ) => {
+            ('should should throw error when running executeAction(%p)', ( invalidAction: any, error: Error ) => {
                 const executeAction = () => {
                     board.executeAction(invalidAction);
                 };
@@ -576,24 +577,14 @@ describe('Board', () => {
             test.each(
                 [
                     [0, -20, new CommandMalformed( `Tried to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )],
-                    [0, 2000, new CommandMalformed( `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )]
-                ])('should throw an error if an invalid value is supplied for an analog pin', (pin: number, value: number, expectedError: Error) => {
+                    [0, 2000, new CommandMalformed( `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.` )],
+                    [1, 2, new CommandMalformed( `Tried to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.` )]
+                ])('should throw an error when running setPinValue(%p, %p)', (pin: number, value: number, expectedError: Error) => {
                 const setPinValue = () => {
                     board.setPinValue(pin, value);
                 };
 
                 expect( setPinValue ).toThrowError( expectedError );
-            });
-
-            test('should throw an error if a non-binary value is supplied while setting a digital pin', () => {
-                const value = 2;
-                const pin = 1;
-
-                const setPinValue = () => {
-                    board.setPinValue(pin, value);
-                };
-
-                expect( setPinValue ).toThrowError( new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` ) );
             });
         });
     });
@@ -698,6 +689,39 @@ describe('Board', () => {
             const pinIndex = 1;
 
             expect(board.isAnalogPin(pinIndex)).toEqual(false);
+        });
+    });
+
+    describe('is8BitNumber', () => {
+        test.each(
+            [
+                [0],
+                [32],
+                [64],
+                [128],
+                [255],
+            ]
+        )('should return true when running is8BitNumber(%p)', ( value: number ) => {
+            // @ts-ignore
+            const result = Board.is8BitNumber(value);
+
+            expect(result).toEqual(true);
+        });
+
+        test.each(
+            [
+                [-1],
+                ["0"],
+                ["a"],
+                [268],
+                [{}],
+                [[]],
+            ]
+        )('should return false when running is8BitNumber(%p)', ( value: any ) => {
+            // @ts-ignore
+            const result = Board.is8BitNumber(value);
+
+            expect(result).toEqual(false);
         });
     });
 });

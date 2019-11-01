@@ -11,14 +11,6 @@ import BadRequest from "../domain/web-socket-message/error/bad-request";
  */
 class Programs {
     /**
-     * Locally stored array of programs that are currently stored in the database.
-     *
-     * @access private
-     * @type {Board[]}
-     */
-    private _programs: Program[] = [];
-
-    /**
      * Namespace used by the local instance of {@link LoggerService}
      *
      * @static
@@ -26,6 +18,15 @@ class Programs {
      * @type {string}
      */
     private static namespace = 'program-model';
+
+    /**
+     * Locally stored array of programs that are currently stored in the database.
+     *
+     * @access private
+     * @type {Board[]}
+     */
+    private _programs: Program[] = [];
+
 
     // /**
     //  * Array of listener methods that are called as soon as a new device was added to the {@link _boards} array.
@@ -116,7 +117,7 @@ class Programs {
 
         const program = await Program.findOne( {
             where: {
-                id: id,
+                id,
             },
         } );
 
@@ -146,7 +147,7 @@ class Programs {
 
         this.log.debug( `Adding new program ${ Chalk.rgb( 0, 143, 255 ).bold( program.name ) } to list of available programs.` );
         return newProgram.save()
-            .then( program => program.id );
+            .then( _program => _program.id );
     }
 
     /**

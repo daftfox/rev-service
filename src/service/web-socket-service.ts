@@ -8,15 +8,15 @@ import LoggerService from "./logger-service";
 import Boards from "../model/boards";
 import Chalk from 'chalk';
 import ICommand from "../domain/interface/command";
-import BoardRequest, { BoardAction } from "../domain/web-socket-message/body/board-request";
-import BoardResponse from "../domain/web-socket-message/body/board-response";
+import IBoardRequest, { BoardAction } from "../domain/web-socket-message/body/board-request";
+import IBoardResponse from "../domain/web-socket-message/body/board-response";
 import { ResponseCode } from "../domain/web-socket-message/response-code";
-import CommandRequest from "../domain/web-socket-message/body/command-request";
-import ProgramResponse from "../domain/web-socket-message/body/program-response";
-import ProgramRequest, { ProgramAction } from "../domain/web-socket-message/body/program-request";
+import ICommandRequest from "../domain/web-socket-message/body/command-request";
+import IProgramResponse from "../domain/web-socket-message/body/program-response";
+import IProgramRequest, { ProgramAction } from "../domain/web-socket-message/body/program-request";
 import Programs from "../model/programs";
-import BoardBroadcast, { BOARD_BROADCAST_ACTION } from "../domain/web-socket-message/body/board-broadcast";
-import ErrorResponse from "../domain/web-socket-message/body/error-response";
+import IBoardBroadcast, { BOARD_BROADCAST_ACTION } from "../domain/web-socket-message/body/board-broadcast";
+import IErrorResponse from "../domain/web-socket-message/body/error-response";
 import BadRequest from "../domain/web-socket-message/error/bad-request";
 import NotFound from "../domain/web-socket-message/error/not-found";
 import MethodNotAllowed from "../domain/web-socket-message/error/method-not-allowed";
@@ -32,6 +32,20 @@ import {
  * @namespace WebSocketService
  */
 class WebSocketService {
+
+    /**
+     * @static
+     * @type {string}
+     * @access private
+     */
+    private static namespace = `web-socket`;
+
+    /**
+     * @static
+     * @type LoggerService
+     * @access private
+     */
+    private static log = new LoggerService( WebSocketService.namespace );
 
     /**
      * @type {WebSocket.server}
@@ -54,20 +68,6 @@ class WebSocketService {
     private programModel: Programs;
 
     /**
-     * @static
-     * @type {string}
-     * @access private
-     */
-    private static namespace = `web-socket`;
-
-    /**
-     * @static
-     * @type LoggerService
-     * @access private
-     */
-    private static log = new LoggerService( WebSocketService.namespace );
-
-    /**
      * @constructor
      * @param {number} port - The port of which to accept WebSocket connection requests.
      * @param {Boards} boardModel - The {@link Board} instances model.
@@ -85,108 +85,17 @@ class WebSocketService {
     }
 
     /**
-     * Start the WebSocket server
+     * Send a response message to a specific client.
      *
+     * @static
      * @access private
+     * @param {WebSocket.connection} client - The client to send the message to.
+     * @param {WebSocketMessage} response - The response message to send to the client.
      * @return {void}
      */
-    private startWebSocketServer( port: number ): void {
-        this.httpServer = createServer().listen( port );
-        this.webSocketServer = new WebSocket.server( {
-            httpServer: this.httpServer,
-        } );
-
-        WebSocketService.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( port ) ) ) }.` );
-        this.webSocketServer.on( 'request', this.handleConnectionRequest );
+    private static sendResponse( client: WebSocket.connection, response: WebSocketMessage<any> ): void {
+        client.sendUTF( response.toJSON() );
     }
-
-    public closeServer(): void {
-        this.webSocketServer.shutDown();
-        this.httpServer.close();
-    }
-
-    /**
-     * Handles new WebSocket connection requests.
-     *
-     * @access private
-     * @param {WebSocket.request} request - The connection request that was received
-     * @return {void}
-     */
-    private handleConnectionRequest = ( request: WebSocket.request ): void => {
-        let client = request.accept( null, request.origin );
-
-        this.handleClientConnected()
-            .then( response => WebSocketService.sendResponse( client, response ) );
-
-        client.on( 'message', ( message: { type: string, utf8Data: any } ) => {
-            this.handleMessageReceived( message )
-                .then( response => WebSocketService.sendResponse( client, response ) );
-        } );
-
-        client.on( 'close', () => {
-            client = null;
-        } );
-    };
-
-    /**
-     * Handles received WebSocket requests and routes it to the corresponding method to construct the response.
-     *
-     * @async
-     * @access private
-     * @param {{ type: string, utf8Data: any }} message -
-     * @return {Promise<WebSocketMessage<any>>} Promise resolving to a response in the shape of an instance of WebSocketMessage.
-     */
-    private handleMessageReceived = async ( message: { type: string, utf8Data: any } ): Promise<WebSocketMessage<any>> => {
-        if ( message.type !== "utf8" ) WebSocketService.log.warn( 'Message received in wrong encoding format. Supported format is utf8' );
-
-        const request = WebSocketMessage.fromJSON( message.utf8Data );
-        let result: { body?: any, code: ResponseCode };
-        let response: WebSocketMessage<any>;
-
-        try {
-            switch ( request.type ) {
-                case WebSocketMessageType.BOARD_REQUEST:
-                    result = await this.handleBoardRequest( <WebSocketMessage<BoardRequest>> request );
-                    response = WebSocketService.getWebSocketMessageResponse<BoardResponse>(
-                        WebSocketMessageType.BOARD_RESPONSE,
-                        request.id,
-                        result.code,
-                        result.body );
-                    break;
-
-                case WebSocketMessageType.COMMAND_REQUEST:
-                    result = await this.handleCommandRequest( <WebSocketMessage<CommandRequest>> request );
-                    break;
-
-                case WebSocketMessageType.PROGRAM_REQUEST:
-                    result = await this.handleProgramRequest( <WebSocketMessage<ProgramRequest>> request );
-
-                    if ( result.code === ResponseCode.OK || result.code === ResponseCode.CREATED ) {
-                        response = WebSocketService.getWebSocketMessageResponse<ProgramResponse>(
-                            WebSocketMessageType.PROGRAM_RESPONSE,
-                            request.id,
-                            result.code,
-                            result.body );
-                    }
-                    break;
-            }
-
-            if ( result.code === ResponseCode.NO_CONTENT ) {
-                response = WebSocketService.getEmptyWebSocketMessageResponse(
-                    request.id,
-                    result.code );
-            }
-
-        } catch ( error ) {
-            response = WebSocketService.getWebSocketMessageResponse<ErrorResponse>(
-                WebSocketMessageType.ERROR_RESPONSE,
-                request.id,
-                error.code,
-                error.responseBody );
-        }
-
-        return Promise.resolve( response );
-    };
 
     /**
      * Construct an instance of {@link WebSocketMessage} with the provided parameters.
@@ -231,27 +140,133 @@ class WebSocketService {
      * @access private
      * @param {string} requestId - The ID the error message to construct is a response to.
      * @param {ResponseCode} code - HTTP response code.
-     * @return {WebSocketMessage<null>} The instance of {@link WebSocketMessage} that was constructed.
+     * @return {WebSocketMessage<undefined>} The instance of {@link WebSocketMessage} that was constructed.
      */
-    private static getEmptyWebSocketMessageResponse( requestId: string, code: ResponseCode ): WebSocketMessage<null> {
-        return WebSocketService.getWebSocketMessageResponse<null>(
+    private static getEmptyWebSocketMessageResponse( requestId: string, code: ResponseCode ): WebSocketMessage<undefined> {
+        return WebSocketService.getWebSocketMessageResponse<undefined>(
             WebSocketMessageType.EMPTY_RESPONSE,
             requestId,
             code );
     }
 
     /**
-     * Process a {@link ProgramRequest} and return an object containing a body property of type {@link ProgramResponse} and a code property of type {@link ResponseCode}.
-     * If the requested action did not produce a body, the returned type of body is null.
+     * Start the WebSocket server
      *
      * @access private
-     * @param {WebSocketMessage<ProgramRequest>} request - The request body to process.
-     * @return {Promise<{ body: ProgramResponse | null, code: ResponseCode }>} Promise that resolves to an object containing a body property of type {@link ProgramResponse} and a code property of type {@link ResponseCode}.
+     * @return {void}
      */
-    private handleProgramRequest( request: WebSocketMessage<ProgramRequest> ): Promise<{ body: ProgramResponse | null, code: ResponseCode }> {
+    private startWebSocketServer( port: number ): void {
+        this.httpServer = createServer().listen( port );
+        this.webSocketServer = new WebSocket.server( {
+            httpServer: this.httpServer,
+        } );
+
+        WebSocketService.log.info( `Listening on port ${ Chalk.rgb( 240, 240, 30 ).bold( JSON.stringify( ( port ) ) ) }.` );
+        this.webSocketServer.on( 'request', this.handleConnectionRequest );
+    }
+
+    public closeServer(): void {
+        this.webSocketServer.shutDown();
+        this.httpServer.close();
+    }
+
+    /**
+     * Handles new WebSocket connection requests.
+     *
+     * @access private
+     * @param {WebSocket.request} request - The connection request that was received
+     * @return {void}
+     */
+    private handleConnectionRequest = ( request: WebSocket.request ): void => {
+        let client = request.accept( undefined, request.origin );
+
+        this.handleClientConnected()
+            .then( response => WebSocketService.sendResponse( client, response ) );
+
+        client.on( 'message', ( message: { type: string, utf8Data: any } ) => {
+            this.handleMessageReceived( message )
+                .then( response => WebSocketService.sendResponse( client, response ) );
+        } );
+
+        client.on( 'close', () => {
+            client = undefined;
+        } );
+    };
+
+    /**
+     * Handles received WebSocket requests and routes it to the corresponding method to construct the response.
+     *
+     * @async
+     * @access private
+     * @param {{ type: string, utf8Data: any }} message -
+     * @return {Promise<WebSocketMessage<any>>} Promise resolving to a response in the shape of an instance of WebSocketMessage.
+     */
+    private handleMessageReceived = async ( message: { type: string, utf8Data: any } ): Promise<WebSocketMessage<any>> => {
+        if ( message.type !== "utf8" ) {
+            WebSocketService.log.warn( 'Message received in wrong encoding format. Supported format is utf8' );
+        }
+
+        const request = WebSocketMessage.fromJSON( message.utf8Data );
+        let result: { body?: any, code: ResponseCode };
+        let response: WebSocketMessage<any>;
+
+        try {
+            switch ( request.type ) {
+                case WebSocketMessageType.BOARD_REQUEST:
+                    result = await this.handleBoardRequest( request as WebSocketMessage<IBoardRequest> );
+                    response = WebSocketService.getWebSocketMessageResponse<IBoardResponse>(
+                        WebSocketMessageType.BOARD_RESPONSE,
+                        request.id,
+                        result.code,
+                        result.body );
+                    break;
+
+                case WebSocketMessageType.COMMAND_REQUEST:
+                    result = await this.handleCommandRequest( request as WebSocketMessage<ICommandRequest> );
+                    break;
+
+                case WebSocketMessageType.PROGRAM_REQUEST:
+                    result = await this.handleProgramRequest( request as WebSocketMessage<IProgramRequest> );
+
+                    if ( result.code === ResponseCode.OK || result.code === ResponseCode.CREATED ) {
+                        response = WebSocketService.getWebSocketMessageResponse<IProgramResponse>(
+                            WebSocketMessageType.PROGRAM_RESPONSE,
+                            request.id,
+                            result.code,
+                            result.body );
+                    }
+                    break;
+            }
+
+            if ( result.code === ResponseCode.NO_CONTENT ) {
+                response = WebSocketService.getEmptyWebSocketMessageResponse(
+                    request.id,
+                    result.code );
+            }
+
+        } catch ( error ) {
+            response = WebSocketService.getWebSocketMessageResponse<IErrorResponse>(
+                WebSocketMessageType.ERROR_RESPONSE,
+                request.id,
+                error.code,
+                error.responseBody );
+        }
+
+        return Promise.resolve( response );
+    };
+
+    /**
+     * Process a {@link IProgramRequest} and return an object containing a body property of type {@link IProgramResponse} and a code property of type {@link ResponseCode}.
+     * If the requested action did not produce a body, the returned type of body is undefined.
+     *
+     * @access private
+     * @param {WebSocketMessage<IProgramRequest>} request - The request body to process.
+     * @return {Promise<{ body: IProgramResponse | undefined, code: ResponseCode }>} Promise that resolves to an object containing a body property of type {@link IProgramResponse} and a code property of type {@link ResponseCode}.
+     */
+    private handleProgramRequest( request: WebSocketMessage<IProgramRequest> ): Promise<{ body: IProgramResponse | undefined, code: ResponseCode }> {
         return new Promise( ( resolve, reject ) => {
             const result: {
-                body: ProgramResponse,
+                body: IProgramResponse,
                 code: ResponseCode
             } = {
                 body: {},
@@ -298,7 +313,7 @@ class WebSocketService {
                         // all programs
                         this.programModel.programs
                             .then( programs => {
-                                Object.assign( result.body, { programs: programs } );
+                                Object.assign( result.body, { programs } );
                                 resolve( result );
                             } );
                     }
@@ -346,13 +361,13 @@ class WebSocketService {
     }
 
     /**
-     * Process a {@link CommandRequest} and return an object containing a code property of type {@link ResponseCode}.
+     * Process a {@link ICommandRequest} and return an object containing a code property of type {@link ResponseCode}.
      *
      * @access private
-     * @param {WebSocketMessage<CommandRequest>} request - The request body to process.
+     * @param {WebSocketMessage<ICommandRequest>} request - The request body to process.
      * @return {Promise<{code: ResponseCode}>} Promise that resolves to an object with a code property of type {@link ResponseCode}.
      */
-    private handleCommandRequest( request: WebSocketMessage<CommandRequest> ): Promise<{code: ResponseCode}> {
+    private handleCommandRequest( request: WebSocketMessage<ICommandRequest> ): Promise<{code: ResponseCode}> {
         return new Promise( ( resolve, reject ) => {
             const result = {
                 code: ResponseCode.NO_CONTENT
@@ -387,17 +402,17 @@ class WebSocketService {
     }
 
     /**
-     * Process a {@link ProgramRequest} and return an object containing a body property of type {@link BoardResponse} and a code property of type {@link ResponseCode}.
-     * If the requested action did not produce a body, the returned type of body is null.
+     * Process a {@link IProgramRequest} and return an object containing a body property of type {@link IBoardResponse} and a code property of type {@link ResponseCode}.
+     * If the requested action did not produce a body, the returned type of body is undefined.
      *
      * @access private
      * @param {WebSocketMessage} request - The request body to process.
-     * @return {WebSocketMessage<BoardResponse>} Promise resolving to an object containing a body property of type {@link BoardResponse} and a code property of type {@link ResponseCode}.
+     * @return {WebSocketMessage<IBoardResponse>} Promise resolving to an object containing a body property of type {@link IBoardResponse} and a code property of type {@link ResponseCode}.
      */
-    private handleBoardRequest( request: WebSocketMessage<BoardRequest> ): Promise<{ body: BoardResponse | null, code: ResponseCode }> {
+    private handleBoardRequest( request: WebSocketMessage<IBoardRequest> ): Promise<{ body: IBoardResponse | undefined, code: ResponseCode }> {
         return new Promise( ( resolve, reject ) => {
             const result: {
-                body: BoardResponse,
+                body: IBoardResponse,
                 code: ResponseCode
             } = {
                 body: {
@@ -410,7 +425,7 @@ class WebSocketService {
 
                 if ( request.body.boardId ) {
                     // request single board
-                    let board = this.boardModel.getBoardById( request.body.boardId );
+                    const board = this.boardModel.getBoardById( request.body.boardId );
 
                     if ( !board ) {
                         reject( new NotFound( `Board with id ${request.body.boardId} could not be found.` ) );
@@ -441,16 +456,16 @@ class WebSocketService {
      * Send newly connected client a list of all known boards (online or not).
      *
      * @access private
-     * @return {Promise<WebSocketMessage<BoardBroadcast>>} Promise resolving to an instance of {@link WebSocketMessage<BoardBroadcast>}
+     * @return {Promise<WebSocketMessage<IBoardBroadcast>>} Promise resolving to an instance of {@link WebSocketMessage<IBoardBroadcast>}
      */
-    private handleClientConnected(): Promise<WebSocketMessage<BoardBroadcast>> {
+    private handleClientConnected(): Promise<WebSocketMessage<IBoardBroadcast>> {
         return new Promise( ( resolve ) => {
-            const body: BoardBroadcast = {
+            const body: IBoardBroadcast = {
                 action: BOARD_BROADCAST_ACTION.REPLACE,
                 boards: this.boardModel.boards,
             };
 
-            resolve( new WebSocketMessage<BoardBroadcast>( WebSocketMessageKind.BROADCAST, WebSocketMessageType.BOARD_BROADCAST, body ) );
+            resolve( new WebSocketMessage<IBoardBroadcast>( WebSocketMessageKind.BROADCAST, WebSocketMessageType.BOARD_BROADCAST, body ) );
         } );
     }
 
@@ -496,12 +511,12 @@ class WebSocketService {
      * @return {void}
      */
     private broadcastBoardUpdate = ( action: BOARD_BROADCAST_ACTION, board: IBoard ): void => {
-        const body: BoardBroadcast = {
-            action: action,
+        const body: IBoardBroadcast = {
+            action,
             boards: [ board ],
         };
 
-        const message = WebSocketService.getWebSocketMessageBroadcast<BoardBroadcast>( WebSocketMessageType.BOARD_BROADCAST, body );
+        const message = WebSocketService.getWebSocketMessageBroadcast<IBoardBroadcast>( WebSocketMessageType.BOARD_BROADCAST, body );
 
         this.broadcast( message );
     };
@@ -515,19 +530,6 @@ class WebSocketService {
      */
     private broadcast( message: WebSocketMessage<any> ): void {
         this.webSocketServer.broadcastUTF( message.toJSON() );
-    }
-
-    /**
-     * Send a response message to a specific client.
-     *
-     * @static
-     * @access private
-     * @param {WebSocket.connection} client - The client to send the message to.
-     * @param {WebSocketMessage} response - The response message to send to the client.
-     * @return {void}
-     */
-    private static sendResponse( client: WebSocket.connection, response: WebSocketMessage<any> ): void {
-        client.sendUTF( response.toJSON() );
     }
 }
 

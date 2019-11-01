@@ -1,6 +1,6 @@
 import Config from '../config/config';
 
-const defaultConfig = {
+const defaultOptions = {
     port: 3001,
     ethernetPort: 9000,
     debug: false,
@@ -19,17 +19,17 @@ describe('Config:', () => {
     test('default options are set', () => {
         const options = Config.parseOptions( process.argv );
 
-        expect(options.port).toBe(defaultConfig.port);
-        expect(options.ethernetPort).toBe(defaultConfig.ethernetPort);
-        expect(options.debug).toBe(defaultConfig.debug);
-        expect(options.serial).toBe(defaultConfig.serial);
-        expect(options.ethernet).toBe(defaultConfig.ethernet);
-        expect(options.dbSchema).toBe(defaultConfig.dbSchema);
-        expect(options.dbHost).toBe(defaultConfig.dbHost);
-        expect(options.dbPort).toBe(defaultConfig.dbPort);
-        expect(options.dbUsername).toBe(defaultConfig.dbUsername);
-        expect(options.dbPassword).toBe(defaultConfig.dbPassword);
-        expect(options.dbDialect).toBe(defaultConfig.dbDialect);
-        expect(options.dbPath).toBe(defaultConfig.dbPath);
+        expect(options.port).toBe(defaultOptions.port);
+        expect(options.ethernetPort).toBe(defaultOptions.ethernetPort);
+        expect(options.debug).toBe(defaultOptions.debug);
+        expect(options.serial).toBe(defaultOptions.serial);
+        expect(options.ethernet).toBe(defaultOptions.ethernet);
+        expect(options.dbSchema).toBe(defaultOptions.dbSchema);
+        expect(options.dbHost).toBe(defaultOptions.dbHost);
+        expect(options.dbPort).toBe(defaultOptions.dbPort);
+        expect(options.dbUsername).toBe(defaultOptions.dbUsername);
+        expect(options.dbPassword).toBe(defaultOptions.dbPassword);
+        expect(options.dbDialect).toBe(defaultOptions.dbDialect);
+        expect(options.dbPath).toBe(defaultOptions.dbPath);
     });
 });

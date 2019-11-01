@@ -41,7 +41,7 @@ afterAll(() => {
 
 beforeEach(() => {
     boardModel = new Boards();
-    boardModel.addBoard = jest.fn((id, type, firmataBoard, serialConnection) => { return {id: id, name: 'berd'} });
+    boardModel.addBoard = jest.fn((id, type, firmataBoard, serialConnection) => ({id, name: 'berd'}) );
     connectionService = new ConnectionService( boardModel );
     mockSocket = new Socket();
 });

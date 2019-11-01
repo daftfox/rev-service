@@ -1,12 +1,12 @@
 import IBoard from "../../interface/board";
 
-interface BoardRequest {
+interface IBoardRequest {
     action: BoardAction;
     boardId: string;
     board: IBoard;
 }
 
-export default BoardRequest;
+export default IBoardRequest;
 
 export enum BoardAction {
     REQUEST = 'request',

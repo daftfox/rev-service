@@ -18,7 +18,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    board = new LedController(null, null, null, null, 'bacon');
+    board = new LedController(undefined, undefined, undefined, undefined, 'bacon');
 });
 
 describe('MajorTom:', () => {
