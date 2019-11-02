@@ -151,7 +151,7 @@ class MainController {
 
     private async startDatabaseService(options: IDatabaseOptions): Promise<void> {
         this.databaseService = new DatabaseService(options);
-        return this.databaseService.synchronise();
+        await this.databaseService.synchronise();
     }
 
     private startEthernetService(boardModel: Boards, port: number): void {

@@ -1,5 +1,6 @@
 import MainController from '../controller/main';
 import BoardsMock from './mocks/boards.mock';
+import DatabaseService from '../service/database-service';
 
 let mainController: any;
 
@@ -90,7 +91,7 @@ describe('MainController:', () => {
     });
 
     describe('synchroniseDataModels', () => {
-        test('should resolve after synchronising data models', () => {
+        test('should call synchroniseDataModels', async () => {
             const databaseOptions = {
                 schema: 'rev',
                 host: 'localhost',
@@ -99,13 +100,17 @@ describe('MainController:', () => {
                 password: '',
                 dialect: 'sqlite',
                 path: ':memory:',
+                debug: undefined,
             };
 
-            return mainController.startDatabaseService(databaseOptions).then(() => {
-                mainController.instantiateDataModels();
+            await mainController.startDatabaseService(databaseOptions);
+            await mainController.instantiateDataModels();
 
-                return mainController.synchroniseDataModels();
-            });
+            mainController.boardModel.synchronise = jest.fn();
+
+            await mainController.synchroniseDataModels();
+
+            expect(mainController.boardModel.synchronise).toHaveBeenCalled();
         });
     });
 

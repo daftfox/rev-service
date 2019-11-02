@@ -47,13 +47,13 @@ class DatabaseService {
     public async synchronise(): Promise<void> {
         DatabaseService.log.info(`Synchronising database model.`);
 
-        await DatabaseService.database.sync().then(() => {
-            const blinkProgram = Program.build(DefaultPrograms.BLINK);
-            blinkProgram.save();
+        await DatabaseService.database.sync();
 
-            const sosProgram = Program.build(DefaultPrograms.SOS);
-            sosProgram.save();
-        });
+        const blinkProgram = Program.build(DefaultPrograms.BLINK);
+        blinkProgram.save();
+
+        const sosProgram = Program.build(DefaultPrograms.SOS);
+        sosProgram.save();
     }
 }
 

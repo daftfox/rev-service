@@ -1,6 +1,16 @@
 import * as FirmataBoard from 'firmata';
+import { Socket } from 'net';
 
 export default class FirmataBoardMock {
+    constructor(socket?: Socket) {
+        this.transport = socket;
+    }
+
+    transport: Socket;
+
+    firmware = {
+        name: 'bacon_eggs.ino',
+    };
     samplingInterval: number;
     emit = jest.fn();
     removeListener = jest.fn();
