@@ -50,6 +50,7 @@ build:
   only:
     - develop
     - master
+    - tags
 
 unit-test:
   stage: test
