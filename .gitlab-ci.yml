@@ -93,8 +93,10 @@ publish:
   stage: deploy
   only:
     - tags
-    - triggers
     - master
+  except:
+    - develop
+    - /^feature/.*$/
   cache:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
