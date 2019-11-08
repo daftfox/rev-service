@@ -34,7 +34,6 @@ class SerialService extends ConnectionService {
         this.log = new LoggerService(this.namespace);
 
         this.log.info(`Listening on serial ports.`);
-        this.startListening();
     }
 
     public closeServer(): void {
@@ -45,7 +44,7 @@ class SerialService extends ConnectionService {
      * Scans the host's ports every 3 seconds.
      * @access private
      */
-    private startListening(): void {
+    public listen(): void {
         this.portScanInterval = setInterval(this.scanSerialPorts.bind(this), 10000);
     }
 

@@ -1,28 +1,7 @@
 {
     "name": "rev-service",
-    "version": "0.0.1",
-    "description": "A webservice for managing and directing firmata-enabled microcontrollers",
-    "main": "./dist/index.js",
-    "scripts": {
-        "test": "jest",
-        "start": "tsc && node ./dist/index.js --ethernet",
-        "build": "tsc",
-        "lint": "tslint --fix -p tsconfig.json",
-        "lint:check": "tslint -p tsconfig.json",
-        "format": "prettier --write \"**/*.{ts,json,md}\"",
-        "format:check": "prettier --list-different \"**/*.{ts,json,md}\""
-    },
-    "husky": {
-        "hooks": {
-            "pre-commit": "npm run lint:check && npm run format:check"
-        }
-    },
-    "bin": {
-        "rev-service": "./dist/index.js"
-    },
-    "engines": {
-        "node": "11.14"
-    },
+    "version": "0.0.2",
+    "description": "A webservice for controlling and monitoring micro-controllers",
     "keywords": [
         "firmata",
         "web",
@@ -30,44 +9,75 @@
         "wireless",
         "serial",
         "service",
-        "manager"
+        "manager",
+        "rev"
     ],
     "author": {
         "name": "Timothy Claassens",
         "email": "tim.claassens@gmail.com",
         "url": "https://timothy.fyi"
     },
-    "license": "ISC",
+    "license": "GPL-3.0-only",
+    "homepage": "https://github.com/daftfox/rev-service#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/daftfox/rev-service"
+    },
+    "bugs": "https://github.com/daftfox/rev-service/issues",
+    "main": "./dist/index.js",
+    "files": [
+        "dist/**/*"
+    ],
+    "scripts": {
+        "test": "jest",
+        "start": "tsc && node ./dist/index.js --ethernet",
+        "build": "tsc",
+        "lint": "tslint --fix -p tsconfig.json",
+        "lint:check": "tslint -p tsconfig.json",
+        "format": "prettier --write \"**/*.{ts,json,md}\"",
+        "format:check": "prettier --list-different \"**/*.{ts,json,md}\"",
+        "prepare": "npm run build",
+        "prepublishOnly": "npm test",
+        "version": "npm run format:check && npm run lint:check && git add -A src",
+        "postversion": "git push && git push --tags"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "npm run lint:check && npm run format:check"
+        }
+    },
+    "bin": {
+        "rev": "./dist/index.js"
+    },
+    "engines": {
+        "node": "11.14"
+    },
     "dependencies": {
         "@types/firmata": "^0.19.1",
-        "@types/node": "^10.17.0",
-        "@types/node-fetch": "^2.5.2",
+        "@types/node": "^10.17.4",
+        "@types/node-fetch": "^2.5.3",
         "@types/websocket": "0.0.40",
         "args": "^5.0.1",
         "chalk": "^2.4.2",
-        "command-line-usage": "^5.0.5",
         "firmata": "^2.0.0",
-        "longjohn": "^0.2.12",
-        "moment": "^2.23.0",
-        "mysql2": "^1.7.0",
-        "reflect-metadata": "^0.1.13",
-        "sequelize": "^5.19.6",
+        "moment": "^2.24.0",
+        "mysql2": "^2.0.0",
+        "sequelize": "^5.21.2",
         "sequelize-typescript": "^1.0.0",
         "serialport": "^7.1.0",
         "sqlite3": "^4.1.0",
-        "supports-color": "^5.5.0",
-        "uuid": "^3.3.2",
-        "websocket": "^1.0.28"
+        "uuid": "^3.3.3",
+        "websocket": "^1.0.30"
     },
     "devDependencies": {
-        "@types/jest": "^24.0.19",
-        "codelyzer": "^5.2.0",
+        "@types/jest": "^24.0.22",
         "husky": "^3.0.9",
         "jest": "^24.9.0",
         "jest-html-reporter": "^2.6.2",
         "jest-junit": "^9.0.0",
         "prettier": "^1.18.2",
         "promise": "^8.0.3",
+        "reflect-metadata": "^0.1.13",
         "ts-jest": "^24.1.0",
         "ts-node": "^8.0.3",
         "tslint": "^5.20.0",

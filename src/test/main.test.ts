@@ -1,6 +1,5 @@
 import MainController from '../controller/main';
 import BoardsMock from './mocks/boards.mock';
-import DatabaseService from '../service/database-service';
 
 let mainController: any;
 
@@ -12,7 +11,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    mainController.stopService();
+    mainController.stopServices();
 });
 
 describe('MainController:', () => {

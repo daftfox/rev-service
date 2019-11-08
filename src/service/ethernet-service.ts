@@ -17,6 +17,8 @@ class EthernetService extends ConnectionService {
      */
     private server: Server;
 
+    private port: number;
+
     /**
      * @constructor
      * @param {Boards} model Data model.
@@ -26,19 +28,20 @@ class EthernetService extends ConnectionService {
         super(model);
 
         this.namespace = 'ethernet';
+        this.port = port;
         this.log = new LoggerService(this.namespace);
 
-        this.listen(port);
+        this.server = new Server(this.handleConnectionRequest);
     }
 
     /**
      * Start listening on the port supplied for the ethernet service.
      * @param {number} port
      */
-    private listen(port: number): void {
-        this.log.info(`Listening on port ${Chalk.rgb(240, 240, 30).bold(port.toString(10))}.`);
+    public listen(): void {
+        this.log.info(`Listening on port ${Chalk.rgb(240, 240, 30).bold(this.port.toString(10))}.`);
 
-        this.server = new Server(this.handleConnectionRequest).listen(port);
+        this.server.listen(this.port);
     }
 
     /**
@@ -48,27 +51,20 @@ class EthernetService extends ConnectionService {
      * @returns {void}
      */
     private handleConnectionRequest = (socket: Socket): void => {
-        let board: IBoard;
-
         this.log.debug(`New connection attempt.`);
 
-        this.connectToBoard(
-            socket,
-            false,
-            (_board: IBoard) => {
-                board = _board;
-                this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
-            },
-            (_board: IBoard) => {
-                board = undefined;
-                this.handleDisconnected(socket, _board);
-            },
-        );
+        this.connectToBoard(socket, false, this.handleConnected, (board: IBoard) => {
+            this.handleDisconnected(socket, board);
+        });
     };
 
     public closeServer(): void {
         this.server.close();
     }
+
+    private handleConnected = (board: IBoard) => {
+        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
+    };
 
     /**
      * Handles a connected board.

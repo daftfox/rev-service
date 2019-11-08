@@ -124,10 +124,6 @@ class MainController {
         process.on('uncaughtException', MainController.log.stack);
     }
 
-    public stopService(): void {
-        this.stopServices();
-    }
-
     private stopServices(): void {
         if (this.ethernetService) {
             this.ethernetService.closeServer();
@@ -156,10 +152,12 @@ class MainController {
 
     private startEthernetService(boardModel: Boards, port: number): void {
         this.ethernetService = new EthernetService(boardModel, port);
+        this.ethernetService.listen();
     }
 
     private startSerialService(boardModel: Boards): void {
         this.serialService = new SerialService(boardModel);
+        this.serialService.listen();
     }
 
     private instantiateDataModels(): void {
