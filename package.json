@@ -1,6 +1,6 @@
 {
     "name": "rev-service",
-    "version": "0.0.5-1",
+    "version": "0.0.5-2",
     "description": "A webservice for controlling and monitoring micro-controllers",
     "keywords": [
         "firmata",
