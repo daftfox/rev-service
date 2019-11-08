@@ -4,14 +4,11 @@ import WebSocketService from '../service/web-socket-service';
 import LoggerService from '../service/logger-service';
 import Boards from '../model/boards';
 import IFlags from '../domain/interface/flags';
-import DatabaseService from "../service/database-service";
-import Programs from "../model/programs";
-import SerialService from "../service/serial-service";
-import IDatabaseOptions from "../domain/interface/database-options";
-import IWebSocketOptions from "../domain/interface/web-socket-options";
-
-// only required during dev
-require('longjohn');
+import DatabaseService from '../service/database-service';
+import Programs from '../model/programs';
+import SerialService from '../service/serial-service';
+import IDatabaseOptions from '../domain/interface/database-options';
+import IWebSocketOptions from '../domain/interface/web-socket-options';
 
 /**
  * The MainController is the main controller. 'nuff said.
@@ -33,7 +30,7 @@ class MainController {
      * @access private
      * @type {LoggerService}
      */
-    private static log = new LoggerService( MainController.namespace );
+    private static log = new LoggerService(MainController.namespace);
 
     /**
      * Object containing the parsed process arguments.
@@ -50,7 +47,6 @@ class MainController {
      * @access private
      */
     private boardModel: Boards;
-
 
     private programModel: Programs;
 
@@ -84,7 +80,7 @@ class MainController {
      * Creates a new instance of MainController and starts required services.
      */
     constructor() {
-        this.options = Config.parseOptions( process.argv );
+        this.options = Config.parseOptions(process.argv);
         process.env.debug = this.options.debug ? 'true' : '';
     }
 
@@ -95,9 +91,9 @@ class MainController {
      * @returns {void}
      */
     public async startAllServices(): Promise<void> {
-        MainController.log.info( 'Starting rev-service' );
+        MainController.log.info('Starting rev-service');
 
-        await this.startDatabaseService( {
+        await this.startDatabaseService({
             username: this.options.dbUsername,
             password: this.options.dbPassword,
             host: this.options.dbHost,
@@ -105,65 +101,63 @@ class MainController {
             path: this.options.dbPath,
             dialect: this.options.dbDialect,
             schema: this.options.dbSchema,
-            debug: this.options.debug
-        } );
+            debug: this.options.debug,
+        });
 
         this.instantiateDataModels();
         await this.synchroniseDataModels();
 
-        this.startWebSocketService( {
+        this.startWebSocketService({
             port: this.options.port,
             boardModel: this.boardModel,
-            programModel: this.programModel
-        } );
+            programModel: this.programModel,
+        });
 
-        if ( this.options.ethernet ) {
-            this.startEthernetService( this.boardModel, this.options.ethernetPort );
+        if (this.options.ethernet) {
+            this.startEthernetService(this.boardModel, this.options.ethernetPort);
         }
 
-        if ( this.options.serial ) {
-            this.startSerialService( this.boardModel );
+        if (this.options.serial) {
+            this.startSerialService(this.boardModel);
         }
 
-        process.on('uncaughtException', MainController.log.stack );
-    }
-
-    public stopService(): void {
-        this.stopServices();
+        process.on('uncaughtException', MainController.log.stack);
     }
 
     private stopServices(): void {
-        if ( this.ethernetService ) {
+        if (this.ethernetService) {
             this.ethernetService.closeServer();
             this.ethernetService = undefined;
         }
 
-        if ( this.serialService ) {
+        if (this.serialService) {
             this.serialService.closeServer();
             this.serialService = undefined;
         }
 
-        if ( this.socketService ) {
+        if (this.socketService) {
             this.socketService.closeServer();
             this.socketService = undefined;
         }
     }
 
-    private startWebSocketService( options: IWebSocketOptions ): void {
-        this.socketService = new WebSocketService( options );
+    private startWebSocketService(options: IWebSocketOptions): void {
+        this.socketService = new WebSocketService(options);
     }
 
-    private async startDatabaseService( options: IDatabaseOptions ): Promise<void> {
-        this.databaseService =  new DatabaseService( options );
-        return await this.databaseService.synchronise();
+    private async startDatabaseService(options: IDatabaseOptions): Promise<void> {
+        this.databaseService = new DatabaseService(options);
+        await this.databaseService.synchronise();
     }
 
-    private startEthernetService( boardModel: Boards, port: number ): void {
-        this.ethernetService = new EthernetService( boardModel, port );
+    private startEthernetService(boardModel: Boards, port: number): void {
+        this.ethernetService = new EthernetService(boardModel, port);
+        this.ethernetService.listen();
     }
 
-    private startSerialService( boardModel: Boards ): void {
-        this.serialService = new SerialService( boardModel );
+    private startSerialService(boardModel: Boards): void {
+        this.serialService = new SerialService(boardModel);
+        this.serialService.listen();
     }
 
     private instantiateDataModels(): void {
@@ -172,7 +166,7 @@ class MainController {
     }
 
     private async synchroniseDataModels(): Promise<void> {
-        return this.boardModel.synchronise();
+        await this.boardModel.synchronise();
         // todo: synch programs
     }
 }

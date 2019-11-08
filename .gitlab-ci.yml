@@ -51,7 +51,7 @@ build:
     - develop
     - master
 
-test:
+unit-test:
   stage: test
   cache:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
@@ -61,21 +61,69 @@ test:
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   artifacts:
     paths:
-      - coverage/
+      - reports/
     reports:
       junit: junit.xml
   script:
     - npm test
 
+lint:
+  stage: test
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - node_modules/
+    policy: pull
+  coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
+  script:
+    - npm run lint:check
+
+format:
+  stage: test
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - node_modules/
+    policy: pull
+  coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
+  script:
+    - npm run format:check
+
+publish:
+  stage: deploy
+  environment:
+    name: publish
+    url: https://npmjs.com/package/rev-service
+  only:
+    - tags
+  except:
+    - branches
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - dist/
+    policy: pull
+  dependencies:
+    - build
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+
 pages:
   stage: deploy
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - reports/
+    policy: pull
   dependencies:
-    - test
+    - unit-test
   script:
-    - mv coverage/ public/
+    - mkdir -p public/reports/$CI_COMMIT_REF_NAME/coverage/
+    - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test/
+    - mv reports/coverage/lcov-report/* public/reports/$CI_COMMIT_REF_NAME/coverage/
+    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test/
   artifacts:
     paths:
       - public
     expire_in: 30 days
-  only:
-    - master

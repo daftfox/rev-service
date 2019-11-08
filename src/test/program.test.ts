@@ -1,6 +1,6 @@
 import Program from '../domain/program';
 import { Sequelize } from 'sequelize-typescript';
-import ICommand from "../domain/interface/command";
+import ICommand from '../domain/interface/command';
 
 let program: any;
 let sequelize: Sequelize;
@@ -9,10 +9,12 @@ const mockCommands: ICommand[] = [
     {
         action: 'TOGGLELED',
         duration: 1000,
-    },{
+    },
+    {
         action: 'TOGGLELED',
         duration: 1000,
-    },{
+    },
+    {
         action: 'TOGGLELED',
         duration: 1000,
     },
@@ -23,9 +25,7 @@ beforeAll(() => {
         dialect: 'sqlite',
         storage: ':memory:',
     });
-    sequelize.addModels([
-        Program,
-    ]);
+    sequelize.addModels([Program]);
 });
 
 beforeEach(() => {
@@ -33,24 +33,38 @@ beforeEach(() => {
 });
 
 describe('Program:', () => {
-    test('is instantiated', () => {
-        expect(program).toBeDefined();
+    describe('constructor', () => {
+        test('is instantiated', () => {
+            expect(program).toBeDefined();
+        });
     });
 
-    test('sets commands', () => {
-        program.setCommands( mockCommands );
+    describe('setCommands', () => {
+        test('should parse and set commands', () => {
+            program.setCommands(mockCommands);
 
-        expect( typeof program.commands ).toEqual('string');
-        expect( program.commands ).toEqual( JSON.stringify( mockCommands ) );
+            expect(typeof program.commands).toEqual('string');
+            expect(program.commands).toEqual(JSON.stringify(mockCommands));
+        });
     });
 
-    test('gets commands', () => {
-        program.setCommands( mockCommands );
+    describe('getCommands', () => {
+        test('should return array of commands', () => {
+            program.setCommands(mockCommands);
 
-        const retrievedCommands = program.getCommands();
+            const retrievedCommands = program.getCommands();
 
-        expect( Array.isArray( retrievedCommands ) ).toBeTruthy();
-        expect( retrievedCommands[0] ).toHaveProperty( 'action' );
-        expect( retrievedCommands[0] ).toHaveProperty( 'duration' );
+            expect(Array.isArray(retrievedCommands)).toBeTruthy();
+            expect(retrievedCommands[0]).toHaveProperty('action');
+            expect(retrievedCommands[0]).toHaveProperty('duration');
+        });
     });
 });
+
+// describe('SOS Program', () => {
+//     describe('', () => {
+//         test('', () => [
+//
+//         ]);
+//     });
+// });

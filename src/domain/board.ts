@@ -5,20 +5,34 @@ import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from './interface/board';
 import IPinMapping from './interface/pin-map';
-import IPin from "./interface/pin";
-import CommandMalformed from "../error/command-malformed";
-import {Column, DataType, Model, Table} from "sequelize-typescript";
-import {BuildOptions} from "sequelize";
-import BoardArchitecture from "./board-architecture";
-import {SupportedBoards} from "./supported-boards";
+import IPin from './interface/pin';
+import CommandMalformed from '../error/command-malformed';
+import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { BuildOptions } from 'sequelize';
+import BoardArchitecture from './board-architecture';
+import { SupportedBoards } from './supported-boards';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
  *
  * @namespace Board
  */
-@Table( { timestamps: true } )
+@Table({ timestamps: true })
 class Board extends Model<Board> implements IBoard {
+    /**
+     * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
+     * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
+     * and removed from the data model until it attempts reconnecting.
+     *
+     * @static
+     * @readonly
+     * @access private
+     * @type {number}
+     * @default [5000]
+     */
+    private static readonly heartbeatInterval = 10000;
+    private static readonly disconnectTimeout = 10000;
+
     /**
      * The unique identifier by which the board will be known to the outside world. The ID is defined by the filename
      * of the firmware that is flashed to the device. The filename should look like the following example:
@@ -28,7 +42,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column( { type: DataType.STRING, primaryKey: true } )
+    @Column({ type: DataType.STRING, primaryKey: true })
     public id: string;
 
     /**
@@ -38,7 +52,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column( DataType.STRING )
+    @Column(DataType.STRING)
     public name: string;
 
     /**
@@ -48,7 +62,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {string}
      * @access public
      */
-    @Column( DataType.STRING )
+    @Column(DataType.STRING)
     public type: string;
 
     /**
@@ -57,7 +71,7 @@ class Board extends Model<Board> implements IBoard {
      * @access public
      * @default [false]
      */
-    public online: boolean = false;
+    public online = false;
 
     /**
      * Unique identifier of the physical device's vendor (if available).
@@ -90,7 +104,7 @@ class Board extends Model<Board> implements IBoard {
      * @access public
      * @type {string}
      */
-    @Column( DataType.STRING )
+    @Column(DataType.STRING)
     public lastUpdateReceived: string;
 
     /**
@@ -110,12 +124,31 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      */
     protected availableActions: any = {
-        BLINKON: { requiresParams: false, method: () => { this.setBlinkLEDEnabled( true ) } },
-        BLINKOFF: { requiresParams: false, method: () => { this.setBlinkLEDEnabled( false ) } },
-        TOGGLELED: { requiresParams: false, method: () => { this.toggleLED() } },
-        SETPINVALUE: { requiresParams: true, method: ( pin: string, value: string ) => { this.setPinValue( parseInt( pin , 10), parseInt( value, 10 ) ) } },
+        BLINKON: {
+            requiresParams: false,
+            method: () => {
+                this.setBlinkLEDEnabled(true);
+            },
+        },
+        BLINKOFF: {
+            requiresParams: false,
+            method: () => {
+                this.setBlinkLEDEnabled(false);
+            },
+        },
+        TOGGLELED: {
+            requiresParams: false,
+            method: () => {
+                this.toggleLED();
+            },
+        },
+        SETPINVALUE: {
+            requiresParams: true,
+            method: (pin: string, value: string) => {
+                this.setPinValue(parseInt(pin, 10), parseInt(value, 10));
+            },
+        },
     };
-
 
     /**
      * Namespace used by the local instance of {@link LoggerService}
@@ -177,7 +210,6 @@ class Board extends Model<Board> implements IBoard {
      */
     private heartbeatTimeout: Timeout;
 
-
     private serialRetry: Timeout;
 
     /**
@@ -189,21 +221,7 @@ class Board extends Model<Board> implements IBoard {
      */
     private previousAnalogValue: number[] = [];
 
-    /**
-     * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
-     * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
-     * and removed from the data model until it attempts reconnecting.
-     *
-     * @static
-     * @readonly
-     * @access private
-     * @type {number}
-     * @default [5000]
-     */
-    private static readonly heartbeatInterval = 10000;
-    private static readonly disconnectTimeout = 10000;
-
-    public serialConnection: boolean = false;
+    public serialConnection = false;
 
     /**
      * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
@@ -214,22 +232,28 @@ class Board extends Model<Board> implements IBoard {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor( model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard, serialConnection: boolean = false, id?: string ) {
-        super( model, buildOptions );
+    constructor(
+        model?: any,
+        buildOptions?: BuildOptions,
+        firmataBoard?: FirmataBoard,
+        serialConnection: boolean = false,
+        id?: string,
+    ) {
+        super(model, buildOptions);
 
         this.id = id;
-        this.namespace = `board_${ this.id }`;
-        this.log = new LoggerService( this.namespace );
+        this.namespace = `board_${this.id}`;
+        this.log = new LoggerService(this.namespace);
 
-        if ( firmataBoard ) {
+        if (firmataBoard) {
             this.online = true;
             this.firmataBoard = firmataBoard;
             this.serialConnection = serialConnection;
 
-            if ( this.serialConnection ) {
-                this.firmataBoard.setSamplingInterval( 200 );
+            if (this.serialConnection) {
+                this.firmataBoard.setSamplingInterval(200);
             } else {
-                this.firmataBoard.setSamplingInterval( 1000 );
+                this.firmataBoard.setSamplingInterval(1000);
             }
 
             this.attachAnalogPinListeners();
@@ -239,14 +263,91 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
+     * Return an {@link IBoard}.
+     *
+     * @static
+     * @access public
+     * @param {Board} board - The {@link Board} instance to convert to an object implementing the {@link IBoard} interface.
+     * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
+     */
+    public static toDiscrete(board: Board): IBoard {
+        if (typeof board !== 'object') {
+            throw new TypeError(`Parameter board should be of type object. Received type is ${typeof board}.`);
+        }
+
+        let discreteBoard;
+
+        discreteBoard = {
+            id: board.id,
+            name: board.name,
+            vendorId: board.vendorId,
+            productId: board.productId,
+            type: board.type,
+            currentProgram: board.currentProgram,
+            online: board.online,
+            serialConnection: board.serialConnection,
+            lastUpdateReceived: board.lastUpdateReceived,
+            architecture: board.architecture,
+            availableCommands: board.getAvailableActions(),
+        };
+
+        if (board.firmataBoard) {
+            Object.assign(discreteBoard, {
+                refreshRate: board.firmataBoard.getSamplingInterval(),
+                pins: board.firmataBoard.pins
+                    .map((pin: FirmataBoard.Pins, index: number) =>
+                        Object.assign({ pinNumber: index, analog: pin.analogChannel !== 127 }, pin),
+                    )
+                    .filter((pin: IPin) => pin.supportedModes.length > 0),
+            });
+        } else {
+            Object.assign(discreteBoard, {
+                pins: [],
+            });
+        }
+
+        return discreteBoard;
+    }
+
+    /**
+     * Return an array of {@link IBoard}.
+     *
+     * @static
+     * @access public
+     * @param {Board[]} boards - An array of {@link Board} instances to convert.
+     * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
+     */
+    public static toDiscreteArray(boards: Board[]): IBoard[] {
+        if (!Array.isArray(boards)) {
+            throw new TypeError(`Parameter boards should be an array. Received type is ${typeof boards}.`);
+        }
+        if (!boards.length) {
+            throw new Error(
+                `Parameter boards should contain at least one element. Received array length is ${boards.length}.`,
+            );
+        }
+        return boards.map(Board.toDiscrete);
+    }
+
+    protected static is8BitNumber(value: number): boolean {
+        if (typeof value !== 'number') {
+            return false;
+        }
+        return value <= 255 && value >= 0;
+    }
+
+    /**
      * Method returning a string array containing the actions this device is able to execute.
      *
      * @access public
      * @return {{action: string, requiresParams: boolean}[]} String array containing the available actions.
      */
-    public getAvailableActions(): {name: string, requiresParams: boolean}[] {
-        const actionNames = Object.keys( this.availableActions );
-        return actionNames.map( action => ( { name: action, requiresParams: this.availableActions[ action ].requiresParams } ) );
+    public getAvailableActions(): Array<{ name: string; requiresParams: boolean }> {
+        const actionNames = Object.keys(this.availableActions);
+        return actionNames.map(action => ({
+            name: action,
+            requiresParams: this.availableActions[action].requiresParams,
+        }));
     }
 
     /**
@@ -256,11 +357,11 @@ class Board extends Model<Board> implements IBoard {
      * @param {IPinMapping} mapping - The pinMapping to save to this board.
      * @returns {void}
      */
-    public setArchitecture( architecture: BoardArchitecture ): void {
-        if ( SupportedBoards.isSupported(architecture) ) {
+    public setArchitecture(architecture: BoardArchitecture): void {
+        if (SupportedBoards.isSupported(architecture)) {
             this.architecture = architecture;
         } else {
-            throw new Error( 'This architecture is not supported.' );
+            throw new Error('This architecture is not supported.');
         }
     }
 
@@ -285,59 +386,6 @@ class Board extends Model<Board> implements IBoard {
     }
 
     /**
-     * Return an {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board} board - The {@link Board} instance to convert to an object implementing the {@link IBoard} interface.
-     * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
-     */
-    public static toDiscrete( board: Board ): IBoard {
-        let discreteBoard;
-
-        discreteBoard = {
-            id: board.id,
-            name: board.name,
-            vendorId: board.vendorId,
-            productId: board.productId,
-            type: board.type,
-            currentProgram: board.currentProgram,
-            online: board.online,
-            serialConnection: board.serialConnection,
-            lastUpdateReceived: board.lastUpdateReceived,
-            architecture: board.architecture,
-            availableCommands: board.getAvailableActions(),
-        };
-
-        if ( board.firmataBoard ) {
-            Object.assign( discreteBoard, {
-                refreshRate: board.firmataBoard.getSamplingInterval(),
-                pins: board.firmataBoard.pins
-                    .map( ( pin: FirmataBoard.Pins, index: number ) => Object.assign( { pinNumber: index, analog: pin.analogChannel != 127 }, pin ) )
-                    .filter( ( pin: IPin ) => pin.supportedModes.length > 0 ),
-            } );
-        } else {
-            Object.assign( discreteBoard, {
-                pins: [],
-            } );
-        }
-
-        return discreteBoard;
-    }
-
-    /**
-     * Return an array of {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board[]} boards - An array of {@link Board} instances to convert.
-     * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
-     */
-    public static toDiscreteArray( boards: Board[] ): IBoard[] {
-        return boards.map( Board.toDiscrete );
-    }
-
-    /**
      * Execute an action. Checks if the action is actually available before attempting to execute it.
      *
      * @access public
@@ -345,20 +393,24 @@ class Board extends Model<Board> implements IBoard {
      * @param {string[]} [parameters] - The parameters to pass to the action method.
      * @returns {void}
      */
-    public executeAction( action: string, parameters?: string[] ): void {
-        if ( !this.online ) throw new CommandUnavailableError( `Unable to execute command on this board since it is not online.` );
-        if ( !this.isAvailableAction( action ) ) throw new CommandUnavailableError( `'${ action }' is not a valid action for this board.` );
+    public executeAction(action: string, parameters?: string[]): void {
+        if (!this.online) {
+            throw new CommandUnavailableError(`Unable to execute command on this board since it is not online.`);
+        }
+        if (!this.isAvailableAction(action)) {
+            throw new CommandUnavailableError(`'${action}' is not a valid action for this board.`);
+        }
 
-        this.log.debug( `Executing method ${ Chalk.rgb( 67,230,145 ).bold( action ) }.` );
+        this.log.debug(`Executing method ${Chalk.rgb(67, 230, 145).bold(action)}.`);
 
-        const method = this.availableActions[ action ].method;
+        const method = this.availableActions[action].method;
 
-        if ( parameters && parameters.length ) {
-            method( ...parameters );
+        if (parameters && parameters.length) {
+            method(...parameters);
         } else {
             method();
         }
-        
+
         this.emitUpdate();
     }
 
@@ -381,17 +433,17 @@ class Board extends Model<Board> implements IBoard {
     }
 
     public clearListeners(): void {
-        this.firmataBoard.pins.forEach( ( pin: FirmataBoard.Pins, index: number ) => {
-            if ( this.isDigitalPin( index ) ) {
-                this.firmataBoard.removeListener( `digital-read-${index}`, this.emitUpdate );
+        this.firmataBoard.pins.forEach((pin: FirmataBoard.Pins, index: number) => {
+            if (this.isDigitalPin(index)) {
+                this.firmataBoard.removeListener(`digital-read-${index}`, this.emitUpdate);
             }
-        } );
+        });
 
-        this.firmataBoard.analogPins.forEach( ( pin: number, index: number )  => {
-            this.firmataBoard.removeListener( `analog-read-${index}`, this.emitUpdate );
-        } );
+        this.firmataBoard.analogPins.forEach((pin: number, index: number) => {
+            this.firmataBoard.removeListener(`analog-read-${index}`, this.emitUpdate);
+        });
 
-        this.firmataBoard.removeListener( 'queryfirmware', this.clearHeartbeatTimeout );
+        this.firmataBoard.removeListener('queryfirmware', this.clearHeartbeatTimeout);
     }
 
     /**
@@ -400,9 +452,13 @@ class Board extends Model<Board> implements IBoard {
      * @param {NodeJS.Timeout} interval
      * @returns {void}
      */
-    protected clearInterval( interval: Timeout ): void {
-        this.intervals.splice( this.intervals.indexOf( interval ), 1 );
-        clearInterval( interval );
+    protected clearInterval(interval: Timeout): void {
+        if (this.intervals.indexOf(interval) < 0) {
+            throw new Error("Interval doesn't exist.");
+        }
+
+        this.intervals.splice(this.intervals.indexOf(interval), 1);
+        clearInterval(interval);
     }
 
     /**
@@ -411,9 +467,13 @@ class Board extends Model<Board> implements IBoard {
      * @param {NodeJS.Timeout} timeout
      * @returns {void}
      */
-    protected clearTimeout( timeout: Timeout ): void {
-        this.timeouts.splice( this.timeouts.indexOf( timeout ), 1 );
-        clearTimeout( timeout );
+    protected clearTimeout(timeout: Timeout): void {
+        if (this.timeouts.indexOf(timeout) < 0) {
+            throw new Error("Timeout doesn't exist.");
+        }
+
+        this.timeouts.splice(this.timeouts.indexOf(timeout), 1);
+        clearTimeout(timeout);
     }
 
     /**
@@ -423,21 +483,17 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      * @returns {void}
      */
-    protected setBlinkLEDEnabled(enabled: boolean ): void {
-        if ( enabled ) {
-            if ( this.blinkInterval ) {
-                throw new CommandUnavailableError( `LED blink is already enabled.` );
+    protected setBlinkLEDEnabled(enabled: boolean): void {
+        if (enabled) {
+            if (this.blinkInterval) {
+                throw new CommandUnavailableError(`LED blink is already enabled.`);
             }
 
-            this.blinkInterval = setInterval(
-                this.toggleLED.bind( this ),
-                500
-            );
+            this.blinkInterval = setInterval(this.toggleLED, 500);
 
-            this.intervals.push( this.blinkInterval );
+            this.intervals.push(this.blinkInterval);
         } else {
-
-            this.clearInterval( this.blinkInterval );
+            this.clearInterval(this.blinkInterval);
             this.blinkInterval = undefined;
         }
     }
@@ -448,9 +504,14 @@ class Board extends Model<Board> implements IBoard {
      * @access protected
      * @returns {void}
      */
-    protected toggleLED(): void {
-        this.setPinValue( this.architecture.pinMap.LED, this.firmataBoard.pins[ this.architecture.pinMap.LED ].value === FirmataBoard.PIN_STATE.HIGH ? FirmataBoard.PIN_STATE.LOW : FirmataBoard.PIN_STATE.HIGH );
-    }
+    protected toggleLED = (): void => {
+        this.setPinValue(
+            this.architecture.pinMap.LED,
+            this.firmataBoard.pins[this.architecture.pinMap.LED].value === FirmataBoard.PIN_STATE.HIGH
+                ? FirmataBoard.PIN_STATE.LOW
+                : FirmataBoard.PIN_STATE.HIGH,
+        );
+    };
 
     /**
      * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
@@ -462,29 +523,28 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     protected startHeartbeat(): void {
-        const heartbeat = setInterval( () => {
-
+        const heartbeat = setInterval(() => {
             // set a timeout to emit a disconnect event if the physical device doesn't reply within 2 seconds
-            this.heartbeatTimeout = setTimeout( () => {
-                this.log.debug( `Heartbeat timeout.` );
+            this.heartbeatTimeout = setTimeout(() => {
+                this.log.debug(`Heartbeat timeout.`);
 
                 // emit disconnect event after which the board is removed from the data model
-                this.firmataBoard.emit( 'disconnect' );
-                this.clearInterval( heartbeat );
+                this.firmataBoard.emit('disconnect');
+                this.clearInterval(heartbeat);
                 this.clearHeartbeatTimeout();
-            }, Board.disconnectTimeout );
+            }, Board.disconnectTimeout);
 
-            this.timeouts.push( this.heartbeatTimeout );
+            this.timeouts.push(this.heartbeatTimeout);
 
             // we utilize the queryFirmware method to emulate a heartbeat
-            this.firmataBoard.queryFirmware( this.clearHeartbeatTimeout );
-        }, Board.heartbeatInterval );
+            this.firmataBoard.queryFirmware(this.clearHeartbeatTimeout);
+        }, Board.heartbeatInterval);
 
-        this.intervals.push ( heartbeat );
+        this.intervals.push(heartbeat);
     }
 
     private clearHeartbeatTimeout = () => {
-        this.clearTimeout( this.heartbeatTimeout );
+        this.clearTimeout(this.heartbeatTimeout);
         this.heartbeatTimeout = undefined;
     };
 
@@ -496,21 +556,23 @@ class Board extends Model<Board> implements IBoard {
      * @param {FirmataBoard.SERIAL_PORT_ID} serialPort Serial port on which to send
      * @returns {void}
      */
-    protected serialWriteBytes( serialPort: FirmataBoard.SERIAL_PORT_ID, payload: (string | number)[] ): void {
-        const buffer = Buffer.allocUnsafe( payload.length );
+    protected serialWriteBytes(serialPort: FirmataBoard.SERIAL_PORT_ID, payload: any[]): void {
+        const buffer = Buffer.allocUnsafe(payload.length);
 
-        payload.forEach( ( value: string | number, index: number) => {
-            if ( typeof value === 'string' ) {
-                buffer.write( value, index );
-            } else if ( typeof value === 'number' ) {
-                buffer.writeUInt8( value, index );
+        payload.forEach((value: any, index: number) => {
+            if (typeof value === 'string') {
+                buffer.write(value, index);
+            } else if (typeof value === 'number') {
+                buffer.writeUInt8(value, index);
+            } else {
+                throw new TypeError(`Expected string or number. Received ${typeof value}.`);
             }
-        } );
+        });
 
         const bytesPayload = [];
 
-        for ( const [index, value] of buffer.entries() ) {
-            bytesPayload.push( value );
+        for (const [index, value] of buffer.entries()) {
+            bytesPayload.push(value);
         }
 
         // fixme
@@ -522,9 +584,9 @@ class Board extends Model<Board> implements IBoard {
         //         this.firmataBoard.removeListener( `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`, checkForAck );
         //     }
         // };
-        //this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
+        // this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
 
-        this.firmataBoard.serialWrite( serialPort, bytesPayload );
+        this.firmataBoard.serialWrite(serialPort, bytesPayload);
 
         // fixme
         // this.serialRetry = setInterval( () => {
@@ -540,7 +602,7 @@ class Board extends Model<Board> implements IBoard {
      */
     protected emitUpdate = (): void => {
         this.lastUpdateReceived = new Date().toUTCString();
-        this.firmataBoard.emit( 'update', Board.toDiscrete( this ) );
+        this.firmataBoard.emit('update', Board.toDiscrete(this));
     };
 
     /**
@@ -551,28 +613,29 @@ class Board extends Model<Board> implements IBoard {
      * @param {number} value
      * @returns {void}
      */
-    protected setPinValue( pin: number, value: number ): void {
-        if ( pin === undefined || pin === null ) {
-            throw new CommandMalformed( `Method setPinValue requires 'pin' argument.` );
+    protected setPinValue(pin: number, value: number): void {
+        if (!this.firmataBoard.pins[pin]) {
+            throw new Error('blargh');
         }
 
-        if ( value === undefined || value === null ) {
-            throw new CommandMalformed( `Method setPinValue requires 'value' argument.` );
+        if (this.isAnalogPin(pin)) {
+            if (value < 0 || value >= 1024) {
+                throw new CommandMalformed(
+                    `Tried to write value ${value} to analog pin ${pin}. Only values between or equal to 0 and 1023 are allowed.`,
+                );
+            } else {
+                this.firmataBoard.analogWrite(pin, value);
+            }
+        } else {
+            if (value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW) {
+                throw new CommandMalformed(
+                    `Tried to write value ${value} to digital pin ${pin}. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
+                );
+            } else {
+                this.firmataBoard.digitalWrite(pin, value);
+            }
         }
 
-        if ( this.isAnalogPin( pin ) ) {
-            if ( value < 0 || value >= 1024 ) {
-                throw new CommandMalformed( `Tried to write value ${ value } to analog pin ${ pin }. Only values between or equal to 0 and 1023 are allowed.` );
-            } else {
-                this.firmataBoard.analogWrite( pin, value );
-            }
-        } else if ( this.isDigitalPin( pin ) ) {
-            if ( value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW ) {
-                throw new CommandMalformed( `Tried to write value ${ value } to digital pin ${ pin }. Only values 1 (HIGH) or 0 (LOW) are allowed.` );
-            } else {
-                this.firmataBoard.digitalWrite( pin, value );
-            }
-        }
         this.emitUpdate();
     }
 
@@ -584,11 +647,11 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     private attachDigitalPinListeners(): void {
-        this.firmataBoard.pins.forEach( ( pin: FirmataBoard.Pins, index: number ) => {
-            if ( this.isDigitalPin( index ) ) {
-                this.firmataBoard.digitalRead( index, this.emitUpdate );
+        this.firmataBoard.pins.forEach((pin: FirmataBoard.Pins, index: number) => {
+            if (this.isDigitalPin(index)) {
+                this.firmataBoard.digitalRead(index, this.emitUpdate);
             }
-        } );
+        });
     }
 
     /**
@@ -599,9 +662,9 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     private attachAnalogPinListeners(): void {
-        this.firmataBoard.analogPins.forEach( ( pin: number, index: number )  => {
-            this.firmataBoard.analogRead( index, this.emitUpdate );
-        } );
+        this.firmataBoard.analogPins.forEach((pin: number, index: number) => {
+            this.firmataBoard.analogRead(index, this.emitUpdate);
+        });
     }
 
     /**
@@ -611,9 +674,9 @@ class Board extends Model<Board> implements IBoard {
      * @param {number} value
      * @returns {void}
      */
-    private compareAnalogReadout( pinIndex: number, value: number ): void {
-        if ( this.previousAnalogValue[ pinIndex ] !== value ) {
-            this.previousAnalogValue[ pinIndex ] = value;
+    private compareAnalogReadout(pinIndex: number, value: number): void {
+        if (this.previousAnalogValue[pinIndex] !== value) {
+            this.previousAnalogValue[pinIndex] = value;
             this.emitUpdate();
         }
     }
@@ -625,8 +688,8 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     private clearAllIntervals(): void {
-        clearInterval( this.serialRetry );
-        this.intervals.forEach( interval => clearInterval( interval ) );
+        clearInterval(this.serialRetry);
+        this.intervals.forEach(interval => clearInterval(interval));
         this.intervals = [];
     }
 
@@ -637,7 +700,7 @@ class Board extends Model<Board> implements IBoard {
      * @returns {void}
      */
     private clearAllTimeouts(): void {
-        this.timeouts.forEach( timeout => clearTimeout( timeout ) );
+        this.timeouts.forEach(timeout => clearTimeout(timeout));
         this.timeouts = [];
     }
 
@@ -648,8 +711,8 @@ class Board extends Model<Board> implements IBoard {
      * @param {string} action The command to check for availability
      * @returns {boolean} True if the command is valid, false if not
      */
-    private isAvailableAction( action: string ): boolean {
-        return this.getAvailableActions().findIndex( _action => _action.name === action ) >= 0;
+    private isAvailableAction(action: string): boolean {
+        return this.getAvailableActions().findIndex(_action => _action.name === action) >= 0;
     }
 
     /**
@@ -659,9 +722,13 @@ class Board extends Model<Board> implements IBoard {
      * @param {number} pinIndex
      * @returns {boolean}
      */
-    private isDigitalPin( pinIndex: number ): boolean {
-        const pin = this.firmataBoard.pins[ pinIndex ];
-        return pin.analogChannel === 127 && pin.supportedModes.length > 0 && !pin.supportedModes.includes( FirmataBoard.PIN_MODE.ANALOG );
+    private isDigitalPin(pinIndex: number): boolean {
+        const pin = this.firmataBoard.pins[pinIndex];
+        return (
+            pin.analogChannel === 127 &&
+            pin.supportedModes.length > 0 &&
+            !pin.supportedModes.includes(FirmataBoard.PIN_MODE.ANALOG)
+        );
     }
 
     /**
@@ -671,12 +738,12 @@ class Board extends Model<Board> implements IBoard {
      * @param {number} pinIndex
      * @returns {boolean}
      */
-    private isAnalogPin( pinIndex: number ): boolean {
-        const pin = this.firmataBoard.pins[ pinIndex ];
-        return pin.supportedModes.indexOf( FirmataBoard.PIN_MODE.ANALOG ) >= 0;
+    private isAnalogPin(pinIndex: number): boolean {
+        const pin = this.firmataBoard.pins[pinIndex];
+        return pin.supportedModes.indexOf(FirmataBoard.PIN_MODE.ANALOG) >= 0;
     }
 }
 
 export default Board;
 
-export const IDLE = "idle";
+export const IDLE = 'idle';

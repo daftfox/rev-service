@@ -9,5 +9,4 @@ export enum ResponseCode {
     METHOD_NOT_ALLOWED = 405,
     CONFLICT = 409,
     SERVER_ERROR = 500,
-
 }

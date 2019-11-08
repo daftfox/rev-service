@@ -1,8 +1,8 @@
-import IProgram from "../../interface/program";
+import IProgram from '../../interface/program';
 
-interface ProgramResponse {
+interface IProgramResponse {
     programs?: IProgram[];
     programId?: string;
 }
 
-export default ProgramResponse;
+export default IProgramResponse;

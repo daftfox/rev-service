@@ -1,6 +1,6 @@
-import IProgram from "../../interface/program";
+import IProgram from '../../interface/program';
 
-interface ProgramRequest {
+interface IProgramRequest {
     action: ProgramAction;
     program?: IProgram;
     programId?: string;
@@ -8,7 +8,7 @@ interface ProgramRequest {
     repeat?: number; // how many times to run the provided program. Provide -1 to run the program indefinitely. ( default = 1 )
 }
 
-export default ProgramRequest;
+export default IProgramRequest;
 
 export enum ProgramAction {
     CREATE = 'create',

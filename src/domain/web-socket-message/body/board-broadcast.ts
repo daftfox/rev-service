@@ -1,11 +1,11 @@
-import IBoard from "../../interface/board";
+import IBoard from '../../interface/board';
 
-interface BoardBroadcast {
+interface IBoardBroadcast {
     action: BOARD_BROADCAST_ACTION;
     boards: IBoard[];
 }
 
-export default BoardBroadcast;
+export default IBoardBroadcast;
 
 export enum BOARD_BROADCAST_ACTION {
     NEW = 'NEW',

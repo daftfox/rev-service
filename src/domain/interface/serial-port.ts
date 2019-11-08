@@ -1,9 +1,9 @@
 export default interface ISerialPort {
-    comName:      string;
+    comName: string;
     manufacturer: string;
     serialNumber: string;
-    pnpId:        string;
-    locationId:   string;
-    vendorId:     string;
-    productId:    string;
+    pnpId: string;
+    locationId: string;
+    vendorId: string;
+    productId: string;
 }

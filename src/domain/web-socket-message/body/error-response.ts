@@ -1,6 +1,6 @@
-interface ErrorResponse {
+interface IErrorResponse {
     error: string;
     message: string;
 }
 
-export default ErrorResponse;
+export default IErrorResponse;
