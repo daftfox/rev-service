@@ -91,12 +91,13 @@ format:
 
 publish:
   stage: deploy
+  environment:
+    name: publish
+    url: https://npmjs.com/package/rev-service
   only:
     - tags
-    - master
   except:
-    - develop
-    - /^feature/.*$/
+    - branches
   cache:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
