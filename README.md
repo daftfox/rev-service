@@ -1,13 +1,14 @@
-| Branch  | Build status                                                                                                                                                 | Code coverage                                                                                                                                                                         | Test report                                                                     |
-| :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
-| develop | [![pipeline status](https://gitlab.com/daftfox/rev-service/badges/develop/pipeline.svg?style=flat-square)](https://gitlab.com/daftfox/rev-service/pipelines) | [![coverage report](https://gitlab.com/daftfox/rev-service/badges/develop/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/develop/coverage/index.html) | [Report](https://daftfox.gitlab.io/rev-service/reports/develop/test/index.html) |
-| master  | [![pipeline status](https://gitlab.com/daftfox/rev-service/badges/master/pipeline.svg?style=flat-square)](https://gitlab.com/daftfox/rev-service/pipelines)  | [![coverage report](https://gitlab.com/daftfox/rev-service/badges/master/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/master/coverage/index.html)   | [Report](https://daftfox.gitlab.io/rev-service/reports/master/test/index.html)  |
+| Branch  | Version | Build status                                                                                                                                                 | Code coverage                                                                                                                                                                         | Tests                                                                     |
+| :------ | :------ |:----------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
+| develop | [![GitHub package.json version (branch)](https://img.shields.io/github/package-json/v/daftfox/rev-service/develop?label=version&color=blue&style=for-the-badge)](https://github.com/daftfox/rev-service/tree/develop) | ![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/daftfox/rev-service/develop?style=for-the-badge) | [![coverage report](https://gitlab.com/daftfox/rev-service/badges/develop/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/develop/coverage/index.html) | [Report](https://daftfox.gitlab.io/rev-service/reports/develop/test/index.html) |
+| master  | [![GitHub package.json version (branch)](https://img.shields.io/github/package-json/v/daftfox/rev-service/master?label=version&color=blue&style=for-the-badge)](https://github.com/daftfox/rev-service/tree/master) | ![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/daftfox/rev-service/master?style=for-the-badge)  | [![coverage report](https://gitlab.com/daftfox/rev-service/badges/master/coverage.svg?style=flat-square)](https://daftfox.gitlab.io/rev-service/reports/master/coverage/index.html)   | [Report](https://daftfox.gitlab.io/rev-service/reports/master/test/index.html)  |
 
-[![Version](https://img.shields.io/badge/version-0.0.1-success?style=flat-square)](https://github.com/daftfox/rev-service)&nbsp;
-[![Npm package](https://img.shields.io/badge/npm%20package-0.0.1-success?style=flat-square)](https://npmjs.org/package/rev-service)&nbsp;
+</br>
 
-[![Gitlab repository](https://img.shields.io/badge/gitlab-blue?logo=gitlab&style=flat-square)](https://gitlab.com/daftfox/rev-service)&nbsp;
-[![Github repository](https://img.shields.io/badge/github-blue?logo=github&style=flat-square)](https://github.com/daftfox/rev-service)&nbsp;
+[![npm](https://img.shields.io/npm/v/rev-service?color=success&style=for-the-badge)](https://www.npmjs.com/package/rev-service)
+
+[![Gitlab repository](https://img.shields.io/badge/gitlab-blue?logo=gitlab&style=for-the-badge)](https://gitlab.com/daftfox/rev-service)&nbsp;
+[![Github repository](https://img.shields.io/badge/github-blue?logo=github&style=for-the-badge)](https://github.com/daftfox/rev-service)&nbsp;
 
 # Rev
 
@@ -171,7 +172,7 @@ See also the list of [contributors](https://github.com/daftfox/rev-service/contr
 
 ## License
 
-[![License](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL-blue?style=for-the-badge)](LICENSE)
 
 This project is licensed under the GNU General Public License.
 
