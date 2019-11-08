@@ -89,6 +89,22 @@ format:
   script:
     - npm run format:check
 
+publish:
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - dist/
+    policy: pull
+  dependencies:
+    - build
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+
 pages:
   stage: deploy
   cache:

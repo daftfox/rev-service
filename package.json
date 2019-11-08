@@ -36,8 +36,6 @@
         "lint:check": "tslint -p tsconfig.json",
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "format:check": "prettier --list-different \"**/*.{ts,json,md}\"",
-        "prepare": "npm run build",
-        "prepublishOnly": "npm test",
         "version": "npm run format && npm run lint && git add -A src",
         "postversion": "git push && git push --tags"
     },
