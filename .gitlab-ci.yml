@@ -94,6 +94,7 @@ publish:
   only:
     - tags
     - triggers
+    - master
   cache:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
