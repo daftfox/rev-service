@@ -93,7 +93,7 @@ format:
 publish:
   stage: deploy
   environment:
-    name: publish
+    name: npmjs
     url: https://npmjs.com/package/rev-service
   only:
     - tags
