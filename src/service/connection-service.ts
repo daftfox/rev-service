@@ -68,7 +68,7 @@ class ConnectionService {
      */
     protected connectToBoard(
         port: net.Socket | string,
-        isSerial: boolean,
+        isSerialConnection: boolean,
         connected?: (board: IBoard) => void,
         disconnected?: (board?: IBoard) => void,
     ): void {
@@ -85,7 +85,7 @@ class ConnectionService {
 
         firmataBoard.on('ready', async () => {
             clearTimeout(connectionTimeout);
-            board = await this.connectionEstablished(firmataBoard, isSerial, connected);
+            board = await this.connectionEstablished(firmataBoard, isSerialConnection, connected);
         });
 
         firmataBoard.on('error', err => {
@@ -134,8 +134,8 @@ class ConnectionService {
         const board = await this.model.addBoard(
             ConnectionService.getBoardId(firmataBoard),
             ConnectionService.getBoardType(firmataBoard),
-            firmataBoard,
             serialConnection,
+            firmataBoard,
         );
 
         // callback to connection interface service

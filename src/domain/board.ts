@@ -11,6 +11,7 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { BuildOptions } from 'sequelize';
 import BoardArchitecture from './board-architecture';
 import { SupportedBoards } from './supported-boards';
+import AvailableTypes from "./available-types";
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -63,7 +64,7 @@ class Board extends Model<Board> implements IBoard {
      * @access public
      */
     @Column(DataType.STRING)
-    public type: string;
+    public type = AvailableTypes.BOARD;
 
     /**
      * Boolean stating wether the board is online or not.
@@ -278,17 +279,17 @@ class Board extends Model<Board> implements IBoard {
         let discreteBoard;
 
         discreteBoard = {
-            id: board.id,
-            name: board.name,
-            vendorId: board.vendorId,
-            productId: board.productId,
-            type: board.type,
-            currentProgram: board.currentProgram,
-            online: board.online,
-            serialConnection: board.serialConnection,
-            lastUpdateReceived: board.lastUpdateReceived,
-            architecture: board.architecture,
-            availableCommands: board.getAvailableActions(),
+            id: board.id || undefined,
+            name: board.name || undefined,
+            vendorId: board.vendorId || undefined,
+            productId: board.productId || undefined,
+            type: board.type || undefined,
+            currentProgram: board.currentProgram || undefined,
+            online: board.online || undefined,
+            serialConnection: board.serialConnection || undefined,
+            lastUpdateReceived: board.lastUpdateReceived || undefined,
+            architecture: board.architecture || undefined,
+            availableCommands: board.getAvailableActions() || undefined,
         };
 
         if (board.firmataBoard) {

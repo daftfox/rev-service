@@ -12,23 +12,13 @@ import Program from '../domain/program';
 import Conflict from '../domain/web-socket-message/error/conflict';
 import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allowed';
 import LedController from '../domain/led-controller';
+import AvailableTypes from "../domain/available-types";
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
  * @namespace Boards
  */
 class Boards {
-    /**
-     * Static object containing types that are currently supported by the system.
-     *
-     * @static
-     * @type {object}
-     */
-    private static AVAILABLE_TYPES = {
-        MAJORTOM: 'MajorTom',
-        BOARD: 'Board',
-        LEDCONTROLLER: 'LedController',
-    };
 
     /**
      * Namespace used by the local instance of {@link LoggerService}
@@ -88,13 +78,13 @@ class Boards {
      * Currently supported types are {@link Board} (default) and {@link MajorTom}, as dictated by {@link Boards.AVAILABLE_TYPES}.
      *
      * @param {Board} board - {@link Board} instance used to feed data values into the newly constructed instance.
-     * @param {boolean} serialConnection - Is the board connected over a serial connection.
+     * @param {boolean} isSerialConnection - Is the board connected over a serial connection.
      * @param {FirmataBoard} [firmataBoard] - Connected instance of {@link FirmataBoard} to attach to the newly created instance.
      * @returns {Board} New instance of {@link Board} or {@link MajorTom}.
      */
     public static instantiateBoard(
         board: Board,
-        serialConnection: boolean = false,
+        isSerialConnection: boolean = false,
         firmataBoard?: FirmataBoard,
     ): Board {
         let boardInstance: Board;
@@ -112,7 +102,7 @@ class Boards {
                     dataValues,
                     { isNewRecord: board.isNewRecord },
                     firmataBoard,
-                    serialConnection,
+                    isSerialConnection,
                 );
                 break;
             case 'LedController':
@@ -120,7 +110,7 @@ class Boards {
                     dataValues,
                     { isNewRecord: board.isNewRecord },
                     firmataBoard,
-                    serialConnection,
+                    isSerialConnection,
                 );
                 break;
             default:
@@ -128,7 +118,7 @@ class Boards {
                     dataValues,
                     { isNewRecord: board.isNewRecord },
                     firmataBoard,
-                    serialConnection,
+                    isSerialConnection,
                 );
                 break;
         }
@@ -150,8 +140,8 @@ class Boards {
     private static async findOrBuildBoard(
         id: string,
         type: string,
-        firmataBoard: FirmataBoard,
-        serialConnection: boolean,
+        isSerialConnection: boolean = false,
+        firmataBoard?: FirmataBoard,
     ): Promise<Board> {
         let [board] = await Board.findOrBuild({
             where: {
@@ -163,7 +153,7 @@ class Boards {
             },
         });
 
-        board = Boards.instantiateBoard(board, serialConnection, firmataBoard);
+        board = Boards.instantiateBoard(board, isSerialConnection, firmataBoard);
 
         return Promise.resolve(board);
     }
@@ -227,10 +217,6 @@ class Boards {
      * @return {IBoard} If found, an object implementing the {@link IBoard} interface.
      */
     public getBoardById(id: string): IBoard {
-        if (!id) {
-            throw new BadRequest(`Parameter board id is missing.`);
-        }
-
         const board = this._boards.find(_board => _board.id === id);
 
         if (!board) {
@@ -254,22 +240,18 @@ class Boards {
     public async addBoard(
         id: string,
         type: string,
-        firmataBoard: FirmataBoard,
-        serialConnection: boolean,
+        serialConnection: boolean = false,
+        firmataBoard?: FirmataBoard,
     ): Promise<IBoard> {
         // fill variable with an instance of Board, either retrieved from the data storage, or newly constructed.
-        const board = await Boards.findOrBuildBoard(id, type, firmataBoard, serialConnection);
+        const board = await Boards.findOrBuildBoard(id, type, serialConnection, firmataBoard);
         const newRecord = board.isNewRecord;
 
         if (newRecord) {
             // store the Board in the data storage and append it to the local storage array if it is new
             Boards.log.debug(`Storing new board with id ${Chalk.rgb(0, 143, 255).bold(board.id)} in the database.`);
 
-            try {
-                await board.save();
-            } catch (error) {
-                throw new ServerError(`Board could not be stored.`);
-            }
+            await board.save();
 
             this._boards.push(board);
         } else {
@@ -305,11 +287,12 @@ class Boards {
      * @returns {void}
      */
     public disconnectBoard(id: string): void {
-        Boards.log.debug(`Setting board with id ${Chalk.rgb(0, 143, 255).bold(id)}'s status to disconnected.`);
 
         const board = this._boards.find(_board => _board.id === id);
 
         if (board) {
+            Boards.log.debug(`Setting board with id ${Chalk.rgb(0, 143, 255).bold(id)}'s status to disconnected.`);
+
             board.disconnect();
             board.save();
 
@@ -318,6 +301,8 @@ class Boards {
             this._boards[index] = board;
 
             this.boardDisconnectedListeners.forEach(listener => listener(discreteBoard));
+        } else {
+            throw new NotFound('Board not found');
         }
     }
 
@@ -331,64 +316,57 @@ class Boards {
      * @param {IBoard} boardUpdates - Object implementing the {@link IBoard} interface containing updated values for an existing {@link Board} instance.
      * @param {boolean} [persist = false] - Persist the changes to the data storage.
      * @returns {void}
+     * fixme: buggy af
      */
     public updateBoard(boardUpdates: IBoard, persist: boolean = false): void {
-        if (!boardUpdates) {
-            throw new BadRequest(`Parameter board is missing.`);
-        }
-
-        if (!boardUpdates.id) {
-            throw new BadRequest(`Parameter board id is missing.`);
-        }
-
         let board = this._boards.find(_board => _board.id === boardUpdates.id);
 
-        if (board) {
-            // do not allow the user to change the Board.type property into an unsupported value
-            if (boardUpdates.type && !Object.values(Boards.AVAILABLE_TYPES).includes(boardUpdates.type)) {
-                throw new BadRequest(
-                    `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(
-                        Boards.AVAILABLE_TYPES,
-                    ).map(type => ` '${type}'`)}.`,
-                );
-            }
-
-            // update existing board values
-            Object.assign(board, boardUpdates);
-
-            if (persist) {
-                // persist instance changes to the data storage
-                Boards.log.debug(
-                    `Storing update for board with id ${Chalk.rgb(0, 143, 255).bold(boardUpdates.id)} in the database.`,
-                );
-                board.save();
-
-                if (
-                    board.previous('architecture') &&
-                    board.previous('architecture') !== board.getDataValue('architecture')
-                ) {
-                    board.setArchitecture(board.architecture);
-                }
-
-                // re-instantiate previous board to reflect type changes
-                if (board.previous('type') && board.previous('type') !== board.getDataValue('type')) {
-                    const index = this._boards.findIndex(_board => _board.id === boardUpdates.id);
-
-                    // clear non-essential timers and listeners
-                    if (board.online) {
-                        this._boards[index].clearAllTimers();
-                    }
-
-                    // create new instance if board is online and attach the existing online FirmataBoard instance to it
-                    board = Boards.instantiateBoard(board, board.serialConnection, board.getFirmataBoard());
-                    this._boards[index] = board;
-                }
-            }
-
-            const discreteBoard = Board.toDiscrete(board);
-
-            this.boardUpdatedListeners.forEach(listener => listener(discreteBoard));
+        // do not allow the user to change the Board.type property into an unsupported value
+        if (boardUpdates.type && !Object.values(AvailableTypes).includes(boardUpdates.type)) {
+            throw new BadRequest(
+                `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(
+                    AvailableTypes,
+                ).map(type => ` '${type}'`)}.`,
+            );
         }
+
+        // update existing board values
+        Object.assign(board, boardUpdates);
+
+        if (persist) {
+            // persist instance changes to the data storage
+            Boards.log.debug(
+                `Storing update for board with id ${Chalk.rgb(0, 143, 255).bold(boardUpdates.id)} in the database.`,
+            );
+            board.save();
+
+            // fixme does this make sense after Objest.assign()?
+            // if (
+            //     board.previous('architecture') &&
+            //     board.previous('architecture') !== board.getDataValue('architecture')
+            // ) {
+            //     board.setArchitecture(board.architecture);
+            // }
+
+            // fixme does this make sense after Objest.assign()?
+            // re-instantiate previous board to reflect type changes
+            if (board.previous('type') && board.previous('type') !== board.getDataValue('type')) {
+                const index = this._boards.findIndex(_board => _board.id === boardUpdates.id);
+
+                // clear non-essential timers and listeners
+                if (board.online) {
+                    this._boards[index].clearAllTimers();
+                }
+
+                // create new instance if board is online and attach the existing online FirmataBoard instance to it
+                board = Boards.instantiateBoard(board, board.serialConnection, board.getFirmataBoard());
+                this._boards[index] = board;
+            }
+        }
+
+        const discreteBoard = Board.toDiscrete(board);
+
+        this.boardUpdatedListeners.forEach(listener => listener(discreteBoard));
     }
 
     /**
