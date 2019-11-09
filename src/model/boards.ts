@@ -12,14 +12,13 @@ import Program from '../domain/program';
 import Conflict from '../domain/web-socket-message/error/conflict';
 import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allowed';
 import LedController from '../domain/led-controller';
-import AvailableTypes from "../domain/available-types";
+import AvailableTypes from '../domain/available-types';
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
  * @namespace Boards
  */
 class Boards {
-
     /**
      * Namespace used by the local instance of {@link LoggerService}
      *
@@ -287,7 +286,6 @@ class Boards {
      * @returns {void}
      */
     public disconnectBoard(id: string): void {
-
         const board = this._boards.find(_board => _board.id === id);
 
         if (board) {
@@ -324,9 +322,9 @@ class Boards {
         // do not allow the user to change the Board.type property into an unsupported value
         if (boardUpdates.type && !Object.values(AvailableTypes).includes(boardUpdates.type)) {
             throw new BadRequest(
-                `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(
-                    AvailableTypes,
-                ).map(type => ` '${type}'`)}.`,
+                `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(AvailableTypes).map(
+                    type => ` '${type}'`,
+                )}.`,
             );
         }
 

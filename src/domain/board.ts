@@ -11,7 +11,7 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { BuildOptions } from 'sequelize';
 import BoardArchitecture from './board-architecture';
 import { SupportedBoards } from './supported-boards';
-import AvailableTypes from "./available-types";
+import AvailableTypes from './available-types';
 
 /**
  * Generic representation of devices compatible with the firmata protocol

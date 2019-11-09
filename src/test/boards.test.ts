@@ -1,16 +1,16 @@
 import Boards from '../model/boards';
-import {Sequelize} from "sequelize-typescript";
-import Board from "../domain/board";
-import BoardMock from "./mocks/board.mock";
-import AvailableTypes from "../domain/available-types";
-import FirmataBoardMock from "./mocks/firmata-board.mock";
-import DatabaseService from "../service/database-service";
-import IBoard from "../domain/interface/board";
-import NotFound from "../domain/web-socket-message/error/not-found";
-import ServerError from "../domain/web-socket-message/error/server-error";
-import BadRequest from "../domain/web-socket-message/error/bad-request";
-import BoardArchitecture from "../domain/board-architecture";
-import {SupportedBoards} from "../domain/supported-boards";
+import { Sequelize } from 'sequelize-typescript';
+import Board from '../domain/board';
+import BoardMock from './mocks/board.mock';
+import AvailableTypes from '../domain/available-types';
+import FirmataBoardMock from './mocks/firmata-board.mock';
+import DatabaseService from '../service/database-service';
+import IBoard from '../domain/interface/board';
+import NotFound from '../domain/web-socket-message/error/not-found';
+import ServerError from '../domain/web-socket-message/error/server-error';
+import BadRequest from '../domain/web-socket-message/error/bad-request';
+import BoardArchitecture from '../domain/board-architecture';
+import { SupportedBoards } from '../domain/supported-boards';
 
 let boards: any;
 let mockFirmataBoard: any;
@@ -37,7 +37,6 @@ beforeEach(() => {
     return databaseService.synchronise();
 });
 
-
 beforeAll(() => {
     sequelize = new Sequelize({
         dialect: 'sqlite',
@@ -54,14 +53,12 @@ describe('Boards', () => {
     });
 
     describe('instantiateBoard', () => {
-        test.each(
-            [
-                [new BoardMock('bacon', 'eggs', AvailableTypes.BOARD), 'toggleLED'],
-                [new BoardMock('bacon', 'eggs', AvailableTypes.MAJORTOM), 'setDTC'],
-                [new BoardMock('bacon', 'eggs', AvailableTypes.LEDCONTROLLER), 'kitt'],
-            ]
-        )('should create new instance of corresponding board types', ( board, expectedProperty ) => {
-           // @ts-ignore
+        test.each([
+            [new BoardMock('bacon', 'eggs', AvailableTypes.BOARD), 'toggleLED'],
+            [new BoardMock('bacon', 'eggs', AvailableTypes.MAJORTOM), 'setDTC'],
+            [new BoardMock('bacon', 'eggs', AvailableTypes.LEDCONTROLLER), 'kitt'],
+        ])('should create new instance of corresponding board types', (board, expectedProperty) => {
+            // @ts-ignore
             const newBoard = Boards.instantiateBoard(board);
 
             expect(expectedProperty in newBoard).toEqual(true);
@@ -71,11 +68,10 @@ describe('Boards', () => {
     describe('findOrBuildBoard', () => {
         test('should return a fresh new instance of a board', () => {
             // @ts-ignore
-            return Boards.findOrBuildBoard( 'bacon', AvailableTypes.BOARD )
-                .then( newBoard => {
-                    expect(newBoard.isNewRecord).toEqual(true);
-                    expect(newBoard).toBeDefined();
-                });
+            return Boards.findOrBuildBoard('bacon', AvailableTypes.BOARD).then(newBoard => {
+                expect(newBoard.isNewRecord).toEqual(true);
+                expect(newBoard).toBeDefined();
+            });
         });
 
         test('should return an existing instance of a board from the database', () => {
@@ -83,10 +79,9 @@ describe('Boards', () => {
             newBoard.save();
 
             // @ts-ignore
-            return Boards.findOrBuildBoard( newBoard.id, AvailableTypes.BOARD )
-                .then( existingBoard => {
-                    expect(existingBoard.isNewRecord).toEqual(false);
-                });
+            return Boards.findOrBuildBoard(newBoard.id, AvailableTypes.BOARD).then(existingBoard => {
+                expect(existingBoard.isNewRecord).toEqual(false);
+            });
         });
     });
 
@@ -95,11 +90,10 @@ describe('Boards', () => {
             const newBoard = new Board(undefined, undefined, undefined, false, 'omelette_du_fromage');
             newBoard.save();
 
-            return boards.synchronise()
-                .then( () => {
-                    expect(boards._boards.length).toEqual(1);
-                    expect(boards._boards[0].id).toEqual(newBoard.id);
-                } );
+            return boards.synchronise().then(() => {
+                expect(boards._boards.length).toEqual(1);
+                expect(boards._boards[0].id).toEqual(newBoard.id);
+            });
         });
     });
 
@@ -175,16 +169,15 @@ describe('Boards', () => {
 
                 const discreteBoard = Board.toDiscrete(new Board(undefined, undefined, undefined, false, 'eggs'));
 
-                return boards.addBoard(discreteBoard.id, AvailableTypes.BOARD)
-                    .then( board => {
-                        expect(board).toBeDefined();
-                        expect(board.id).toEqual(discreteBoard.id);
-                        expect(boards._boards.length).toEqual(1);
-                        expect(mockListener).toHaveBeenCalledWith(discreteBoard, true);
+                return boards.addBoard(discreteBoard.id, AvailableTypes.BOARD).then(board => {
+                    expect(board).toBeDefined();
+                    expect(board.id).toEqual(discreteBoard.id);
+                    expect(boards._boards.length).toEqual(1);
+                    expect(mockListener).toHaveBeenCalledWith(discreteBoard, true);
 
-                        // @ts-ignore
-                        expect(Boards.log.debug).toHaveBeenCalled();
-                    } );
+                    // @ts-ignore
+                    expect(Boards.log.debug).toHaveBeenCalled();
+                });
             });
 
             test('should return an instance of an existing board and replace the cached board', () => {
@@ -192,19 +185,20 @@ describe('Boards', () => {
                 newBoard.save();
                 boards._boards = [newBoard];
 
-                const discreteBoard = Board.toDiscrete(new Board(undefined, undefined, undefined, false, 'omelette_du_fromage'));
+                const discreteBoard = Board.toDiscrete(
+                    new Board(undefined, undefined, undefined, false, 'omelette_du_fromage'),
+                );
 
                 // @ts-ignore
                 const mockListener = jest.fn();
                 boards.boardConnectedListeners = [mockListener];
 
-                return boards.addBoard(newBoard.id, AvailableTypes.BOARD)
-                    .then( board => {
-                        expect(board).toBeDefined();
-                        expect(board.id).toEqual(newBoard.id);
-                        expect(boards._boards.length).toEqual(1);
-                        expect(mockListener).toHaveBeenCalledWith(discreteBoard, false);
-                    } );
+                return boards.addBoard(newBoard.id, AvailableTypes.BOARD).then(board => {
+                    expect(board).toBeDefined();
+                    expect(board.id).toEqual(newBoard.id);
+                    expect(boards._boards.length).toEqual(1);
+                    expect(mockListener).toHaveBeenCalledWith(discreteBoard, false);
+                });
             });
         });
     });
@@ -329,9 +323,11 @@ describe('Boards', () => {
                     boards.updateBoard(board);
                 };
 
-                const expectedError = new BadRequest(`Type 'Bacon' is not a valid type. Valid types are${Object.values(
-                    AvailableTypes,
-                ).map(type => ` '${type}'`)}.`);
+                const expectedError = new BadRequest(
+                    `Type 'Bacon' is not a valid type. Valid types are${Object.values(AvailableTypes).map(
+                        type => ` '${type}'`,
+                    )}.`,
+                );
 
                 expect(updateBoardError).toThrowError(expectedError);
             });
@@ -339,7 +335,5 @@ describe('Boards', () => {
     });
 
     // todo finish tests
-    describe('', () => {
-
-    });
+    describe('', () => {});
 });

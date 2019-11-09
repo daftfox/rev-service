@@ -1,4 +1,4 @@
-import AvailableTypes from "../../domain/available-types";
+import AvailableTypes from '../../domain/available-types';
 
 export default class BoardMock {
     id: string;
