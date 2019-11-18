@@ -1,7 +1,7 @@
 const sos = {
     name: 'SOS',
     deviceType: 'all',
-    commands: JSON.stringify([
+    commands: [
         {
             action: 'SETPINVALUE',
             parameters: ['2', '1'],
@@ -107,7 +107,7 @@ const sos = {
             parameters: ['2', '1'],
             duration: 300,
         },
-    ]),
+    ],
 };
 
 export default sos;

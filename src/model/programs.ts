@@ -141,7 +141,7 @@ class Programs {
         const newProgram = new Program({ name: program.name, deviceType: program.deviceType });
 
         if (program.commands) {
-            newProgram.setCommands(program.commands);
+            newProgram.commands = program.commands;
         }
 
         this.log.debug(
@@ -191,7 +191,7 @@ class Programs {
         const program = await this.getProgramById(id);
 
         if (updatedProgram.commands) {
-            program.setCommands(updatedProgram.commands);
+            program.commands = updatedProgram.commands;
         }
 
         Object.assign(program, { name: updatedProgram.name, deviceType: updatedProgram.deviceType });

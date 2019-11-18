@@ -1,11 +1,10 @@
 import ConnectionService from './connection-service';
 import Boards from '../model/boards';
-import * as Serialport from 'serialport';
+import SerialPort, { PortConfig } from 'serialport';
 import LoggerService from './logger-service';
-import ISerialPort from '../domain/interface/serial-port';
-import IBoard from '../domain/interface/board';
 import Chalk from 'chalk';
 import Timeout = NodeJS.Timeout;
+import Board from '../domain/board';
 
 /**
  * @description Service that automatically connects to any Firmata compatible devices physically connected to the host.
@@ -32,8 +31,6 @@ class SerialService extends ConnectionService {
 
         this.namespace = 'serial';
         this.log = new LoggerService(this.namespace);
-
-        this.log.info(`Listening on serial ports.`);
     }
 
     public closeServer(): void {
@@ -45,6 +42,7 @@ class SerialService extends ConnectionService {
      * @access private
      */
     public listen(): void {
+        this.log.info(`Listening on serial ports.`);
         this.portScanInterval = setInterval(this.scanSerialPorts.bind(this), 10000);
     }
 
@@ -53,7 +51,7 @@ class SerialService extends ConnectionService {
      * @access private
      */
     private scanSerialPorts(): void {
-        Serialport.list((error: any, ports: ISerialPort[]) => {
+        SerialPort.list((error: any, ports: PortConfig[]) => {
             // list all connected serial devices
 
             const availablePort = ports
@@ -64,26 +62,28 @@ class SerialService extends ConnectionService {
 
             if (availablePort) {
                 this.usedPorts.push(availablePort.comName);
-                this.connectToBoard(
-                    availablePort.comName,
-                    true,
-                    (board: IBoard) => {
-                        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
-                    },
-                    (board?: IBoard) => {
-                        this.usedPorts.splice(this.usedPorts.indexOf(availablePort.comName), 1);
-                        if (board) {
-                            this.log.info(`Device ${board.id} disconnected.`);
-
-                            this.model.disconnectBoard(board.id);
-                        } else {
-                            this.unsupportedDevices.push(availablePort.comName);
-                        }
-                    },
-                );
+                this.attemptConnection(availablePort);
             }
         });
     }
+
+    private attemptConnection = (port: PortConfig): Promise<void> => {
+        return this.connectToBoard(port.comName)
+            .then((board: Board) => {
+                this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
+                board.setIsSerialConnection(true);
+            })
+            .catch((board?: Board) => {
+                this.usedPorts.splice(this.usedPorts.indexOf(port.comName), 1);
+                if (board) {
+                    this.log.info(`Device ${board.id} disconnected.`);
+
+                    this.model.disconnectBoard(board.id);
+                } else {
+                    this.unsupportedDevices.push(port.comName);
+                }
+            });
+    };
 }
 
 export default SerialService;

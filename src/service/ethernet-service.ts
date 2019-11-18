@@ -4,7 +4,6 @@ import LoggerService from './logger-service';
 import { Server, Socket } from 'net';
 import Chalk from 'chalk';
 import Board from '../domain/board';
-import IBoard from '../domain/interface/board';
 
 /**
  * @classdesc An ethernet service that opens a socket and attempts to connect to boards that knock on the proverbial door.
@@ -50,19 +49,21 @@ class EthernetService extends ConnectionService {
      * @param {net.Socket} socket
      * @returns {void}
      */
-    private handleConnectionRequest = (socket: Socket): void => {
+    private handleConnectionRequest = (socket: Socket): Promise<void> => {
         this.log.debug(`New connection attempt.`);
 
-        this.connectToBoard(socket, false, this.handleConnected, (board: IBoard) => {
-            this.handleDisconnected(socket, board);
-        });
+        return this.connectToBoard(socket)
+            .then(this.handleConnected)
+            .catch((board: Board) => {
+                this.handleDisconnected(socket, board);
+            });
     };
 
     public closeServer(): void {
         this.server.close();
     }
 
-    private handleConnected = (board: IBoard) => {
+    private handleConnected = (board: Board) => {
         this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
     };
 
@@ -73,7 +74,7 @@ class EthernetService extends ConnectionService {
      * @param {Board} board
      * @returns {void}
      */
-    private handleDisconnected(socket: Socket, board?: IBoard): void {
+    private handleDisconnected(socket: Socket, board?: Board): void {
         socket.end();
         socket.destroy();
 

@@ -4,21 +4,20 @@ import Chalk from 'chalk';
 import IBoard from '../domain/interface/board';
 import NotFound from '../domain/web-socket-message/error/not-found';
 import BadRequest from '../domain/web-socket-message/error/bad-request';
-import ServerError from '../domain/web-socket-message/error/server-error';
 import MajorTom from '../domain/major-tom';
-import * as FirmataBoard from 'firmata';
 import ICommand from '../domain/interface/command';
 import Program from '../domain/program';
 import Conflict from '../domain/web-socket-message/error/conflict';
 import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allowed';
 import LedController from '../domain/led-controller';
 import AvailableTypes from '../domain/available-types';
+import * as events from 'events';
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
  * @namespace Boards
  */
-class Boards {
+class Boards extends events.EventEmitter {
     /**
      * Namespace used by the local instance of {@link LoggerService}
      *
@@ -40,53 +39,19 @@ class Boards {
     /**
      * Locally stored array of {@link Board} instances that are currently online.
      * This is pre-filled with devices retrieved from the data storage.
-     *
-     * @access private
-     * @type {Board[]}
      */
     private _boards: Board[] = [];
 
-    /**
-     * Array of listener methods that are called as soon as a new {@link Board} instance was added to the {@link _boards} array.
-     * The newly added {@link IBoard} is passed to the listener method as an argument.
-     *
-     * @type {(function(IBoard) => void)[]}
-     */
-    private boardConnectedListeners: Array<(board: IBoard, newRecord: boolean) => void> = [];
-
-    /**
-     * Array of listener methods that are called as soon as a {@link Board} instance has updated.
-     * The updated {@link IBoard} is passed to the listener method as an argument.
-     *
-     * @type {(function(IBoard) => void)[]}
-     */
-    private boardUpdatedListeners: Array<(board: IBoard) => void> = [];
-
-    /**
-     * Array of listener methods that are called as soon as a {@link Board} instance was removed from the {@link _boards} array.
-     * The removed {@link IBoard} is passed to the listener method as an argument.
-     *
-     * @type {(function(IBoard) => void)[]}
-     */
-    private boardDisconnectedListeners: Array<(board: IBoard) => void> = [];
-
-    constructor() {}
+    constructor() {
+        super();
+    }
 
     /**
      * Create an instance of a {@link Board} reflecting its type.
      * Currently supported types are {@link Board} (default) and {@link MajorTom}, as dictated by {@link Boards.AVAILABLE_TYPES}.
-     *
-     * @param {Board} board - {@link Board} instance used to feed data values into the newly constructed instance.
-     * @param {boolean} isSerialConnection - Is the board connected over a serial connection.
-     * @param {FirmataBoard} [firmataBoard] - Connected instance of {@link FirmataBoard} to attach to the newly created instance.
-     * @returns {Board} New instance of {@link Board} or {@link MajorTom}.
      */
-    public static instantiateBoard(
-        board: Board,
-        isSerialConnection: boolean = false,
-        firmataBoard?: FirmataBoard,
-    ): Board {
-        let boardInstance: Board;
+    public static instantiateNewBoard(board: Board): Board {
+        let newBoardInstance: Board;
 
         const dataValues = {
             id: board.id,
@@ -97,51 +62,31 @@ class Boards {
 
         switch (board.type) {
             case 'MajorTom':
-                boardInstance = new MajorTom(
+                newBoardInstance = new MajorTom(
                     dataValues,
                     { isNewRecord: board.isNewRecord },
-                    firmataBoard,
-                    isSerialConnection,
+                    board.getFirmataBoard(),
                 );
                 break;
             case 'LedController':
-                boardInstance = new LedController(
+                newBoardInstance = new LedController(
                     dataValues,
                     { isNewRecord: board.isNewRecord },
-                    firmataBoard,
-                    isSerialConnection,
+                    board.getFirmataBoard(),
                 );
                 break;
             default:
-                boardInstance = new Board(
-                    dataValues,
-                    { isNewRecord: board.isNewRecord },
-                    firmataBoard,
-                    isSerialConnection,
-                );
+                newBoardInstance = new Board(dataValues, { isNewRecord: board.isNewRecord }, board.getFirmataBoard());
                 break;
         }
 
-        return boardInstance;
+        return newBoardInstance;
     }
 
     /**
      * Find or instantiate a {@link Board} instance.
-     *
-     * @async
-     * @static
-     * @access private
-     * @param {string} id - ID of the {@link Board} instance to retrieve.
-     * @param {string} type - {@link Board.AVAILABLE_TYPES} type to use as default to create a new {@link Board} instance if no existing instances can be found.
-     * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
-     * @returns {Promise<Board>} Promise that resolves to an instance of {@link Board} after an instance has been found or created.
      */
-    private static async findOrBuildBoard(
-        id: string,
-        type: string,
-        isSerialConnection: boolean = false,
-        firmataBoard?: FirmataBoard,
-    ): Promise<Board> {
+    private static async findOrBuildBoard(id: string, type: string): Promise<Board> {
         let [board] = await Board.findOrBuild({
             where: {
                 id,
@@ -152,175 +97,97 @@ class Boards {
             },
         });
 
-        board = Boards.instantiateBoard(board, isSerialConnection, firmataBoard);
+        board = Boards.instantiateNewBoard(board);
 
         return Promise.resolve(board);
     }
 
     public synchronise(): Promise<void> {
         return Board.findAll().then(boards => {
-            this._boards = boards.map(board => Boards.instantiateBoard(board));
+            this._boards = boards.map(board => Boards.instantiateNewBoard(board));
         });
     }
 
     /**
-     * Add a new listener method to be called as soon as a new {@link Board} instance has online.
-     *
-     * @access public
-     * @param {(IBoard) => void} listener - Callback method to execute when a {@link Board} instance has online.
-     * @returns {void}
-     */
-    public addBoardConnectedListener(listener: (board: IBoard, newRecord: boolean) => void): void {
-        this.boardConnectedListeners.push(listener);
-    }
-
-    /**
-     * Add a new listener method to be called as soon as a {@link Board} instance has updated.
-     *
-     * @access public
-     * @param {(IBoard) => void} listener - Callback method to execute when a {@link Board} instance has been updated.
-     * @returns {void}
-     */
-    public addBoardUpdatedListener(listener: (IBoard) => void): void {
-        this.boardUpdatedListeners.push(listener);
-    }
-
-    /**
-     * Add a new listener method to be called as soon as a {@link Board} instance has online.
-     *
-     * @access public
-     * @param {(IBoard) => void} listener - Callback method to execute when a {@link Board} instance has been disconnected.
-     * @returns {void}
-     */
-    public addBoardDisconnectedListener(listener: (IBoard) => void): void {
-        this.boardDisconnectedListeners.push(listener);
-    }
-
-    /**
      * Returns an array of the currently online boards.
-     *
-     * @access public
-     * @return {IBoard[]} An array of objects implementing the {@link IBoard} interface, representing the currently online boards.
      */
     public get boards(): IBoard[] {
         return Board.toDiscreteArray(this._boards);
     }
 
     /**
-     * Returns the {@link Board} instance with the id supplied in the argument.
-     *
-     * @access public
-     * @throws {BadRequest} Board id parameter missing.
-     * @throws {NotFound} Board could not be found.
-     * @param {string} id - ID of the {@link Board} instance to retrieve.
-     * @return {IBoard} If found, an object implementing the {@link IBoard} interface.
+     * Returns the {@link Board} instance with the boardId supplied in the argument.
      */
-    public getBoardById(id: string): IBoard {
-        const board = this._boards.find(_board => _board.id === id);
-
-        if (!board) {
-            throw new NotFound(`Board with id ${id} could not be found.`);
-        }
+    public getDiscreteBoardById(boardId: string): IBoard {
+        const board = this.getBoardById(boardId);
 
         return Board.toDiscrete(board);
     }
 
-    /**
-     * Adds {@link Board} instance to the model. If the device is unknown it will be persisted to the data storage.
-     *
-     * @async
-     * @access public
-     * @throws {ServerError} Board could not be stored.
-     * @param {string} id - ID of the {@link Board} instance to add.
-     * @param {string} type - {@link Board} type to use as default to create a new instance if no existing instances can be found.
-     * @param {FirmataBoard} firmataBoard - Connected instance of {@link FirmataBoard} to attach to the {@link Board} instance to be returned.
-     * @returns {Promise<IBoard>} A promise that resolves to an object implementing the {@link IBoard} interface once the board has been added successfully.
-     */
-    public async addBoard(
-        id: string,
-        type: string,
-        serialConnection: boolean = false,
-        firmataBoard?: FirmataBoard,
-    ): Promise<IBoard> {
-        // fill variable with an instance of Board, either retrieved from the data storage, or newly constructed.
-        const board = await Boards.findOrBuildBoard(id, type, serialConnection, firmataBoard);
-        const newRecord = board.isNewRecord;
+    public getBoardById(boardId): Board {
+        const board = this._boards.find(({ id }) => id === boardId);
 
-        if (newRecord) {
-            // store the Board in the data storage and append it to the local storage array if it is new
-            Boards.log.debug(`Storing new board with id ${Chalk.rgb(0, 143, 255).bold(board.id)} in the database.`);
-
-            await board.save();
-
-            this._boards.push(board);
-        } else {
-            // replace existing Board instance in the local storage array with the newly instantiated Board
-            this._boards[this._boards.findIndex(_board => _board.id === _board.id)] = board;
+        if (!board) {
+            throw new NotFound(`Board with id ${boardId} could not be found.`);
         }
 
-        // retrieve a lean copy of the Board instance
-        const discreteBoard = Board.toDiscrete(board);
+        return board;
+    }
 
-        this.boardConnectedListeners.forEach(listener => listener(discreteBoard, newRecord));
-        return Promise.resolve(discreteBoard);
+    /**
+     * Adds {@link Board} instance to the model. If the device is unknown it will be persisted to the data storage.
+     */
+    public async addBoard(board: Board): Promise<IBoard> {
+        return new Promise<IBoard>(async (resolve, reject) => {
+            let newBoard = false;
+
+            if (this.boardExists(board.id)) {
+                await this.updateBoard(Board.toDiscrete(board));
+            } else {
+                newBoard = true;
+                board = await this.createAndPersistBoard(board);
+            }
+
+            // retrieve a lean copy of the Board instance
+            const discreteBoard = Board.toDiscrete(board);
+
+            this.emit('connected', discreteBoard, newBoard);
+            resolve(discreteBoard);
+        });
     }
 
     /**
      * Disconnect a {@link Board} instance and removes it from the database.
-     *
-     * @access public
-     * @param {string} id - ID of the {@link Board} instance to delete.
-     * @returns {void}
      */
-    public deleteBoard(id: string): void {
-        Boards.log.debug(`Deleting board with id ${Chalk.rgb(0, 143, 255).bold(id)} from the database.`);
-        this.disconnectBoard(id);
-        this._boards.find(_board => _board.id === id).destroy();
+    public deleteBoard(boardId: string): void {
+        Boards.log.debug(`Deleting board with id ${Chalk.rgb(0, 143, 255).bold(boardId)} from the database.`);
+        this.disconnectBoard(boardId);
+        this.getBoardById(boardId).destroy();
+        this._boards.splice(this._boards.findIndex(({ id }) => id === boardId), 1);
     }
 
     /**
      * Disconnect a {@link Board} instance and notify subscribers.
-     *
-     * @access public
-     * @param {string} id - ID of the {@link Board} instance to disconnect.
-     * @returns {void}
      */
-    public disconnectBoard(id: string): void {
-        const board = this._boards.find(_board => _board.id === id);
+    public disconnectBoard(boardId: string): void {
+        const board = this.getBoardById(boardId);
+        const discreteBoard = Board.toDiscrete(board);
 
-        if (board) {
-            Boards.log.debug(`Setting board with id ${Chalk.rgb(0, 143, 255).bold(id)}'s status to disconnected.`);
+        Boards.log.debug(`Setting board with id ${Chalk.rgb(0, 143, 255).bold(boardId)}'s status to disconnected.`);
+        board.disconnect();
+        board.save();
 
-            board.disconnect();
-            board.save();
-
-            const discreteBoard = Board.toDiscrete(board);
-            const index = this._boards.findIndex(_board => _board.id === id);
-            this._boards[index] = board;
-
-            this.boardDisconnectedListeners.forEach(listener => listener(discreteBoard));
-        } else {
-            throw new NotFound('Board not found');
-        }
+        this.emit('disconnected', discreteBoard);
     }
 
     /**
      * Update a {@link Board} and notify subscribers.
-     *
-     * @access public
-     * @throws {BadRequest} The provided type is not a valid type.
-     * @throws {BadRequest} Parameter board id is missing.
-     * @throws {BadRequest} Parameter board is missing.
-     * @param {IBoard} boardUpdates - Object implementing the {@link IBoard} interface containing updated values for an existing {@link Board} instance.
-     * @param {boolean} [persist = false] - Persist the changes to the data storage.
-     * @returns {void}
-     * fixme: buggy af
      */
-    public updateBoard(boardUpdates: IBoard, persist: boolean = false): void {
-        let board = this._boards.find(_board => _board.id === boardUpdates.id);
+    public async updateBoard(boardUpdates: IBoard): Promise<void> {
+        let board = this.getBoardById(boardUpdates.id);
 
         // do not allow the user to change the Board.type property into an unsupported value
-        if (boardUpdates.type && !Object.values(AvailableTypes).includes(boardUpdates.type)) {
+        if (boardUpdates.type && !AvailableTypes.isAvailableType(boardUpdates.type)) {
             throw new BadRequest(
                 `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(AvailableTypes).map(
                     type => ` '${type}'`,
@@ -328,56 +195,34 @@ class Boards {
             );
         }
 
-        // update existing board values
-        Object.assign(board, boardUpdates);
+        // re-instantiate previous board to reflect type changes
+        if (board.type !== boardUpdates.type) {
+            board.type = boardUpdates.type;
 
-        if (persist) {
-            // persist instance changes to the data storage
-            Boards.log.debug(
-                `Storing update for board with id ${Chalk.rgb(0, 143, 255).bold(boardUpdates.id)} in the database.`,
-            );
-            board.save();
-
-            // fixme does this make sense after Objest.assign()?
-            // if (
-            //     board.previous('architecture') &&
-            //     board.previous('architecture') !== board.getDataValue('architecture')
-            // ) {
-            //     board.setArchitecture(board.architecture);
-            // }
-
-            // fixme does this make sense after Objest.assign()?
-            // re-instantiate previous board to reflect type changes
-            if (board.previous('type') && board.previous('type') !== board.getDataValue('type')) {
-                const index = this._boards.findIndex(_board => _board.id === boardUpdates.id);
-
-                // clear non-essential timers and listeners
-                if (board.online) {
-                    this._boards[index].clearAllTimers();
-                }
-
-                // create new instance if board is online and attach the existing online FirmataBoard instance to it
-                board = Boards.instantiateBoard(board, board.serialConnection, board.getFirmataBoard());
-                this._boards[index] = board;
+            // clear non-essential timers and listeners
+            if (board.online) {
+                board.clearAllTimers();
             }
+
+            // create new instance if board is online and attach the existing online FirmataBoard instance to it
+            board = Boards.instantiateNewBoard(board);
         }
+
+        // update existing board values and persist changes to the data storage
+        Boards.log.debug(`Storing update for board with id ${Chalk.rgb(0, 143, 255).bold(board.id)} in the database.`);
+        await board.update(boardUpdates);
 
         const discreteBoard = Board.toDiscrete(board);
 
-        this.boardUpdatedListeners.forEach(listener => listener(discreteBoard));
+        this.emit('update', discreteBoard);
+        return Promise.resolve();
     }
 
     /**
      * Execute an action on {@link Board} belonging to the supplied ID.
-     *
-     * @access public
-     * @throws {MethodNotAllowed} Requested action not available for board.
-     * @param {string} id - ID of the {@link Board} instance to execute the action on.
-     * @param {ICommand} command - Command to execute.
-     * @returns {Promise<void>} A promise that resolves once the action has been executed successfully.
      */
     public executeActionOnBoard(id: string, command: ICommand): Promise<void> {
-        const board = this._boards.find(_board => _board.id === id);
+        const board = this.getBoardById(id);
         let timeout;
 
         return new Promise((resolve, reject) => {
@@ -386,107 +231,117 @@ class Boards {
                 timeout = setTimeout(resolve, command.duration || 100);
             } catch (error) {
                 clearTimeout(timeout);
-                reject(new MethodNotAllowed(error.message));
+                reject(error);
             }
         });
     }
 
     /**
      * Stop a {@link Board} instance from running its current {@link Program}.
-     *
-     * @access public
-     * @param {string} id - ID of the {@link Board} instance that should stop running its {@link Program}.
      */
     public stopProgram(id: string): void {
-        const board = this._boards.find(_board => _board.id === id);
+        const board = this.getBoardById(id);
         board.currentProgram = IDLE;
     }
 
     /**
      * Executes the program on the supplied board.
-     *
-     * @async
-     * @access public
-     * @throws {Conflict} Board is already busy running a program.
-     * @throws {MethodNotAllowed} Program cannot be run on this board.
-     * @param {string} id - ID of the board to execute the program on.
-     * @param {Program} program - The program to execute.
-     * @param {number} [repeat = 1] - How often the program should be executed. Set to -1 for indefinitely.
-     * @returns {Promise<void>} Promise that resolves once the program has executed successfully.
      */
     public async executeProgramOnBoard(id: string, program: Program, repeat: number = 1): Promise<void> {
-        const board = this._boards.find(_board => _board.id === id);
+        return new Promise(async (resolve, reject) => {
+            const board = this.getBoardById(id);
 
-        // do not allow the user to execute a program on the board if it is already busy executing one
-        if (board.currentProgram !== IDLE) {
-            return Promise.reject(
-                new Conflict(
-                    `Board with id ${board.id} is already running a program (${board.currentProgram}). Stop the currently running program or wait for it to finish.`,
-                ),
-            );
-        }
-
-        // do not allow the user to execute a program on the board if the program doesn't support the board
-        if (program.deviceType !== board.type && program.deviceType !== 'all') {
-            return Promise.reject(
-                new MethodNotAllowed(
-                    `The program ${program.name} cannot be run on board with id ${id}, because it is of the wrong type. Program ${program.name} can only be run on devices of type ${program.deviceType}.`,
-                ),
-            );
-        }
-
-        // set the board's current program status
-        board.currentProgram = program.name;
-
-        const discreteBoard = Board.toDiscrete(board);
-
-        try {
-            if (repeat === -1) {
-                // execute program indefinitely
-                while (board.currentProgram !== program.name) {
-                    await this.runProgram(discreteBoard, program);
-                }
-            } else {
-                // execute program n times
-                for (let repetition = 0; repetition < repeat; repetition++) {
-                    await this.runProgram(discreteBoard, program);
-                }
+            // do not allow the user to execute a program on the board if it is already busy executing one
+            if (board.currentProgram !== IDLE) {
+                reject(
+                    new Conflict(
+                        `Board with id ${board.id} is already running a program (${board.currentProgram}). Stop the currently running program or wait for it to finish.`,
+                    ),
+                );
+                return;
             }
-        } catch (error) {
-            throw new MethodNotAllowed(error.message);
-        }
 
-        // set the board's current program status to 'idle'
-        this.stopProgram(board.id);
+            // do not allow the user to execute a program on the board if the program doesn't support the board
+            if (program.deviceType !== board.type && program.deviceType !== 'all') {
+                reject(
+                    new MethodNotAllowed(
+                        `The program ${program.name} cannot be run on board with id ${board.id}, because it is of the wrong type. Program ${program.name} can only be run on devices of type ${program.deviceType}.`,
+                    ),
+                );
+                return;
+            }
 
-        return Promise.resolve();
+            // set the board's current program status
+            board.currentProgram = program.name;
+            const discreteBoard = Board.toDiscrete(board);
+
+            try {
+                if (repeat === -1) {
+                    // execute program indefinitely
+                    while (board.currentProgram === program.name) {
+                        await this.runProgram(discreteBoard, program);
+                    }
+                } else {
+                    // execute program n times
+                    for (let repetition = 0; repetition < repeat; repetition++) {
+                        await this.runProgram(discreteBoard, program);
+                    }
+                }
+            } catch (error) {
+                reject(error);
+            }
+
+            // set the board's current program status to 'idle'
+            this.stopProgram(board.id);
+            resolve();
+        });
     }
 
     /**
      * Run a {@link Program} on a {@link Board}.
-     *
-     * @async
-     * @private
-     * @access private
-     * @param {IBoard} board - Discrete board instance to run {@link Program} on.
-     * @param {Program} program - {@link Program} to run.
-     * @returns {Promise<void>} Promise that resolves when a program has finished running.
      */
     private async runProgram(board: IBoard, program: Program): Promise<void> {
-        for (const command of program.getCommands()) {
-            // stop executing the program as soon as the board's program status changes
-            if (board.currentProgram !== program.name) {
-                break;
+        return new Promise(async (resolve, reject) => {
+            for (const command of program.commands) {
+                // stop executing the program as soon as the board's program status changes
+                if (board.currentProgram !== program.name) {
+                    break;
+                }
+
+                try {
+                    await this.executeActionOnBoard(board.id, command);
+                } catch (error) {
+                    reject(error);
+                    return;
+                }
+            }
+
+            resolve();
+            return;
+        });
+    }
+
+    private async createAndPersistBoard(board: Board): Promise<Board> {
+        return new Promise(async (resolve, reject) => {
+            Boards.log.debug(`Storing new board with id ${Chalk.rgb(0, 143, 255).bold(board.id)} in the database.`);
+            if (board.type !== board.constructor.name) {
+                board = Boards.instantiateNewBoard(board);
             }
 
             try {
-                await this.executeActionOnBoard(board.id, command);
+                await board.save();
+                this._boards.push(board);
+                resolve(board);
             } catch (error) {
-                return Promise.reject(error);
+                reject(error);
             }
-        }
 
-        return Promise.resolve();
+            return;
+        });
+    }
+
+    private boardExists(boardId: string): boolean {
+        return this._boards.filter(({ id }) => id === boardId).length > 0;
     }
 }
 

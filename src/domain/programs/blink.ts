@@ -1,7 +1,7 @@
 const blink = {
     name: 'Blink example',
     deviceType: 'all',
-    commands: JSON.stringify([
+    commands: [
         {
             action: 'TOGGLELED',
             duration: 1000,
@@ -42,7 +42,7 @@ const blink = {
             action: 'TOGGLELED',
             duration: 1000,
         },
-    ]),
+    ],
 };
 
 export default blink;

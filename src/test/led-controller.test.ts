@@ -6,6 +6,7 @@ import * as FirmataBoard from 'firmata';
 
 let board: any;
 let sequelize: Sequelize;
+let mockFirmataBoard;
 
 beforeAll(() => {
     sequelize = new Sequelize({
@@ -16,8 +17,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    board = new LedController(undefined, undefined, undefined, undefined, 'bacon');
-    const mockFirmataBoard = new FirmataBoardMock();
+    board = new LedController();
+    mockFirmataBoard = new FirmataBoardMock();
     board.firmataBoard = mockFirmataBoard;
 });
 
@@ -27,12 +28,18 @@ describe('LedController:', () => {
             expect(board).toBeDefined();
         });
 
-        test('should be instantiated with firmataBoard', () => {
-            // @ts-ignore
-            const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-            board = new LedController(undefined, undefined, firmataBoardMock, undefined, 'bacon');
+        test('should set firmataBoard serial options', () => {
+            board = new LedController(undefined, undefined, mockFirmataBoard);
 
-            expect(board).toBeDefined();
+            const serialOptions = {
+                portId: board.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+                // @ts-ignore
+                baud: LedController.SERIAL_BAUD_RATE,
+                rxPin: board.architecture.pinMap.RX,
+                txPin: board.architecture.pinMap.TX,
+            };
+
+            expect(mockFirmataBoard.serialConfig).toHaveBeenCalledWith(serialOptions);
         });
     });
 

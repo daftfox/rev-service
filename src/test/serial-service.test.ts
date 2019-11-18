@@ -1,73 +1,73 @@
 import EthernetService from '../service/ethernet-service';
 import Boards from '../model/boards';
 import { Socket } from 'net';
-import Board from '../domain/board';
+import SerialService from '../service/serial-service';
 
-let ethernetService: any;
-const port = 3001;
+let serialService: any;
 
 console.info = () => {};
 
 beforeEach(() => {
     const model = new Boards();
-    ethernetService = new EthernetService(model, port);
+    serialService = new SerialService(model);
 });
 
 afterEach(async () => {
-    ethernetService.closeServer();
+    serialService.closeServer();
 });
 
-describe('EthernetService', () => {
+describe('SerialService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(ethernetService).toBeDefined();
+            expect(serialService).toBeDefined();
         });
 
         test('should have created a Server instance', () => {
-            expect(ethernetService.server).toBeDefined();
+            expect(serialService.server).toBeDefined();
         });
     });
 
     describe('#listen', () => {
         test('should have logged an info message', () => {
-            ethernetService.log.info = jest.fn();
+            serialService.log.info = jest.fn();
 
-            ethernetService.listen(port);
+            serialService.listen();
 
-            expect(ethernetService.log.info).toHaveBeenCalled();
+            expect(serialService.log.info).toHaveBeenCalled();
         });
 
-        test('should have created a Server instance', () => {
-            ethernetService.server.listen = jest.fn();
-            ethernetService.listen(port);
+        test('should have created an interval instance', () => {
+            serialService.server.listen = jest.fn();
 
-            expect(ethernetService.server.listen).toHaveBeenCalled();
+            serialService.listen();
+
+            expect(serialService.portScanInterval).toBeDefined();
         });
     });
 
     describe('#handleConnectionRequest', () => {
         test('should log a debug message and call connectToBoard', () => {
-            ethernetService.log.debug = jest.fn();
-            ethernetService.connectToBoard = jest.fn(() => Promise.resolve({ id: 'bacon' }));
+            serialService.log.debug = jest.fn();
+            serialService.connectToBoard = jest.fn(() => Promise.resolve({ id: 'bacon' }));
 
             const mockSocket = new Socket();
 
-            ethernetService.handleConnectionRequest(mockSocket);
+            serialService.handleConnectionRequest(mockSocket);
 
-            expect(ethernetService.log.debug).toHaveBeenCalled();
-            expect(ethernetService.connectToBoard).toHaveBeenCalled();
+            expect(serialService.log.debug).toHaveBeenCalled();
+            expect(serialService.connectToBoard).toHaveBeenCalled();
         });
 
         test('should execute handleDisconnected method', async () => {
-            ethernetService.handleDisconnected = jest.fn();
-            ethernetService.connectToBoard = jest.fn(() => Promise.reject({}));
+            serialService.handleDisconnected = jest.fn();
+            serialService.connectToBoard = jest.fn(() => Promise.reject({}));
 
             const mockSocket = new Socket();
 
-            await ethernetService.handleConnectionRequest(mockSocket);
+            await serialService.handleConnectionRequest(mockSocket);
 
-            expect(ethernetService.handleDisconnected).toHaveBeenCalled();
-            expect(ethernetService.connectToBoard).toHaveBeenCalled();
+            expect(serialService.handleDisconnected).toHaveBeenCalled();
+            expect(serialService.connectToBoard).toHaveBeenCalled();
         });
 
         // do
@@ -86,11 +86,11 @@ describe('EthernetService', () => {
 
     describe('#closeServer', () => {
         test('should have called server.close', () => {
-            ethernetService.server.close = jest.fn();
+            serialService.server.close = jest.fn();
 
-            ethernetService.closeServer();
+            serialService.closeServer();
 
-            expect(ethernetService.server.close).toHaveBeenCalled();
+            expect(serialService.server.close).toHaveBeenCalled();
         });
     });
 
@@ -100,7 +100,7 @@ describe('EthernetService', () => {
             mockSocket.end = jest.fn();
             mockSocket.destroy = jest.fn();
 
-            ethernetService.handleDisconnected(mockSocket);
+            serialService.handleDisconnected(mockSocket);
 
             expect(mockSocket.end).toHaveBeenCalled();
             expect(mockSocket.destroy).toHaveBeenCalled();
@@ -111,13 +111,13 @@ describe('EthernetService', () => {
             const mockBoard = {
                 id: 'bacon',
             };
-            ethernetService.log.info = jest.fn();
-            ethernetService.model.disconnectBoard = jest.fn();
+            serialService.log.info = jest.fn();
+            serialService.model.disconnectBoard = jest.fn();
 
-            ethernetService.handleDisconnected(mockSocket, mockBoard);
+            serialService.handleDisconnected(mockSocket, mockBoard);
 
-            expect(ethernetService.log.info).toHaveBeenCalled();
-            expect(ethernetService.model.disconnectBoard).toHaveBeenCalledWith(mockBoard.id);
+            expect(serialService.log.info).toHaveBeenCalled();
+            expect(serialService.model.disconnectBoard).toHaveBeenCalledWith(mockBoard.id);
         });
     });
 });

@@ -49,11 +49,8 @@ class DatabaseService {
 
         await DatabaseService.database.sync();
 
-        const blinkProgram = Program.build(DefaultPrograms.BLINK);
-        blinkProgram.save();
-
-        const sosProgram = Program.build(DefaultPrograms.SOS);
-        sosProgram.save();
+        Program.create(DefaultPrograms.BLINK);
+        Program.create(DefaultPrograms.SOS);
     }
 }
 
