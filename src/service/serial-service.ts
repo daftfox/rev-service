@@ -66,7 +66,6 @@ class SerialService extends ConnectionService {
                 this.attemptConnection(availablePort);
             }
         });
-
     }
 
     private attemptConnection = (port: PortConfig): Promise<void> => {
