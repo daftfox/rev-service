@@ -35,6 +35,7 @@ class SerialService extends ConnectionService {
 
     public closeServer(): void {
         clearInterval(this.portScanInterval);
+        this.portScanInterval = undefined;
     }
 
     /**
@@ -65,6 +66,7 @@ class SerialService extends ConnectionService {
                 this.attemptConnection(availablePort);
             }
         });
+
     }
 
     private attemptConnection = (port: PortConfig): Promise<void> => {
