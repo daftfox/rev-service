@@ -39,12 +39,13 @@ describe('Board', () => {
             expect(board).toBeDefined();
         });
 
-        xtest('is instantiated with firmataBoard and serial connection', () => {
+        test('is instantiated with firmataBoard', () => {
             // @ts-ignore
             const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
             board = new Board(undefined, undefined, firmataBoardMock);
 
             expect(board).toBeDefined();
+            expect(board.firmataBoard).toBeDefined();
         });
     });
 

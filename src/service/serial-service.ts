@@ -63,6 +63,8 @@ class SerialService extends ConnectionService {
                 return this.filterPorts(ports);
             })
             .catch(() => {
+                // for devices that don't support serial/usb ports
+                // such as VMs running in a CI/CD pipeline
                 return [];
             });
     };

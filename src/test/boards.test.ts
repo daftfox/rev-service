@@ -13,7 +13,6 @@ import CommandUnavailableError from '../error/command-unavailable';
 import blink from '../domain/programs/blink';
 import Conflict from '../domain/web-socket-message/error/conflict';
 import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allowed';
-import Program from '../domain/program';
 
 let boards: any;
 let mockFirmataBoard: any;
@@ -445,7 +444,7 @@ describe('Boards', () => {
                 expect(boards.runProgram).toHaveBeenCalledTimes(3);
             });
 
-            // fixme: the indefinite part can't be tested
+            // fixme: the indefinite part can't be tested yet
             xtest('should run the program indefinitely', done => {
                 boards.executeProgramOnBoard(board.id, blink, -1);
 
