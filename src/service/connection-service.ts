@@ -4,6 +4,7 @@ import LoggerService from './logger-service';
 import * as net from 'net';
 import IBoard from '../domain/interface/board';
 import Board from '../domain/board';
+import Chalk from 'chalk';
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
@@ -82,6 +83,7 @@ class ConnectionService {
 
     private handleDisconnectEvent = (board: Board, reject: (board: Board) => void) => {
         this.log.debug('Disconnect event received from board.');
+        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} disconnected.`);
 
         this.model.disconnectBoard(board.id);
         reject(board);

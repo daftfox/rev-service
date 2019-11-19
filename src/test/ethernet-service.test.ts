@@ -69,19 +69,6 @@ describe('EthernetService', () => {
             expect(ethernetService.handleDisconnected).toHaveBeenCalled();
             expect(ethernetService.connectToBoard).toHaveBeenCalled();
         });
-
-        // do
-        // test('should log a debug message and call connectToBoard', () => {
-        //     ethernetService.log.debug = jest.fn();
-        //     ethernetService.connectToBoard = jest.fn();
-        //
-        //     const mockSocket = new Socket();
-        //
-        //     ethernetService.handleConnectionRequest(mockSocket);
-        //
-        //     expect(ethernetService.log.debug).toHaveBeenCalled();
-        //     expect(ethernetService.connectToBoard).toHaveBeenCalled();
-        // });
     });
 
     describe('#closeServer', () => {
@@ -104,20 +91,6 @@ describe('EthernetService', () => {
 
             expect(mockSocket.end).toHaveBeenCalled();
             expect(mockSocket.destroy).toHaveBeenCalled();
-        });
-
-        test('should log an info message and call model.disconnectBoard', () => {
-            const mockSocket = new Socket();
-            const mockBoard = {
-                id: 'bacon',
-            };
-            ethernetService.log.info = jest.fn();
-            ethernetService.model.disconnectBoard = jest.fn();
-
-            ethernetService.handleDisconnected(mockSocket, mockBoard);
-
-            expect(ethernetService.log.info).toHaveBeenCalled();
-            expect(ethernetService.model.disconnectBoard).toHaveBeenCalledWith(mockBoard.id);
         });
     });
 });

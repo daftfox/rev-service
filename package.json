@@ -41,7 +41,7 @@
     },
     "husky": {
         "hooks": {
-            "pre-commit": "npm run lint && npm run format"
+            "pre-commit": "npm run lint:check && npm run format:check"
         }
     },
     "bin": {
@@ -54,6 +54,7 @@
         "@types/firmata": "^0.19.1",
         "@types/node": "^10.17.4",
         "@types/node-fetch": "^2.5.3",
+        "@types/serialport": "^7.0.4",
         "@types/websocket": "0.0.40",
         "args": "^5.0.1",
         "chalk": "^2.4.2",

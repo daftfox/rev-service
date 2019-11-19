@@ -15,6 +15,7 @@ let mockSocket: Socket;
 let firmataResponseMock: FirmataResponseMock;
 
 console.warn = () => {};
+console.info = () => {};
 
 beforeAll(() => {
     sequelize = new Sequelize({

@@ -77,12 +77,6 @@ class EthernetService extends ConnectionService {
     private handleDisconnected(socket: Socket, board?: Board): void {
         socket.end();
         socket.destroy();
-
-        if (board) {
-            this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} disconnected.`);
-
-            this.model.disconnectBoard(board.id);
-        }
     }
 }
 
