@@ -167,7 +167,7 @@ class MainController {
 
     private async synchroniseDataModels(): Promise<void> {
         await this.boardModel.synchronise();
-        // todo: synch programs
+        await this.programModel.synchronise();
     }
 }
 

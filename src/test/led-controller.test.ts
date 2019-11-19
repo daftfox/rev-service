@@ -43,7 +43,7 @@ describe('LedController:', () => {
         });
     });
 
-    describe('executeAction', () => {
+    describe('#executeAction', () => {
         test.each([
             ['SETCOLOR', [255, 255, 255], 'C'],
             ['KITT', [255, 255, 255], 'K'],
@@ -67,7 +67,7 @@ describe('LedController:', () => {
         );
     });
 
-    describe('pulseColor', () => {
+    describe('#pulseColor', () => {
         describe('happy flows', () => {
             test('should execute serialWriteBytes', () => {
                 board.serialWriteBytes = jest.fn();
@@ -98,7 +98,7 @@ describe('LedController:', () => {
         });
     });
 
-    describe('setColor', () => {
+    describe('#setColor', () => {
         describe('happy flows', () => {
             test('should execute serialWriteBytes', () => {
                 board.serialWriteBytes = jest.fn();
@@ -130,7 +130,7 @@ describe('LedController:', () => {
         });
     });
 
-    describe('kitt', () => {
+    describe('#kitt', () => {
         describe('happy flows', () => {
             test('should execute serialWriteBytes', () => {
                 board.serialWriteBytes = jest.fn();
@@ -162,7 +162,7 @@ describe('LedController:', () => {
         });
     });
 
-    describe('rainbow', () => {
+    describe('#rainbow', () => {
         describe('happy flows', () => {
             test('should execute serialWriteBytes', () => {
                 board.serialWriteBytes = jest.fn();
@@ -178,7 +178,7 @@ describe('LedController:', () => {
         });
     });
 
-    describe('parametersAreValid', () => {
+    describe('#parametersAreValid', () => {
         test.each([[[255, 128, 0]], [[0, 0, 0]], [[23, 86, 10]]])(
             'should return true when running parametersAreValid(%p)',
             (parameters: any[]) => {

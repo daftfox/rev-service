@@ -160,10 +160,11 @@ class Boards extends events.EventEmitter {
      * Disconnect a {@link Board} instance and removes it from the database.
      */
     public deleteBoard(boardId: string): void {
-        Boards.log.debug(`Deleting board with id ${Chalk.rgb(0, 143, 255).bold(boardId)} from the database.`);
-        this.disconnectBoard(boardId);
-        this.getBoardById(boardId).destroy();
-        this._boards.splice(this._boards.findIndex(({ id }) => id === boardId), 1);
+        const board = this.getBoardById(boardId);
+        Boards.log.debug(`Deleting board with id ${Chalk.rgb(0, 143, 255).bold(board.id)} from the database.`);
+        this.disconnectBoard(board.id);
+        board.destroy();
+        this._boards.splice(this._boards.findIndex(({ id }) => id === board.id), 1);
     }
 
     /**

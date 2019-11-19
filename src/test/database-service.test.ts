@@ -37,7 +37,7 @@ describe('ConnectionService:', () => {
         });
     });
 
-    describe('synchronise', () => {
+    describe('#synchronise', () => {
         test('should synchronise data model', async () => {
             // @ts-ignore
             DatabaseService.database.sync = jest.fn();
