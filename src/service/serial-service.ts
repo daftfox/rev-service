@@ -59,7 +59,7 @@ class SerialService extends ConnectionService {
         // list all connected serial devices
         return SerialPort.list().then((ports: SerialPort.PortInfo[]) => {
             // filter out clearly incompatible devices
-            return this.filterPorts(ports);
+            return this.filterPorts(ports || []);
         });
     };
 
