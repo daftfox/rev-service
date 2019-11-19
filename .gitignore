@@ -6,3 +6,4 @@ reports/
 *.js.map
 !jest.config.js
 dist/
+report.*

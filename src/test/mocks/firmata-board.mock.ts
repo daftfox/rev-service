@@ -1,8 +1,10 @@
 import * as FirmataBoard from 'firmata';
 import { Socket } from 'net';
+import * as events from 'events';
 
-export default class FirmataBoardMock {
+export default class FirmataBoardMock extends events.EventEmitter {
     constructor(socket?: Socket) {
+        super();
         this.transport = socket;
     }
 

@@ -1,6 +1,7 @@
 import EthernetService from '../service/ethernet-service';
 import Boards from '../model/boards';
 import { Socket } from 'net';
+import Board from '../domain/board';
 
 let ethernetService: any;
 const port = 3001;
@@ -27,7 +28,7 @@ describe('EthernetService', () => {
         });
     });
 
-    describe('listen', () => {
+    describe('#listen', () => {
         test('should have logged an info message', () => {
             ethernetService.log.info = jest.fn();
 
@@ -44,10 +45,10 @@ describe('EthernetService', () => {
         });
     });
 
-    describe('handleConnectionRequest', () => {
+    describe('#handleConnectionRequest', () => {
         test('should log a debug message and call connectToBoard', () => {
             ethernetService.log.debug = jest.fn();
-            ethernetService.connectToBoard = jest.fn();
+            ethernetService.connectToBoard = jest.fn(() => Promise.resolve({ id: 'bacon' }));
 
             const mockSocket = new Socket();
 
@@ -57,21 +58,20 @@ describe('EthernetService', () => {
             expect(ethernetService.connectToBoard).toHaveBeenCalled();
         });
 
-        // do
-        // test('should log a debug message and call connectToBoard', () => {
-        //     ethernetService.log.debug = jest.fn();
-        //     ethernetService.connectToBoard = jest.fn();
-        //
-        //     const mockSocket = new Socket();
-        //
-        //     ethernetService.handleConnectionRequest(mockSocket);
-        //
-        //     expect(ethernetService.log.debug).toHaveBeenCalled();
-        //     expect(ethernetService.connectToBoard).toHaveBeenCalled();
-        // });
+        test('should execute handleDisconnected method', async () => {
+            ethernetService.handleDisconnected = jest.fn();
+            ethernetService.connectToBoard = jest.fn(() => Promise.reject({}));
+
+            const mockSocket = new Socket();
+
+            await ethernetService.handleConnectionRequest(mockSocket);
+
+            expect(ethernetService.handleDisconnected).toHaveBeenCalled();
+            expect(ethernetService.connectToBoard).toHaveBeenCalled();
+        });
     });
 
-    describe('closeServer', () => {
+    describe('#closeServer', () => {
         test('should have called server.close', () => {
             ethernetService.server.close = jest.fn();
 
@@ -81,7 +81,7 @@ describe('EthernetService', () => {
         });
     });
 
-    describe('handleDisconnected', () => {
+    describe('#handleDisconnected', () => {
         test('should call socket.end and socket.destroy methods', () => {
             const mockSocket = new Socket();
             mockSocket.end = jest.fn();
@@ -91,20 +91,6 @@ describe('EthernetService', () => {
 
             expect(mockSocket.end).toHaveBeenCalled();
             expect(mockSocket.destroy).toHaveBeenCalled();
-        });
-
-        test('should log an info message and call model.disconnectBoard', () => {
-            const mockSocket = new Socket();
-            const mockBoard = {
-                id: 'bacon',
-            };
-            ethernetService.log.info = jest.fn();
-            ethernetService.model.disconnectBoard = jest.fn();
-
-            ethernetService.handleDisconnected(mockSocket, mockBoard);
-
-            expect(ethernetService.log.info).toHaveBeenCalled();
-            expect(ethernetService.model.disconnectBoard).toHaveBeenCalledWith(mockBoard.id);
         });
     });
 });

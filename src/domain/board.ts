@@ -21,6 +21,32 @@ import AvailableTypes from './available-types';
 @Table({ timestamps: true })
 class Board extends Model<Board> implements IBoard {
     /**
+     * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
+     *
+     * @constructor
+     * @param {Model} model
+     * @param {sequelize.BuildOptions} buildOptions
+     * @param {FirmataBoard} firmataBoard
+     * @param {string} id
+     */
+    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
+        super(model, buildOptions);
+
+        this.namespace = `board_${this.id}`;
+        this.log = new LoggerService(this.namespace);
+
+        if (firmataBoard) {
+            // this.online = true;
+            this.firmataBoard = firmataBoard;
+
+            this.firmataBoard.once('queryfirmware', this.parseQueryFirmwareResponse);
+
+            this.attachAnalogPinListeners();
+            this.attachDigitalPinListeners();
+            this.startHeartbeat();
+        }
+    }
+    /**
      * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
      * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
      * and removed from the data model until it attempts reconnecting.
@@ -191,6 +217,7 @@ class Board extends Model<Board> implements IBoard {
      * @type {IPinMapping}
      * @default [{ LED: 13, RX: 0, TX: 1 }]
      */
+    @Column(DataType.JSON)
     public architecture = SupportedBoards.ARDUINO_UNO;
 
     // @Column( DataType.STRING )
@@ -222,47 +249,6 @@ class Board extends Model<Board> implements IBoard {
      */
     private previousAnalogValue: number[] = [];
 
-    public serialConnection = false;
-
-    /**
-     * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
-     *
-     * @constructor
-     * @param {Model} model
-     * @param {sequelize.BuildOptions} buildOptions
-     * @param {FirmataBoard} firmataBoard
-     * @param {string} id
-     */
-    constructor(
-        model?: any,
-        buildOptions?: BuildOptions,
-        firmataBoard?: FirmataBoard,
-        serialConnection: boolean = false,
-        id?: string,
-    ) {
-        super(model, buildOptions);
-
-        this.id = id;
-        this.namespace = `board_${this.id}`;
-        this.log = new LoggerService(this.namespace);
-
-        if (firmataBoard) {
-            this.online = true;
-            this.firmataBoard = firmataBoard;
-            this.serialConnection = serialConnection;
-
-            if (this.serialConnection) {
-                this.firmataBoard.setSamplingInterval(200);
-            } else {
-                this.firmataBoard.setSamplingInterval(1000);
-            }
-
-            this.attachAnalogPinListeners();
-            this.attachDigitalPinListeners();
-            this.startHeartbeat();
-        }
-    }
-
     /**
      * Return an {@link IBoard}.
      *
@@ -279,17 +265,16 @@ class Board extends Model<Board> implements IBoard {
         let discreteBoard;
 
         discreteBoard = {
-            id: board.id || undefined,
+            id: board.id,
             name: board.name || undefined,
             vendorId: board.vendorId || undefined,
             productId: board.productId || undefined,
-            type: board.type || undefined,
-            currentProgram: board.currentProgram || undefined,
-            online: board.online || undefined,
-            serialConnection: board.serialConnection || undefined,
+            type: board.type,
+            currentProgram: board.currentProgram,
+            online: board.online,
             lastUpdateReceived: board.lastUpdateReceived || undefined,
-            architecture: board.architecture || undefined,
-            availableCommands: board.getAvailableActions() || undefined,
+            architecture: board.architecture,
+            availableCommands: board.getAvailableActions(),
         };
 
         if (board.firmataBoard) {
@@ -335,6 +320,24 @@ class Board extends Model<Board> implements IBoard {
             return false;
         }
         return value <= 255 && value >= 0;
+    }
+
+    private static parseBoardType(firmataBoard: FirmataBoard): string {
+        let type = firmataBoard.firmware.name.split('_').shift();
+
+        if (!type || type.indexOf('.') >= 0) {
+            type = AvailableTypes.BOARD;
+        }
+
+        return type;
+    }
+
+    private static parseBoardId(firmataBoard: FirmataBoard): string {
+        // todo: handle exception flows
+        return firmataBoard.firmware.name
+            .split('_')
+            .pop()
+            .replace('.ino', '');
     }
 
     /**
@@ -638,6 +641,20 @@ class Board extends Model<Board> implements IBoard {
         }
 
         this.emitUpdate();
+    }
+
+    private parseQueryFirmwareResponse = (): void => {
+        this.id = Board.parseBoardId(this.firmataBoard);
+        this.type = Board.parseBoardType(this.firmataBoard);
+        this.online = true;
+    };
+
+    setIsSerialConnection(isSerial: boolean): void {
+        if (isSerial) {
+            this.firmataBoard.setSamplingInterval(200);
+        } else {
+            this.firmataBoard.setSamplingInterval(1000);
+        }
     }
 
     /**

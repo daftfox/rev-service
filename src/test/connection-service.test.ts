@@ -5,6 +5,7 @@ import Board from '../domain/board';
 import { Socket } from 'net';
 import FirmataResponseMock from './mocks/firmata-response.mock';
 import FirmataBoardMock from './mocks/firmata-board.mock';
+import BoardsMock from './mocks/boards.mock';
 
 let connectionService: any;
 let mockFirmataBoard: FirmataBoardMock;
@@ -12,6 +13,9 @@ let boardModel: any;
 let sequelize: Sequelize;
 let mockSocket: Socket;
 let firmataResponseMock: FirmataResponseMock;
+
+console.warn = () => {};
+console.info = () => {};
 
 beforeAll(() => {
     sequelize = new Sequelize({
@@ -22,8 +26,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    boardModel = new Boards();
-    boardModel.addBoard = jest.fn((id, type, firmataBoard, serialConnection) => ({ id, name: 'berd' }));
+    boardModel = new BoardsMock();
     connectionService = new ConnectionService(boardModel);
     mockSocket = new Socket();
     mockFirmataBoard = new FirmataBoardMock(mockSocket);
@@ -31,7 +34,6 @@ beforeEach(() => {
     firmataResponseMock = new FirmataResponseMock(mockSocket);
 });
 
-// todo: refactor
 describe('ConnectionService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
@@ -40,54 +42,38 @@ describe('ConnectionService', () => {
         });
     });
 
-    describe('getBoardType', () => {
-        test("should return 'bacon'", () => {
-            // @ts-ignore
-            const result = ConnectionService.getBoardType(mockFirmataBoard);
-
-            expect(result).toEqual('bacon');
-        });
-    });
-
-    describe('getBoardId', () => {
-        test("should return 'eggs'", () => {
-            // @ts-ignore
-            const result = ConnectionService.getBoardId(mockFirmataBoard);
-
-            expect(result).toEqual('eggs');
-        });
-    });
-
-    describe('connectionEstablished', () => {
+    describe('#handleConnectionEstablished', () => {
         test('should return board and pass it to callback method', async () => {
-            const callback = jest.fn();
+            // @ts-ignore
+            const board = new Board(undefined, undefined, mockFirmataBoard);
+            board.id = 'bacon';
+            const resolve = jest.fn();
 
             // @ts-ignore
-            const board = await connectionService.connectionEstablished(mockFirmataBoard, false, callback);
+            const result = await connectionService.handleConnectionEstablished(board, resolve);
 
-            expect(callback).toHaveBeenCalledWith(board);
+            expect(result).toEqual(Board.toDiscrete(board));
+            expect(boardModel.addBoard).toHaveBeenCalledWith(board);
+            expect(resolve).toHaveBeenCalled();
         });
     });
 
-    describe('connectionTimeout', () => {
-        test('should call removeAllListeners, disconnected callback and log warning', () => {
-            const disconnectedMock = jest.fn();
+    describe('#handleConnectionTimeout', () => {
+        test('should call removeAllListeners, reject callback and log warning', () => {
+            const reject = jest.fn();
             connectionService.log.warn = jest.fn();
 
-            connectionService.connectionTimeout(mockFirmataBoard, disconnectedMock);
+            connectionService.handleConnectionTimeout(mockFirmataBoard, reject);
 
             expect(mockFirmataBoard.removeAllListeners).toHaveBeenCalled();
-            expect(disconnectedMock).toHaveBeenCalled();
+            expect(reject).toHaveBeenCalled();
             expect(connectionService.log.warn).toHaveBeenCalledWith('Timeout while connecting to device.');
         });
     });
 
-    describe('connectToBoard', () => {
+    describe('#connectToBoard', () => {
         test('should connect successfully', done => {
-            const connected = board => {
-                expect(boardModel.addBoard).toHaveBeenCalled();
-                done();
-            };
+            jest.useFakeTimers();
 
             // @ts-ignore
             mockSocket.write = (data: Buffer, cb: () => {}) => {
@@ -101,66 +87,88 @@ describe('ConnectionService', () => {
                 cb();
             };
 
-            connectionService.connectToBoard(mockSocket, false, connected, () => {});
+            connectionService.connectToBoard(mockSocket).then(() => {
+                expect(boardModel.addBoard).toHaveBeenCalled();
+                done();
+            });
+
+            jest.runOnlyPendingTimers();
+            jest.useRealTimers();
         });
 
-        test("should run disconnect callback method when a connection can't be made", async () => {
-            const disconnected = jest.fn();
-            connectionService.connectionTimeout = jest.fn();
-
+        test("should run handleConnectionTimeout method when a connection can't be made", done => {
             jest.useFakeTimers();
 
-            connectionService.connectToBoard(mockSocket, false, () => {}, disconnected);
-            jest.runAllTimers();
+            connectionService.handleConnectionTimeout = jest.fn((firmataBoard, reject) => {
+                reject();
+            });
 
-            expect(disconnected).toHaveBeenCalled();
-            expect(connectionService.connectionTimeout).toHaveBeenCalled();
+            // @ts-ignore
+            mockSocket.write = (data: Buffer, cb: () => {}) => {
+                cb();
+            };
+
+            connectionService.connectToBoard(mockSocket).catch(() => {
+                expect(connectionService.handleConnectionTimeout).toHaveBeenCalled();
+                done();
+            });
+
+            jest.runOnlyPendingTimers();
+            jest.useRealTimers();
+        });
+
+        test('should reject when an error occurs during connecting', done => {
+            jest.useFakeTimers();
+
+            connectionService.handleDisconnectEvent = jest.fn();
+
+            connectionService.connectToBoard(mockSocket).catch(board => {
+                expect(board).toBeDefined();
+                expect('id' in board).toEqual(true);
+                expect(connectionService.handleDisconnectEvent).not.toHaveBeenCalled();
+                done();
+            });
+
+            jest.runOnlyPendingTimers();
+            jest.useRealTimers();
         });
     });
 
     describe('disconnect event listener', () => {
-        test("should run disconnect callback method and handleDisconnectEvent handler when a connection can't be made", async () => {
-            const disconnected = jest.fn();
+        test("should run disconnect callback method and handleDisconnectEvent handler when a connection can't be made", () => {
             connectionService.handleDisconnectEvent = jest.fn();
 
-            connectionService.connectToBoard(mockSocket, false, () => {}, disconnected);
+            connectionService.connectToBoard(mockSocket);
             mockSocket.emit('close', { disconnect: true, disconnected: true });
 
-            expect(disconnected).toHaveBeenCalled();
             expect(connectionService.handleDisconnectEvent).toHaveBeenCalled();
         });
     });
 
-    describe('handleDisconnectEvent', () => {
-        test("should run disconnectBoard method of model when the service can't connect", async () => {
+    describe('#handleDisconnectEvent', () => {
+        test("should run disconnectBoard method when the service can't connect", () => {
+            const board = new Board();
+            board.id = 'bacon';
+            const reject = jest.fn();
+
             // @ts-ignore
-            const boardId = ConnectionService.getBoardId(mockFirmataBoard);
-            connectionService.model.disconnectBoard = jest.fn();
             connectionService.log.debug = jest.fn();
 
-            connectionService.handleDisconnectEvent(mockFirmataBoard);
+            connectionService.handleDisconnectEvent(board, reject);
 
-            expect(connectionService.model.disconnectBoard).toHaveBeenCalledWith(boardId);
-            expect(connectionService.log.debug).toHaveBeenCalledWith('Disconnect event received from firmataboard.');
-        });
-
-        test('should only log disconnect event', async () => {
-            connectionService.log.debug = jest.fn();
-
-            connectionService.handleDisconnectEvent();
-
-            expect(connectionService.log.debug).toHaveBeenCalledWith('Disconnect event received from firmataboard.');
+            expect(connectionService.model.disconnectBoard).toHaveBeenCalledWith(board.id);
+            expect(connectionService.log.debug).toHaveBeenCalledWith('Disconnect event received from board.');
+            expect(reject).toHaveBeenCalledWith(board);
         });
     });
 
     describe('handleUpdateEvent', () => {
-        test('should run updateBoard method of model when an update event was received', async () => {
-            const mockBoard = { name: 'berd' };
-            connectionService.model.updateBoard = jest.fn();
+        test('should run updateBoard method of model when an update event was received', () => {
+            const board = Board.toDiscrete(new Board());
 
-            connectionService.handleUpdateEvent(mockBoard);
+            connectionService.handleUpdateEvent(board);
 
-            expect(connectionService.model.updateBoard).toHaveBeenCalledWith(mockBoard);
+            expect(connectionService.model.updateBoard).toHaveBeenCalledWith(board);
         });
     });
 });

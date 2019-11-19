@@ -9,7 +9,6 @@ export default interface IBoard {
     online: boolean;
     lastUpdateReceived: string;
     architecture: BoardArchitecture;
-    serialConnection: boolean;
     availableCommands?: string[];
     refreshRate?: number;
     vendorId?: string;

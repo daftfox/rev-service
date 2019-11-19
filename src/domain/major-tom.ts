@@ -100,14 +100,8 @@ class MajorTom extends Board {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor(
-        model?: any,
-        buildOptions?: BuildOptions,
-        firmataBoard?: FirmataBoard,
-        serialConnection: boolean = false,
-        id?: string,
-    ) {
-        super(model, buildOptions, firmataBoard, serialConnection, id);
+    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
+        super(model, buildOptions, firmataBoard);
 
         // override namespace and logger set by parent constructor
         this.namespace = `MajorTom_${this.id}`;

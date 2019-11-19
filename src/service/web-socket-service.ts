@@ -73,9 +73,9 @@ class WebSocketService {
         this.boardModel = options.boardModel;
         this.programModel = options.programModel;
 
-        this.boardModel.addBoardConnectedListener(this.broadcastBoardConnected);
-        this.boardModel.addBoardUpdatedListener(this.broadcastBoardUpdated);
-        this.boardModel.addBoardDisconnectedListener(this.broadcastBoardDisconnected);
+        this.boardModel.on('connected', this.broadcastBoardConnected);
+        this.boardModel.on('update', this.broadcastBoardUpdated);
+        this.boardModel.on('disconnected', this.broadcastBoardDisconnected);
 
         this.startWebSocketServer(options.port);
     }
@@ -370,7 +370,7 @@ class WebSocketService {
                 code: ResponseCode.NO_CONTENT,
             };
 
-            const board = this.boardModel.getBoardById(request.body.boardId);
+            const board = this.boardModel.getDiscreteBoardById(request.body.boardId);
             const command: ICommand = { action: request.body.action, parameters: request.body.parameters };
 
             if (!board) {
@@ -423,7 +423,7 @@ class WebSocketService {
             if (request.body.action === BoardAction.REQUEST) {
                 if (request.body.boardId) {
                     // request single board
-                    const board = this.boardModel.getBoardById(request.body.boardId);
+                    const board = this.boardModel.getDiscreteBoardById(request.body.boardId);
 
                     if (!board) {
                         reject(new NotFound(`Board with id ${request.body.boardId} could not be found.`));
@@ -436,7 +436,7 @@ class WebSocketService {
                 }
             } else if (request.body.action === BoardAction.UPDATE) {
                 // board update
-                this.boardModel.updateBoard(request.body.board, true);
+                this.boardModel.updateBoard(request.body.board);
                 result.code = ResponseCode.NO_CONTENT;
             } else {
                 // illegal action
@@ -472,10 +472,6 @@ class WebSocketService {
 
     /**
      * Broadcast an update with the newly connected board to connected clients.
-     *
-     * @access private
-     * @param {IBoard} board - The board that was connected
-     * @return {void}
      */
     private broadcastBoardConnected = (board: IBoard, newRecord: boolean): void => {
         this.broadcastBoardUpdate(newRecord ? BOARD_BROADCAST_ACTION.NEW : BOARD_BROADCAST_ACTION.UPDATE, board);

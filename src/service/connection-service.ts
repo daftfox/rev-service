@@ -3,6 +3,8 @@ import * as FirmataBoard from 'firmata';
 import LoggerService from './logger-service';
 import * as net from 'net';
 import IBoard from '../domain/interface/board';
+import Board from '../domain/board';
+import Chalk from 'chalk';
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
@@ -44,104 +46,68 @@ class ConnectionService {
         this.log = new LoggerService(this.namespace);
     }
 
-    // todo: refactor this and place it in Boards model
-    private static getBoardType(firmataBoard: FirmataBoard): string {
-        // todo: return default board type if no type could be distinguished
-        return firmataBoard.firmware.name.split('_').shift();
-    }
-
-    // todo: refactor this and place it in Boards model
-    private static getBoardId(firmataBoard: FirmataBoard): string {
-        // todo: handle exception flows
-        return firmataBoard.firmware.name
-            .split('_')
-            .pop()
-            .replace('.ino', '');
-    }
-
     /**
      * Sets up a connection to a board.
      *
      * @param {net.Socket} port - An EtherPort object or serial port address
-     * @param {function(IBoard):void} [connected] - Callback for when device successfully connects, containing an object implementing the {@link IBoard} interface.
-     * @param {function(IBoard):void} [disconnected] - Callback when device disconnects containing an object implementing the {@link IBoard} interface.
      */
-    protected connectToBoard(
-        port: net.Socket | string,
-        isSerialConnection: boolean,
-        connected?: (board: IBoard) => void,
-        disconnected?: (board?: IBoard) => void,
-    ): void {
-        let board: IBoard;
-        const firmataBoard = new FirmataBoard(port);
+    protected async connectToBoard(port: net.Socket | string): Promise<IBoard> {
+        return new Promise<IBoard>((resolve, reject) => {
+            const firmataBoard = new FirmataBoard(port);
+            const board = new Board(undefined, undefined, firmataBoard);
 
-        /*
-         * Set a 10 second timeout.
-         * The device is deemed unsupported if a connection could not be made within that period.
-         */
-        const connectionTimeout = setTimeout(() => {
-            this.connectionTimeout(firmataBoard, disconnected);
-        }, 10000);
+            /*
+             * Set a 10 second timeout.
+             * The device is deemed unsupported if a connection could not be made within that period.
+             */
+            const connectionTimeout = setTimeout(() => {
+                this.handleConnectionTimeout(firmataBoard, reject);
+            }, 10000);
 
-        firmataBoard.on('ready', async () => {
-            clearTimeout(connectionTimeout);
-            board = await this.connectionEstablished(firmataBoard, isSerialConnection, connected);
-        });
+            firmataBoard.on('ready', async () => {
+                clearTimeout(connectionTimeout);
+                await this.handleConnectionEstablished(board, resolve);
+            });
 
-        firmataBoard.on('error', err => {
-            disconnected(board);
-        });
+            firmataBoard.on('error', e => {
+                reject(board);
+            });
 
-        firmataBoard.on('update', this.handleUpdateEvent);
+            firmataBoard.on('update', this.handleUpdateEvent);
 
-        firmataBoard.once('disconnect', () => {
-            disconnected(board);
-            this.handleDisconnectEvent(firmataBoard);
+            firmataBoard.once('disconnect', () => {
+                this.handleDisconnectEvent(board, reject);
+            });
         });
     }
 
-    private handleDisconnectEvent = (firmataBoard: FirmataBoard) => {
-        this.log.debug('Disconnect event received from firmataboard.');
+    private handleDisconnectEvent = (board: Board, reject: (board: Board) => void) => {
+        this.log.debug('Disconnect event received from board.');
+        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} disconnected.`);
 
-        if (firmataBoard && 'name' in firmataBoard.firmware) {
-            this.model.disconnectBoard(ConnectionService.getBoardId(firmataBoard));
-        }
+        this.model.disconnectBoard(board.id);
+        reject(board);
     };
 
     private handleUpdateEvent = (update: IBoard) => {
         this.model.updateBoard(update);
     };
 
-    private connectionTimeout = (firmataBoard: FirmataBoard, callback: () => void) => {
+    private handleConnectionTimeout = (firmataBoard: FirmataBoard, reject: () => void) => {
         this.log.warn('Timeout while connecting to device.');
 
         firmataBoard.removeAllListeners();
-
-        callback();
+        reject();
     };
 
-    private connectionEstablished = async (
-        firmataBoard: FirmataBoard,
-        serialConnection: boolean,
-        callback: (board: IBoard) => void,
-    ) => {
+    private handleConnectionEstablished = async (board: Board, resolve: () => void): Promise<IBoard> => {
         /*
          * The type and ID are defined by the name of the Arduino sketch file.
          * For now the following devices have a tailor made class:
          * - Major Tom ( MajorTom_<unique_identifier>.ino )
          */
-        // add connected device to list of available devices and / or persist to the data storage if new
-        const board = await this.model.addBoard(
-            ConnectionService.getBoardId(firmataBoard),
-            ConnectionService.getBoardType(firmataBoard),
-            serialConnection,
-            firmataBoard,
-        );
-
-        // callback to connection interface service
-        callback(board);
-
-        return board;
+        resolve();
+        return this.model.addBoard(board);
     };
 }
 

@@ -5,6 +5,8 @@ import FirmataBoardMock from './mocks/firmata-board.mock';
 import * as FirmataBoard from 'firmata';
 import { SupportedBoards } from '../domain/supported-boards';
 import CommandMalformed from '../error/command-malformed';
+import AvailableTypes from '../domain/available-types';
+import IBoard from '../domain/interface/board';
 
 let board: any;
 let sequelize: Sequelize;
@@ -18,7 +20,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    board = new Board(undefined, undefined, undefined, undefined, 'bacon');
+    board = new Board();
     const mockFirmataBoard = new FirmataBoardMock();
     board.firmataBoard = mockFirmataBoard;
 });
@@ -32,21 +34,22 @@ describe('Board', () => {
         test('is instantiated with firmataBoard', () => {
             // @ts-ignore
             const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-            board = new Board(undefined, undefined, firmataBoardMock, undefined, 'bacon');
+            board = new Board(undefined, undefined, firmataBoardMock);
 
             expect(board).toBeDefined();
         });
 
-        test('is instantiated with firmataBoard and serial connection', () => {
+        test('is instantiated with firmataBoard', () => {
             // @ts-ignore
             const firmataBoardMock = new FirmataBoardMock() as FirmataBoard;
-            board = new Board(undefined, undefined, firmataBoardMock, true, 'bacon');
+            board = new Board(undefined, undefined, firmataBoardMock);
 
             expect(board).toBeDefined();
+            expect(board.firmataBoard).toBeDefined();
         });
     });
 
-    describe('getAvailableActions', () => {
+    describe('#getAvailableActions', () => {
         test('should return correct available actions', () => {
             const availableActions = board.getAvailableActions();
 
@@ -63,7 +66,7 @@ describe('Board', () => {
         });
     });
 
-    describe('setArchitecture', () => {
+    describe('#setArchitecture', () => {
         describe('happy flows', () => {
             test('should set board architecture to ESP8266', () => {
                 board.setArchitecture(SupportedBoards.ESP_8266);
@@ -95,7 +98,7 @@ describe('Board', () => {
         });
     });
 
-    describe('setIdle', () => {
+    describe('#setIdle', () => {
         test('should set current program to IDLE', () => {
             board.setIdle();
 
@@ -103,7 +106,7 @@ describe('Board', () => {
         });
     });
 
-    describe('getFirmataBoard', () => {
+    describe('#getFirmataBoard', () => {
         test('should return undefined firmataboard object', () => {
             board = new Board();
             const firmataBoard = board.getFirmataBoard();
@@ -118,7 +121,7 @@ describe('Board', () => {
         });
     });
 
-    describe('toDiscrete', () => {
+    describe('#toDiscrete', () => {
         describe('happy flows', () => {
             test('should return object with all the required properties', () => {
                 const discreteBoard = Board.toDiscrete(board);
@@ -131,7 +134,6 @@ describe('Board', () => {
                     'type',
                     'currentProgram',
                     'online',
-                    'serialConnection',
                     'lastUpdateReceived',
                     'architecture',
                     'availableCommands',
@@ -171,7 +173,7 @@ describe('Board', () => {
         });
     });
 
-    describe('toDiscreteArray', () => {
+    describe('#toDiscreteArray', () => {
         describe('happy flows', () => {
             test('should return array of objects reflecting IBoard interface', () => {
                 const discreteBoardArray = Board.toDiscreteArray([board]);
@@ -197,7 +199,7 @@ describe('Board', () => {
         });
     });
 
-    describe('executeAction', () => {
+    describe('#executeAction', () => {
         describe('happy flows', () => {
             test.each([
                 ['TOGGLELED', 'toggleLED', []],
@@ -267,7 +269,7 @@ describe('Board', () => {
         });
     });
 
-    describe('disconnect', () => {
+    describe('#disconnect', () => {
         test('should disconnect the board and clear listeners', () => {
             board.online = true;
             board.clearAllTimers = jest.fn();
@@ -282,7 +284,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearAllTimers', () => {
+    describe('#clearAllTimers', () => {
         test('should clear all timers and intervals', () => {
             board.clearAllIntervals = jest.fn();
             board.clearAllTimeouts = jest.fn();
@@ -296,7 +298,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearListeners', () => {
+    describe('#clearListeners', () => {
         test('should remove all listeners from pins and firmataBoard', () => {
             board.clearListeners();
 
@@ -307,7 +309,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearInterval', () => {
+    describe('#clearInterval', () => {
         describe('happy flows', () => {
             test('should clear the supplied interval', () => {
                 const interval = setInterval(jest.fn(), 1000);
@@ -332,7 +334,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearTimeout', () => {
+    describe('#clearTimeout', () => {
         describe('happy flows', () => {
             test('should clear the supplied timeout', () => {
                 const timeout = setTimeout(jest.fn(), 1000);
@@ -357,7 +359,7 @@ describe('Board', () => {
         });
     });
 
-    describe('setBlinkLEDEnabled', () => {
+    describe('#setBlinkLEDEnabled', () => {
         beforeAll(() => {
             jest.useFakeTimers();
         });
@@ -406,7 +408,7 @@ describe('Board', () => {
         });
     });
 
-    describe('toggleLED', () => {
+    describe('#toggleLED', () => {
         test('should set the value of the LED pin to HIGH when initial value is LOW', () => {
             board.architecture.pinMap.LED = 1;
             board.setPinValue = jest.fn();
@@ -428,7 +430,7 @@ describe('Board', () => {
         });
     });
 
-    describe('startHeartbeat', () => {
+    describe('#startHeartbeat', () => {
         beforeAll(() => {
             jest.useFakeTimers();
         });
@@ -487,7 +489,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearHeartbeatTimeout', () => {
+    describe('#clearHeartbeatTimeout', () => {
         test('should clear the heartbeat timeout', () => {
             board.heartbeatTimeout = setTimeout(() => {});
             board.timeouts.push(board.heartbeatTimeout);
@@ -500,7 +502,7 @@ describe('Board', () => {
     });
 
     // fixme this fails if I use bytes, why? numbers should also be converted to bytes, shouldn't they? Returned value is [1, 3, 3, 7]
-    describe('serialWriteBytes', () => {
+    describe('#serialWriteBytes', () => {
         describe('happy flows', () => {
             test('should write an array of numbers converted to bytes to a serial port', () => {
                 board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 1, 3, 3, 7]);
@@ -540,7 +542,7 @@ describe('Board', () => {
         });
     });
 
-    describe('emitUpdate', () => {
+    describe('#emitUpdate', () => {
         test('should emit an update event containing a discrete copy of the board instance', () => {
             board.emitUpdate();
 
@@ -548,7 +550,7 @@ describe('Board', () => {
         });
     });
 
-    describe('setPinValue', () => {
+    describe('#setPinValue', () => {
         describe('happy flows', () => {
             test('should call analogWrite when supplied with an analog pin', () => {
                 const value = 128;
@@ -620,7 +622,7 @@ describe('Board', () => {
         });
     });
 
-    describe('attachDigitalPinListeners', () => {
+    describe('#attachDigitalPinListeners', () => {
         test('should attach listeners to all digital pins', () => {
             const pin = 1;
 
@@ -631,7 +633,7 @@ describe('Board', () => {
         });
     });
 
-    describe('attachAnalogPinListeners', () => {
+    describe('#attachAnalogPinListeners', () => {
         test('should attach listeners to all analog pins', () => {
             const pin = 0;
 
@@ -642,7 +644,7 @@ describe('Board', () => {
         });
     });
 
-    describe('compareAnalogReadout', () => {
+    describe('#compareAnalogReadout', () => {
         test('should update the previous analog value', () => {
             board.emitUpdate = jest.fn();
             const pin = 0;
@@ -667,7 +669,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearAllIntervals', () => {
+    describe('#clearAllIntervals', () => {
         test('should clear all intervals', () => {
             board.intervals.push(setInterval(() => {}, 1000));
             board.clearAllIntervals();
@@ -676,7 +678,7 @@ describe('Board', () => {
         });
     });
 
-    describe('clearAllTimeouts', () => {
+    describe('#clearAllTimeouts', () => {
         test('should clear all timeouts', () => {
             board.timeouts.push(setTimeout(() => {}, 1000));
             board.clearAllTimeouts();
@@ -685,7 +687,7 @@ describe('Board', () => {
         });
     });
 
-    describe('isAvailableAction', () => {
+    describe('#isAvailableAction', () => {
         test('should return true if action is available', () => {
             expect(board.isAvailableAction('TOGGLELED')).toEqual(true);
         });
@@ -695,7 +697,7 @@ describe('Board', () => {
         });
     });
 
-    describe('isDigitalPin', () => {
+    describe('#isDigitalPin', () => {
         test("should return true when a digital pin's index is passed in", () => {
             const pinIndex = 1;
 
@@ -709,7 +711,7 @@ describe('Board', () => {
         });
     });
 
-    describe('isAnalogPin', () => {
+    describe('#isAnalogPin', () => {
         test("should return true when an analog pin's index is passed in", () => {
             const pinIndex = 0;
 
@@ -723,7 +725,7 @@ describe('Board', () => {
         });
     });
 
-    describe('is8BitNumber', () => {
+    describe('#is8BitNumber', () => {
         test.each([[0], [32], [64], [128], [255]])(
             'should return true when running is8BitNumber(%p)',
             (value: number) => {
@@ -743,5 +745,50 @@ describe('Board', () => {
                 expect(result).toEqual(false);
             },
         );
+    });
+
+    describe('#setIsSerialConnection', () => {
+        test.each([[200, true], [1000, false]])(
+            'should set the samplingInterval to %pms',
+            (interval: number, isSerial: boolean) => {
+                board.setIsSerialConnection(isSerial);
+
+                expect(board.firmataBoard.setSamplingInterval).toHaveBeenCalledWith(interval);
+            },
+        );
+    });
+
+    describe('#parseBoardType', () => {
+        test("should return 'bacon'", () => {
+            const mockFirmataBoard = new FirmataBoardMock();
+
+            // @ts-ignore
+            const result = Board.parseBoardType(mockFirmataBoard);
+
+            expect(result).toEqual('bacon');
+        });
+
+        test("should return 'Board'", () => {
+            const mockFirmataBoard = new FirmataBoardMock();
+            mockFirmataBoard.firmware = {
+                name: 'eggs.ino',
+            };
+
+            // @ts-ignore
+            const result = Board.parseBoardType(mockFirmataBoard);
+
+            expect(result).toEqual(AvailableTypes.BOARD);
+        });
+    });
+
+    describe('#parseBoardId', () => {
+        test("should return 'eggs'", () => {
+            const mockFirmataBoard = new FirmataBoardMock();
+
+            // @ts-ignore
+            const result = Board.parseBoardId(mockFirmataBoard);
+
+            expect(result).toEqual('eggs');
+        });
     });
 });

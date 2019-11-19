@@ -39,14 +39,8 @@ class LedController extends Board {
      */
     public architecture = SupportedBoards.ESP_8266;
 
-    constructor(
-        model?: any,
-        buildOptions?: BuildOptions,
-        firmataBoard?: FirmataBoard,
-        serialConnection: boolean = false,
-        id?: string,
-    ) {
-        super(model, buildOptions, firmataBoard, serialConnection, id);
+    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
+        super(model, buildOptions, firmataBoard);
 
         // override namespace and logger set by parent constructor
         this.namespace = `LedController_${this.id}`;
