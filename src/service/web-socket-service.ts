@@ -23,6 +23,7 @@ import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allo
 import IBoard from '../domain/interface/board';
 import IWebSocketOptions from '../domain/interface/web-socket-options';
 import { CommandUnavailableError, CommandMalformedError } from '../error/errors';
+import Program from '../domain/program';
 
 /**
  * @description Service that allows clients to interface using a near real-time web socket connection
@@ -265,6 +266,8 @@ class WebSocketService {
         request: WebSocketMessage<IProgramRequest>,
     ): Promise<{ body: IProgramResponse | undefined; code: ResponseCode }> {
         return new Promise((resolve, reject) => {
+            let program: Program;
+
             const result: {
                 body: IProgramResponse;
                 code: ResponseCode;
@@ -276,16 +279,16 @@ class WebSocketService {
             switch (request.body.action) {
                 case ProgramAction.EXECUTE:
                     // execute program
-                    this.programModel.getProgramById(request.body.programId).then(program => {
-                        this.boardModel
-                            .executeProgramOnBoard(request.body.boardId, program, request.body.repeat)
-                            .catch(reject);
+                    program = this.programModel.getProgramById(request.body.programId);
 
-                        // send back a response as soon as the program has started executing so we can handle errors that might pop up in the meantime.
-                        setTimeout(() => {
-                            result.code = ResponseCode.NO_CONTENT;
-                            resolve(result);
-                        });
+                    this.boardModel
+                        .executeProgramOnBoard(request.body.boardId, program, request.body.repeat)
+                        .catch(reject);
+
+                    // send back a response as soon as the program has started executing so we can handle errors that might pop up in the meantime.
+                    setTimeout(() => {
+                        result.code = ResponseCode.NO_CONTENT;
+                        resolve(result);
                     });
                     break;
 
@@ -300,26 +303,22 @@ class WebSocketService {
 
                     if (request.body.programId) {
                         // by id
-                        this.programModel
-                            .getProgramById(request.body.programId)
-                            .catch(reject)
-                            .then(program => {
-                                Object.assign(result.body, { programs: [program] });
-                                resolve(result);
-                            });
+                        program = this.programModel.getProgramById(request.body.programId);
+                        Object.assign(result.body, { programs: [program] });
+                        resolve(result);
                     } else {
                         // all programs
-                        this.programModel.programs.then(programs => {
-                            Object.assign(result.body, { programs });
-                            resolve(result);
-                        });
+                        const programs = this.programModel.getAllPrograms();
+                        Object.assign(result.body, { programs });
+                        resolve(result);
                     }
                     break;
 
                 case ProgramAction.CREATE:
                     // add a new program
+                    program = Programs.createProgram(request.body.program);
                     this.programModel
-                        .addProgram(request.body.program)
+                        .addProgram(program)
                         .catch(reject)
                         .then(id => {
                             Object.assign(result, { body: { programId: id }, code: ResponseCode.CREATED });
@@ -330,7 +329,7 @@ class WebSocketService {
 
                 case ProgramAction.UPDATE:
                     // update existing program
-                    this.programModel.updateProgram(request.body.programId, request.body.program).then(() => {
+                    this.programModel.updateProgram(request.body.program).then(() => {
                         result.code = ResponseCode.NO_CONTENT;
                         resolve(result);
                     });
@@ -340,7 +339,7 @@ class WebSocketService {
                 case ProgramAction.DELETE:
                     // remove existing program
                     this.programModel
-                        .removeProgram(request.body.programId)
+                        .deleteProgram(request.body.programId)
                         .catch(error => {
                             reject(error);
                         })
