@@ -57,10 +57,14 @@ class SerialService extends ConnectionService {
      */
     private getAvailableSerialPorts = (): Promise<SerialPort.PortInfo[]> => {
         // list all connected serial devices
-        return SerialPort.list().then((ports: SerialPort.PortInfo[]) => {
-            // filter out clearly incompatible devices
-            return this.filterPorts(ports || []);
-        });
+        return SerialPort.list()
+            .then((ports: SerialPort.PortInfo[]) => {
+                // filter out clearly incompatible devices
+                return this.filterPorts(ports);
+            })
+            .catch(() => {
+                return [];
+            });
     };
 
     private filterPorts = (ports: SerialPort.PortInfo[]): SerialPort.PortInfo[] => {
