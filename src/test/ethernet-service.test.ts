@@ -1,5 +1,5 @@
-import EthernetService from '../service/ethernet-service';
-import Boards from '../model/boards';
+import EthernetService from '../service/ethernet.service';
+import BoardsModel from '../model/boards.model';
 import { Socket } from 'net';
 import Board from '../domain/board';
 
@@ -9,7 +9,7 @@ const port = 3001;
 console.info = () => {};
 
 beforeEach(() => {
-    const model = new Boards();
+    const model = new BoardsModel();
     ethernetService = new EthernetService(model, port);
 });
 

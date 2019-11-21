@@ -1,15 +1,7 @@
-import CommandMalformedError from './command-malformed';
-import CommandUnavailableError from './command-unavailable';
-import GenericBoardError from './generic-board-error';
-import NoAvailablePortError from './no-available-port-error';
-import NotFoundError from './not-found-error';
-import WrongEncodingError from './wrong-encoding-error';
+import NotFound from './not-found.error';
+import Conflict from './conflict.error';
+import BadRequest from './bad-request.error';
+import MethodNotAllowed from './method-not-allowed.error';
+import ValidationError from './validation.error';
 
-export {
-    CommandMalformedError,
-    CommandUnavailableError,
-    GenericBoardError,
-    NoAvailablePortError,
-    NotFoundError,
-    WrongEncodingError,
-};
+export { Conflict, NotFound, BadRequest, MethodNotAllowed, ValidationError };

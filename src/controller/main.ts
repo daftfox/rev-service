@@ -1,12 +1,12 @@
 import Config from '../config/config';
-import EthernetService from '../service/ethernet-service';
-import WebSocketService from '../service/web-socket-service';
-import LoggerService from '../service/logger-service';
-import Boards from '../model/boards';
+import EthernetService from '../service/ethernet.service';
+import WebSocketService from '../service/web-socket.service';
+import LoggerService from '../service/logger.service';
+import BoardsModel from '../model/boards.model';
 import IFlags from '../domain/interface/flags';
-import DatabaseService from '../service/database-service';
-import Programs from '../model/programs';
-import SerialService from '../service/serial-service';
+import DatabaseService from '../service/database.service';
+import ProgramsModel from '../model/programs.model';
+import SerialService from '../service/serial.service';
 import IDatabaseOptions from '../domain/interface/database-options';
 import IWebSocketOptions from '../domain/interface/web-socket-options';
 
@@ -43,12 +43,12 @@ class MainController {
     /**
      * Data boardModel managing instances of {@link Board} or classes that extend it.
      *
-     * @type {Boards}
+     * @type {BoardsModel}
      * @access private
      */
-    private boardModel: Boards;
+    private boardModel: BoardsModel;
 
-    private programModel: Programs;
+    private programModel: ProgramsModel;
 
     /**
      * Local instance of the {@link WebSocketService}.
@@ -150,24 +150,24 @@ class MainController {
         await this.databaseService.synchronise();
     }
 
-    private startEthernetService(boardModel: Boards, port: number): void {
+    private startEthernetService(boardModel: BoardsModel, port: number): void {
         this.ethernetService = new EthernetService(boardModel, port);
         this.ethernetService.listen();
     }
 
-    private startSerialService(boardModel: Boards): void {
+    private startSerialService(boardModel: BoardsModel): void {
         this.serialService = new SerialService(boardModel);
         this.serialService.listen();
     }
 
     private instantiateDataModels(): void {
-        this.boardModel = new Boards();
-        this.programModel = new Programs();
+        this.boardModel = new BoardsModel();
+        this.programModel = new ProgramsModel();
     }
 
     private async synchroniseDataModels(): Promise<void> {
         await this.boardModel.synchronise();
-        // todo: synch programs
+        await this.programModel.synchronise();
     }
 }
 

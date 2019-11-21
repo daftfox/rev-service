@@ -40,7 +40,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('startSerialService', () => {
+    describe('#startSerialService', () => {
         test('should instantiate serial service', () => {
             mainController.startSerialService(undefined);
 
@@ -48,7 +48,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('startEthernetService', () => {
+    describe('#startEthernetService', () => {
         test('should instantiate ethernet service', () => {
             mainController.startEthernetService(undefined, 9000);
 
@@ -56,7 +56,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('startWebSocketService', () => {
+    describe('#startWebSocketService', () => {
         test('should instantiate web socket service', () => {
             const boardsMock = new BoardsMock();
             const webSocketOptions = {
@@ -71,7 +71,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('startDatabaseService', () => {
+    describe('#startDatabaseService', () => {
         test('should instantiate database service', () => {
             const databaseOptions = {
                 schema: 'rev',
@@ -89,7 +89,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('synchroniseDataModels', () => {
+    describe('#synchroniseDataModels', () => {
         test('should call synchroniseDataModels', async () => {
             const databaseOptions = {
                 schema: 'rev',
@@ -113,7 +113,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('instantiateDataModels', () => {
+    describe('#instantiateDataModels', () => {
         test('should instantiate models', () => {
             mainController.instantiateDataModels();
 
@@ -122,7 +122,7 @@ describe('MainController:', () => {
         });
     });
 
-    describe('startAllServices', () => {
+    describe('#startAllServices', () => {
         beforeEach(() => {
             mainController.startDatabaseService = jest.fn(() => Promise.resolve());
             mainController.instantiateDataModels = jest.fn();

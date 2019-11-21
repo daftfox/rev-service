@@ -1,12 +1,10 @@
 import Board, { IDLE } from '../domain/board';
 import { Sequelize } from 'sequelize-typescript';
-import CommandUnavailableError from '../error/command-unavailable';
 import FirmataBoardMock from './mocks/firmata-board.mock';
 import * as FirmataBoard from 'firmata';
 import { SupportedBoards } from '../domain/supported-boards';
-import CommandMalformed from '../error/command-malformed';
 import AvailableTypes from '../domain/available-types';
-import IBoard from '../domain/interface/board';
+import ValidationError from '../error/validation.error';
 
 let board: any;
 let sequelize: Sequelize;
@@ -158,19 +156,6 @@ describe('Board', () => {
                 expect('refreshRate' in discreteBoard).toEqual(false);
             });
         });
-
-        describe('exception flows', () => {
-            test.each([
-                ['bacon', new TypeError('Parameter board should be of type object. Received type is string.')],
-                [1337, new TypeError('Parameter board should be of type object. Received type is number.')],
-            ])('should throw TypeError when running toDiscrete(%p)', (_board: any, error: TypeError) => {
-                const toDiscreteError = () => {
-                    Board.toDiscrete(_board);
-                };
-
-                expect(toDiscreteError).toThrow(error);
-            });
-        });
     });
 
     describe('#toDiscreteArray', () => {
@@ -184,11 +169,12 @@ describe('Board', () => {
 
         describe('exception flows', () => {
             test.each([
-                [[], new Error(`Parameter boards should contain at least one element. Received array length is 0.`)],
-                ['bacon', new TypeError(`Parameter boards should be an array. Received type is string.`)],
-                [1337, new TypeError(`Parameter boards should be an array. Received type is number.`)],
-                [['bacon'], new TypeError(`Parameter board should be of type object. Received type is string.`)],
-                [[1337], new TypeError(`Parameter board should be of type object. Received type is number.`)],
+                [
+                    [],
+                    new ValidationError(
+                        `Parameter boards should contain at least one element. Received array length is 0.`,
+                    ),
+                ],
             ])('should throw TypeError when running toDiscreteArray(%p)', (boards: any, error: Error) => {
                 const toDiscreteArrayError = () => {
                     Board.toDiscreteArray(boards);
@@ -227,14 +213,14 @@ describe('Board', () => {
                 };
 
                 expect(executeAction).toThrowError(
-                    new CommandUnavailableError(`Unable to execute command on this board since it is not online.`),
+                    new ValidationError(`Unable to execute command on this board since it is not online.`),
                 );
             });
 
             // unavailable method should throw error when running executeAction method
             test.each([
-                ['bacon', new CommandUnavailableError(`'bacon' is not a valid action for this board.`)],
-                [1337, new CommandUnavailableError(`'1337' is not a valid action for this board.`)],
+                ['bacon', new ValidationError(`'bacon' is not a valid action for this board.`)],
+                [1337, new ValidationError(`'1337' is not a valid action for this board.`)],
             ])('should should throw error when running executeAction(%p)', (invalidAction: any, error: Error) => {
                 const executeAction = () => {
                     board.executeAction(invalidAction);
@@ -251,7 +237,7 @@ describe('Board', () => {
                 };
 
                 expect(executeAction).toThrowError(
-                    new CommandUnavailableError(`Unable to execute command on this board since it is not online.`),
+                    new ValidationError(`Unable to execute command on this board since it is not online.`),
                 );
             });
 
@@ -263,7 +249,7 @@ describe('Board', () => {
                 board.online = true;
 
                 expect(executeAction).toThrowError(
-                    new CommandUnavailableError(`'bacon' is not a valid action for this board.`),
+                    new ValidationError(`'bacon' is not a valid action for this board.`),
                 );
             });
         });
@@ -320,18 +306,6 @@ describe('Board', () => {
                 expect(board.intervals.length).toEqual(0);
             });
         });
-
-        describe('exception flows', () => {
-            test("should throw an error if interval doesn't exist", () => {
-                const interval = setInterval(jest.fn(), 1000);
-
-                const clearIntervalError = () => {
-                    board.clearInterval(interval);
-                };
-
-                expect(clearIntervalError).toThrowError(new Error("Interval doesn't exist."));
-            });
-        });
     });
 
     describe('#clearTimeout', () => {
@@ -343,18 +317,6 @@ describe('Board', () => {
                 board.clearTimeout(timeout);
 
                 expect(board.timeouts.length).toEqual(0);
-            });
-        });
-
-        describe('exception flows', () => {
-            test("should throw an error if timeout doesn't exist", () => {
-                const timeout = setTimeout(jest.fn(), 1000);
-
-                const clearTimeoutError = () => {
-                    board.clearTimeout(timeout);
-                };
-
-                expect(clearTimeoutError).toThrowError(new Error("Timeout doesn't exist."));
             });
         });
     });
@@ -403,7 +365,7 @@ describe('Board', () => {
                     board.setBlinkLEDEnabled(true);
                 };
 
-                expect(blinkLed).toThrowError(new CommandUnavailableError(`LED blink is already enabled.`));
+                expect(blinkLed).toThrowError(new ValidationError(`LED blink is already enabled.`));
             });
         });
     });
@@ -536,7 +498,7 @@ describe('Board', () => {
                 };
 
                 expect(serialWriteBytesError).toThrowError(
-                    new TypeError(`Expected string or number. Received object.`),
+                    new ValidationError(`Expected string or number. Received object.`),
                 );
             });
         });
@@ -584,29 +546,29 @@ describe('Board', () => {
                     board.setPinValue(pin, value);
                 };
 
-                expect(setPinValue).toThrowError(new Error('blargh'));
+                expect(setPinValue).toThrowError(new ValidationError(`Attempted to set value of unknown pin ${pin}.`));
             });
 
             test.each([
                 [
                     0,
                     -20,
-                    new CommandMalformed(
-                        `Tried to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    new ValidationError(
+                        `Attempted to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
                     ),
                 ],
                 [
                     0,
                     2000,
-                    new CommandMalformed(
-                        `Tried to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    new ValidationError(
+                        `Attempted to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
                     ),
                 ],
                 [
                     1,
                     2,
-                    new CommandMalformed(
-                        `Tried to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
+                    new ValidationError(
+                        `Attempted to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
                     ),
                 ],
             ])(

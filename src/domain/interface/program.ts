@@ -1,4 +1,4 @@
-import ICommand from './command';
+import ICommand from './command.interface';
 
 export default interface IProgram {
     name: string;

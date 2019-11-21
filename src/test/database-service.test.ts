@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import Board from '../domain/board';
 import Program from '../domain/program';
-import DatabaseService from '../service/database-service';
+import DatabaseService from '../service/database.service';
 
 let databaseService: any;
 let sequelize: Sequelize;
@@ -37,7 +37,7 @@ describe('ConnectionService:', () => {
         });
     });
 
-    describe('synchronise', () => {
+    describe('#synchronise', () => {
         test('should synchronise data model', async () => {
             // @ts-ignore
             DatabaseService.database.sync = jest.fn();

@@ -1,7 +1,7 @@
 import Board from './board';
 import { BuildOptions } from 'sequelize';
 import * as FirmataBoard from 'firmata';
-import LoggerService from '../service/logger-service';
+import LoggerService from '../service/logger.service';
 import IPinMapping from './interface/pin-map';
 import { SupportedBoards } from './supported-boards';
 
