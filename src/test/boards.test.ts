@@ -1,18 +1,14 @@
-import Boards from '../model/boards';
+import BoardsModel from '../model/boards.model';
 import { Sequelize } from 'sequelize-typescript';
 import Board, { IDLE } from '../domain/board';
 import BoardMock from './mocks/board.mock';
 import AvailableTypes from '../domain/available-types';
 import FirmataBoardMock from './mocks/firmata-board.mock';
-import DatabaseService from '../service/database-service';
-import NotFound from '../domain/web-socket-message/error/not-found';
-import BadRequest from '../domain/web-socket-message/error/bad-request';
+import DatabaseService from '../service/database.service';
 import { SupportedBoards } from '../domain/supported-boards';
-import ICommand from '../domain/interface/command';
-import CommandUnavailableError from '../error/command-unavailable';
+import ICommand from '../domain/interface/command.interface';
 import blink from '../domain/programs/blink';
-import Conflict from '../domain/web-socket-message/error/conflict';
-import MethodNotAllowed from '../domain/web-socket-message/error/method-not-allowed';
+import { NotFound, Conflict, BadRequest, MethodNotAllowed } from '../error/errors';
 
 let boards: any;
 let mockFirmataBoard: any;
@@ -33,7 +29,7 @@ const databaseOptions = {
 };
 
 beforeEach(() => {
-    boards = new Boards();
+    boards = new BoardsModel();
     mockFirmataBoard = new FirmataBoardMock();
     databaseService = new DatabaseService(databaseOptions);
     return databaseService.synchronise();
@@ -47,7 +43,7 @@ beforeAll(() => {
     sequelize.addModels([Board]);
 });
 
-describe('Boards', () => {
+describe('BoardsModel', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
             expect(boards).toBeDefined();
@@ -61,7 +57,7 @@ describe('Boards', () => {
             [new BoardMock('bacon', 'eggs', AvailableTypes.LEDCONTROLLER), 'kitt'],
         ])('should create new instance of corresponding board types', (board, expectedProperty) => {
             // @ts-ignore
-            const newBoard = Boards.instantiateNewBoard(board);
+            const newBoard = BoardsModel.instantiateNewBoard(board);
 
             expect(expectedProperty in newBoard).toEqual(true);
         });
@@ -70,7 +66,7 @@ describe('Boards', () => {
     describe('#findOrBuildBoard', () => {
         test('should return a fresh new instance of a board', () => {
             // @ts-ignore
-            return Boards.findOrBuildBoard('bacon', AvailableTypes.BOARD).then(newBoard => {
+            return BoardsModel.findOrBuildBoard('bacon', AvailableTypes.BOARD).then(newBoard => {
                 expect(newBoard.isNewRecord).toEqual(true);
                 expect(newBoard).toBeDefined();
             });
@@ -81,7 +77,7 @@ describe('Boards', () => {
             newBoard.save();
 
             // @ts-ignore
-            return Boards.findOrBuildBoard(newBoard.id, AvailableTypes.BOARD).then(existingBoard => {
+            return BoardsModel.findOrBuildBoard(newBoard.id, AvailableTypes.BOARD).then(existingBoard => {
                 expect(existingBoard.isNewRecord).toEqual(false);
             });
         });
@@ -101,7 +97,7 @@ describe('Boards', () => {
     describe('#getBoards', () => {
         test('should return an array of IBoard objects', () => {
             boards._boards.push(new Board());
-            const result = boards.boards;
+            const result = boards.getAllBoards();
 
             expect(Array.isArray(result)).toEqual(true);
             expect(result.length).toEqual(1);
@@ -163,7 +159,7 @@ describe('Boards', () => {
         describe('happy flows', () => {
             test('should instantiate a new board and add it to the database', () => {
                 // @ts-ignore
-                Boards.log.debug = jest.fn();
+                BoardsModel.log.debug = jest.fn();
                 boards.emit = jest.fn();
                 const newBoard = new Board();
                 newBoard.id = 'bacon';
@@ -175,7 +171,7 @@ describe('Boards', () => {
                     expect(boards.emit).toHaveBeenCalledWith('connected', discreteBoard, true);
 
                     // @ts-ignore
-                    expect(Boards.log.debug).toHaveBeenCalled();
+                    expect(BoardsModel.log.debug).toHaveBeenCalled();
                 });
             });
 
@@ -204,7 +200,7 @@ describe('Boards', () => {
     describe('#deleteBoard', () => {
         test('should remove a board from the database', () => {
             // @ts-ignore
-            Boards.log.debug = jest.fn();
+            BoardsModel.log.debug = jest.fn();
             const newBoard = new Board();
             newBoard.save();
             newBoard.destroy = jest.fn();
@@ -217,7 +213,7 @@ describe('Boards', () => {
             expect(newBoard.destroy).toHaveBeenCalled();
 
             // @ts-ignore
-            expect(Boards.log.debug).toHaveBeenCalled();
+            expect(BoardsModel.log.debug).toHaveBeenCalled();
         });
     });
 
@@ -225,7 +221,7 @@ describe('Boards', () => {
         describe('happy flows', () => {
             test('should disconnect a board', () => {
                 // @ts-ignore
-                Boards.log.debug = jest.fn();
+                BoardsModel.log.debug = jest.fn();
                 const newBoard = new Board();
                 newBoard.id = 'bacon';
                 newBoard.save();
@@ -241,7 +237,7 @@ describe('Boards', () => {
                 expect(newBoard.save).toHaveBeenCalled();
 
                 // @ts-ignore
-                expect(Boards.log.debug).toHaveBeenCalled();
+                expect(BoardsModel.log.debug).toHaveBeenCalled();
             });
         });
 
@@ -380,7 +376,7 @@ describe('Boards', () => {
                 };
 
                 expect(executeActionOnBoardError()).rejects.toThrowError(
-                    new CommandUnavailableError(`'${command.action}' is not a valid action for this board.`),
+                    new NotFound(`'${command.action}' is not a valid action for this board.`),
                 );
             });
 
@@ -395,7 +391,7 @@ describe('Boards', () => {
                 };
 
                 expect(executeActionOnBoardError()).rejects.toThrowError(
-                    new CommandUnavailableError(`Unable to execute command on this board since it is not online.`),
+                    new MethodNotAllowed(`Unable to execute command on this board since it is not online.`),
                 );
             });
         });
@@ -445,16 +441,16 @@ describe('Boards', () => {
             });
 
             // fixme: the indefinite part can't be tested yet
-            xtest('should run the program indefinitely', done => {
-                boards.executeProgramOnBoard(board.id, blink, -1);
-
-                setTimeout(() => {
-                    boards.stopProgram(board.id);
-                    expect(board.currentProgram).toEqual(blink.name);
-                    expect(boards.runProgram).toHaveBeenCalledTimes(1);
-                    done();
-                }, 10);
-            });
+            // xtest('should run the program indefinitely', done => {
+            //     boards.executeProgramOnBoard(board.id, blink, -1);
+            //
+            //     setTimeout(() => {
+            //         boards.stopProgram(board.id);
+            //         expect(board.currentProgram).toEqual(blink.name);
+            //         expect(boards.runProgram).toHaveBeenCalledTimes(1);
+            //         done();
+            //     }, 10);
+            // });
         });
 
         describe('exception flows', () => {

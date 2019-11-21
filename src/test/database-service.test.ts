@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import Board from '../domain/board';
 import Program from '../domain/program';
-import DatabaseService from '../service/database-service';
+import DatabaseService from '../service/database.service';
 
 let databaseService: any;
 let sequelize: Sequelize;

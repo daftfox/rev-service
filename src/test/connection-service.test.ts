@@ -1,5 +1,5 @@
-import ConnectionService from '../service/connection-service';
-import Boards from '../model/boards';
+import ConnectionService from '../service/connection.service';
+import BoardsModel from '../model/boards.model';
 import { Sequelize } from 'sequelize-typescript';
 import Board from '../domain/board';
 import { Socket } from 'net';
@@ -162,7 +162,7 @@ describe('ConnectionService', () => {
         });
     });
 
-    describe('handleUpdateEvent', () => {
+    describe('#handleUpdateEvent', () => {
         test('should run updateBoard method of model when an update event was received', () => {
             const board = Board.toDiscrete(new Board());
 

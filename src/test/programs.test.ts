@@ -1,9 +1,9 @@
-import Programs from '../model/programs';
+import ProgramsModel from '../model/programs.model';
 import { Sequelize } from 'sequelize-typescript';
 import Board from '../domain/board';
-import DatabaseService from '../service/database-service';
+import DatabaseService from '../service/database.service';
 import DefaultPrograms from '../domain/programs/default';
-import NotFound from '../domain/web-socket-message/error/not-found';
+import { NotFound } from '../error/errors';
 
 let programs: any;
 let sequelize: Sequelize;
@@ -23,7 +23,7 @@ const databaseOptions = {
 };
 
 beforeEach(() => {
-    programs = new Programs();
+    programs = new ProgramsModel();
     databaseService = new DatabaseService(databaseOptions);
     return databaseService.synchronise();
 });
@@ -36,7 +36,7 @@ beforeAll(() => {
     sequelize.addModels([Board]);
 });
 
-describe('Programs', () => {
+describe('ProgramsModel', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
             expect(programs).toBeDefined();
@@ -94,7 +94,7 @@ describe('Programs', () => {
 
     describe('#createprogram', () => {
         test('should return an instance of program', () => {
-            const program = Programs.createProgram({
+            const program = ProgramsModel.createProgram({
                 name: 'test',
                 deviceType: 'all',
                 commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
@@ -108,7 +108,7 @@ describe('Programs', () => {
 
     describe('#addProgram', () => {
         test('should add a program to the list of existing programs and persist it to the database', async () => {
-            const program = Programs.createProgram({
+            const program = ProgramsModel.createProgram({
                 name: 'test',
                 deviceType: 'all',
                 commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
@@ -125,7 +125,7 @@ describe('Programs', () => {
 
     describe('#deleteProgram', () => {
         test('should delete a program', async () => {
-            const program = Programs.createProgram({
+            const program = ProgramsModel.createProgram({
                 name: 'test',
                 deviceType: 'all',
                 commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
@@ -142,7 +142,7 @@ describe('Programs', () => {
 
     describe('#updateProgram', () => {
         test('should update an existing program', async () => {
-            const program = Programs.createProgram({
+            const program = ProgramsModel.createProgram({
                 name: 'test',
                 deviceType: 'all',
                 commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],

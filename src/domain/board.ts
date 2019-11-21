@@ -1,17 +1,15 @@
 import * as FirmataBoard from 'firmata';
-import LoggerService from '../service/logger-service';
-import CommandUnavailableError from '../error/command-unavailable';
+import LoggerService from '../service/logger.service';
 import Timeout = NodeJS.Timeout;
 import Chalk from 'chalk';
 import IBoard from './interface/board';
-import IPinMapping from './interface/pin-map';
 import IPin from './interface/pin';
-import CommandMalformed from '../error/command-malformed';
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { BuildOptions } from 'sequelize';
 import BoardArchitecture from './board-architecture';
 import { SupportedBoards } from './supported-boards';
 import AvailableTypes from './available-types';
+import { BadRequest, MethodNotAllowed, NotFound, ValidationError } from '../error/errors';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -20,15 +18,6 @@ import AvailableTypes from './available-types';
  */
 @Table({ timestamps: true })
 class Board extends Model<Board> implements IBoard {
-    /**
-     * Creates a new instance of Board and awaits a successful connection before starting its heartbeat.
-     *
-     * @constructor
-     * @param {Model} model
-     * @param {sequelize.BuildOptions} buildOptions
-     * @param {FirmataBoard} firmataBoard
-     * @param {string} id
-     */
     constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
         super(model, buildOptions);
 
@@ -36,7 +25,6 @@ class Board extends Model<Board> implements IBoard {
         this.log = new LoggerService(this.namespace);
 
         if (firmataBoard) {
-            // this.online = true;
             this.firmataBoard = firmataBoard;
 
             this.firmataBoard.once('queryfirmware', this.parseQueryFirmwareResponse);
@@ -50,12 +38,6 @@ class Board extends Model<Board> implements IBoard {
      * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
      * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
      * and removed from the data model until it attempts reconnecting.
-     *
-     * @static
-     * @readonly
-     * @access private
-     * @type {number}
-     * @default [5000]
      */
     private static readonly heartbeatInterval = 10000;
     private static readonly disconnectTimeout = 10000;
@@ -65,9 +47,6 @@ class Board extends Model<Board> implements IBoard {
      * of the firmware that is flashed to the device. The filename should look like the following example:
      * <generic_name>_<unique_identifier>.ino
      * This is persisted in the database.
-     *
-     * @type {string}
-     * @access public
      */
     @Column({ type: DataType.STRING, primaryKey: true })
     public id: string;
@@ -75,9 +54,6 @@ class Board extends Model<Board> implements IBoard {
     /**
      * A custom name, to be given by the user.
      * This is persisted in the database.
-     *
-     * @type {string}
-     * @access public
      */
     @Column(DataType.STRING)
     public name: string;
@@ -85,60 +61,38 @@ class Board extends Model<Board> implements IBoard {
     /**
      * String containing the type of device the {@link Board} instance represents. This could be a generic device (thus containing type: 'Board')
      * or an instance of {@link MajorTom} (type: 'MajorTom').
-     *
-     * @type {string}
-     * @access public
      */
     @Column(DataType.STRING)
     public type = AvailableTypes.BOARD;
 
     /**
-     * Boolean stating wether the board is online or not.
-     * @type {boolean}
-     * @access public
-     * @default [false]
+     * Boolean stating whether the board is online or not.
      */
     public online = false;
 
     /**
      * Unique identifier of the physical device's vendor (if available).
-     *
-     * @type {string}
-     * @access public
      */
     public vendorId: string;
 
     /**
      * Unique identifier of the physical device's model (if available).
-     *
-     * @type {string}
-     * @access public
      */
     public productId: string;
 
     /**
      * The current program the physical device is running. Defaults to 'IDLE' when it's not doing anything.
-     *
-     * @access public
-     * @type {string}
-     * @default ["idle"]
      */
     public currentProgram: string = IDLE;
 
     /**
      * Last update received by board.
-     *
-     * @access public
-     * @type {string}
      */
     @Column(DataType.STRING)
     public lastUpdateReceived: string;
 
     /**
      * Local instance of {@link LoggerService}
-     *
-     * @access protected
-     * @type {LoggerService}
      */
     protected log: LoggerService;
 
@@ -146,9 +100,6 @@ class Board extends Model<Board> implements IBoard {
      * This property is used to map available methods to string representations so we can easily
      * validate and call them from elsewhere. The mapping should be obvious.
      * Currently available methods are: BLINKON, BLINKOFF and TOGGLELED.
-     *
-     * @type {Object}
-     * @access protected
      */
     protected availableActions: any = {
         BLINKON: {
@@ -179,62 +130,38 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Namespace used by the local instance of {@link LoggerService}
-     *
-     * @type {string}
-     * @access protected
      */
     protected namespace: string;
 
     /**
      * Local instance of {@link FirmataBoard} that is used to connect and talk to physical devices supporting the firmata protocol.
-     *
-     * @access protected
-     * @type {FirmataBoard}
      */
     protected firmataBoard: FirmataBoard;
 
     /**
      * An array of intervals stored so we can clear them all at once using {@link Board.clearAllTimeouts} or {@link Board.clearAllTimers} when the moment is there.
-     *
-     * @access protected
-     * @type {Timeout[]}
-     * @default [[]]
      */
     protected intervals: Timeout[] = [];
 
     /**
      * An array of timeouts stored so we can clear them all at once using {@link Board.clearAllTimeouts} or {@link Board.clearAllTimers} when the moment is there.
-     *
-     * @access protected
-     * @type {Timeout[]}
-     * @default [[]]
      */
     protected timeouts: Timeout[] = [];
 
     /**
      * The pinMapping set for generic boards. This is currently set to the pinMapping for Arduino Uno boards.
-     *
-     * @type {IPinMapping}
-     * @default [{ LED: 13, RX: 0, TX: 1 }]
      */
     @Column(DataType.JSON)
     public architecture = SupportedBoards.ARDUINO_UNO;
 
-    // @Column( DataType.STRING )
-    // public pinout: IPinout;
-
     /**
      * The ID of the interval that's executed when we blink the builtin LED.
      * This is stored to identify whether or not we're already blinking the builtin LED.
-     *
-     * @access private
      */
     private blinkInterval;
 
     /**
      * Timeout containing the heartbeat. This is needed to do cleanup work whenever the board is reinstantiated.
-     *
-     * @access private
      */
     private heartbeatTimeout: Timeout;
 
@@ -242,26 +169,13 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Array that is used to store the value measured by analog pinMapping for later comparison.
-     *
-     * @access private
-     * @type {number[]}
-     * @default [[]]
      */
     private previousAnalogValue: number[] = [];
 
     /**
      * Return an {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board} board - The {@link Board} instance to convert to an object implementing the {@link IBoard} interface.
-     * @returns {IBoard} An object representing a {@link IBoard} instance, but without the overhead and methods.
      */
     public static toDiscrete(board: Board): IBoard {
-        if (typeof board !== 'object') {
-            throw new TypeError(`Parameter board should be of type object. Received type is ${typeof board}.`);
-        }
-
         let discreteBoard;
 
         discreteBoard = {
@@ -297,18 +211,10 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Return an array of {@link IBoard}.
-     *
-     * @static
-     * @access public
-     * @param {Board[]} boards - An array of {@link Board} instances to convert.
-     * @returns {IBoard[]} An array of objects representing a {@link IBoard} instance, but without the overhead and methods.
      */
     public static toDiscreteArray(boards: Board[]): IBoard[] {
-        if (!Array.isArray(boards)) {
-            throw new TypeError(`Parameter boards should be an array. Received type is ${typeof boards}.`);
-        }
         if (!boards.length) {
-            throw new Error(
+            throw new ValidationError(
                 `Parameter boards should contain at least one element. Received array length is ${boards.length}.`,
             );
         }
@@ -342,9 +248,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Method returning a string array containing the actions this device is able to execute.
-     *
-     * @access public
-     * @return {{action: string, requiresParams: boolean}[]} String array containing the available actions.
      */
     public getAvailableActions(): Array<{ name: string; requiresParams: boolean }> {
         const actionNames = Object.keys(this.availableActions);
@@ -357,23 +260,17 @@ class Board extends Model<Board> implements IBoard {
     /**
      * Allows the user to define a different pinMapping for the device than is set by default.
      * Default is defined in {@link Board.pinMapping}
-     *
-     * @param {IPinMapping} mapping - The pinMapping to save to this board.
-     * @returns {void}
      */
     public setArchitecture(architecture: BoardArchitecture): void {
         if (SupportedBoards.isSupported(architecture)) {
             this.architecture = architecture;
         } else {
-            throw new Error('This architecture is not supported.');
+            throw new BadRequest('This architecture is not supported.');
         }
     }
 
     /**
      * Sets {@link Board.currentProgram} to 'idle'
-     *
-     * @access public
-     * @returns {void}
      */
     public setIdle(): void {
         this.currentProgram = IDLE;
@@ -381,9 +278,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Return the board's instance of {@link FirmataBoard}
-     *
-     * @access public
-     * @return {FirmataBoard}
      */
     public getFirmataBoard(): FirmataBoard {
         return this.firmataBoard;
@@ -391,18 +285,13 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Execute an action. Checks if the action is actually available before attempting to execute it.
-     *
-     * @access public
-     * @param {string} action - The action to execute.
-     * @param {string[]} [parameters] - The parameters to pass to the action method.
-     * @returns {void}
      */
     public executeAction(action: string, parameters?: string[]): void {
         if (!this.online) {
-            throw new CommandUnavailableError(`Unable to execute command on this board since it is not online.`);
+            throw new MethodNotAllowed(`Unable to execute command on this board since it is not online.`);
         }
         if (!this.isAvailableAction(action)) {
-            throw new CommandUnavailableError(`'${action}' is not a valid action for this board.`);
+            throw new NotFound(`'${action}' is not a valid action for this board.`);
         }
 
         this.log.debug(`Executing method ${Chalk.rgb(67, 230, 145).bold(action)}.`);
@@ -452,45 +341,27 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Clear an interval that was set by this {@link Board} instance.
-     *
-     * @param {NodeJS.Timeout} interval
-     * @returns {void}
      */
     protected clearInterval(interval: Timeout): void {
-        if (this.intervals.indexOf(interval) < 0) {
-            throw new Error("Interval doesn't exist.");
-        }
-
         this.intervals.splice(this.intervals.indexOf(interval), 1);
         clearInterval(interval);
     }
 
     /**
      * Clear a timeout that was set by this {@link Board} instance.
-     *
-     * @param {NodeJS.Timeout} timeout
-     * @returns {void}
      */
     protected clearTimeout(timeout: Timeout): void {
-        if (this.timeouts.indexOf(timeout) < 0) {
-            throw new Error("Timeout doesn't exist.");
-        }
-
         this.timeouts.splice(this.timeouts.indexOf(timeout), 1);
         clearTimeout(timeout);
     }
 
     /**
      * Enable or disable the builtin LED blinking
-     *
-     * @param {boolean} enabled
-     * @access protected
-     * @returns {void}
      */
     protected setBlinkLEDEnabled(enabled: boolean): void {
         if (enabled) {
             if (this.blinkInterval) {
-                throw new CommandUnavailableError(`LED blink is already enabled.`);
+                throw new MethodNotAllowed(`LED blink is already enabled.`);
             }
 
             this.blinkInterval = setInterval(this.toggleLED, 500);
@@ -504,9 +375,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Toggle the builtin LED on / off. Turns it on if it's off and vice versa.
-     *
-     * @access protected
-     * @returns {void}
      */
     protected toggleLED = (): void => {
         this.setPinValue(
@@ -521,10 +389,6 @@ class Board extends Model<Board> implements IBoard {
      * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
      * Emits a 'disconnect' event on the local {@link Board.firmataBoard} instance if the device fails to respond within 2 seconds of this query being sent.
      * The device is deemed online and removed from the data model until it attempts reconnecting after the disconnect event is emitted.
-     *
-     * @access protected
-     * @emits FirmataBoard.disconnect
-     * @returns {void}
      */
     protected startHeartbeat(): void {
         const heartbeat = setInterval(() => {
@@ -554,11 +418,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Writes a byte-array with the device's specified serial UART interface.
-     *
-     * @access private
-     * @param {<string | number>[]} payload Array with bytes to send
-     * @param {FirmataBoard.SERIAL_PORT_ID} serialPort Serial port on which to send
-     * @returns {void}
      */
     protected serialWriteBytes(serialPort: FirmataBoard.SERIAL_PORT_ID, payload: any[]): void {
         const buffer = Buffer.allocUnsafe(payload.length);
@@ -569,7 +428,7 @@ class Board extends Model<Board> implements IBoard {
             } else if (typeof value === 'number') {
                 buffer.writeUInt8(value, index);
             } else {
-                throw new TypeError(`Expected string or number. Received ${typeof value}.`);
+                throw new ValidationError(`Expected string or number. Received ${typeof value}.`);
             }
         });
 
@@ -600,9 +459,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Emits an 'update' event
-     *
-     * @emits FirmataBoard.update
-     * @returns {void}
      */
     protected emitUpdate = (): void => {
         this.lastUpdateReceived = new Date().toUTCString();
@@ -611,29 +467,24 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Write a value to a pin. Automatically distinguishes between analog and digital pinMapping and calls the corresponding methods.
-     *
-     * @access protected
-     * @param {number} pin
-     * @param {number} value
-     * @returns {void}
      */
     protected setPinValue(pin: number, value: number): void {
         if (!this.firmataBoard.pins[pin]) {
-            throw new Error('blargh');
+            throw new NotFound(`Attempted to set value of unknown pin ${pin}.`);
         }
 
         if (this.isAnalogPin(pin)) {
             if (value < 0 || value >= 1024) {
-                throw new CommandMalformed(
-                    `Tried to write value ${value} to analog pin ${pin}. Only values between or equal to 0 and 1023 are allowed.`,
+                throw new BadRequest(
+                    `Attempted to write value ${value} to analog pin ${pin}. Only values between or equal to 0 and 1023 are allowed.`,
                 );
             } else {
                 this.firmataBoard.analogWrite(pin, value);
             }
         } else {
             if (value !== FirmataBoard.PIN_STATE.HIGH && value !== FirmataBoard.PIN_STATE.LOW) {
-                throw new CommandMalformed(
-                    `Tried to write value ${value} to digital pin ${pin}. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
+                throw new BadRequest(
+                    `Attempted to write value ${value} to digital pin ${pin}. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
                 );
             } else {
                 this.firmataBoard.digitalWrite(pin, value);
@@ -660,9 +511,6 @@ class Board extends Model<Board> implements IBoard {
     /**
      * Attaches listeners to all digital pinMapping whose modes ({@link FirmataBoard.PIN_MODE}) are setup as INPUT pinMapping.
      * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
-     *
-     * @access private
-     * @returns {void}
      */
     private attachDigitalPinListeners(): void {
         this.firmataBoard.pins.forEach((pin: FirmataBoard.Pins, index: number) => {
@@ -675,9 +523,6 @@ class Board extends Model<Board> implements IBoard {
     /**
      * Attaches listeners to all analog pinMapping.
      * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
-     *
-     * @access private
-     * @returns {void}
      */
     private attachAnalogPinListeners(): void {
         this.firmataBoard.analogPins.forEach((pin: number, index: number) => {
@@ -687,10 +532,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Calls {@link Board.emitUpdate} if the current value differs from the previously measured value.
-     *
-     * @param {number} pinIndex
-     * @param {number} value
-     * @returns {void}
      */
     private compareAnalogReadout(pinIndex: number, value: number): void {
         if (this.previousAnalogValue[pinIndex] !== value) {
@@ -701,9 +542,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Clear all intervals stored in {@link Board.intervals}.
-     *
-     * @access private
-     * @returns {void}
      */
     private clearAllIntervals(): void {
         clearInterval(this.serialRetry);
@@ -713,9 +551,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Clear all timeouts stored in {@link Board.timeouts}.
-     *
-     * @access private
-     * @returns {void}
      */
     private clearAllTimeouts(): void {
         this.timeouts.forEach(timeout => clearTimeout(timeout));
@@ -724,10 +559,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Check if the action received is valid from the list of {@link Board.availableActions}.
-     *
-     * @access private
-     * @param {string} action The command to check for availability
-     * @returns {boolean} True if the command is valid, false if not
      */
     private isAvailableAction(action: string): boolean {
         return this.getAvailableActions().findIndex(_action => _action.name === action) >= 0;
@@ -735,10 +566,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Checks whether a pin is a digital pin.
-     *
-     * @access private
-     * @param {number} pinIndex
-     * @returns {boolean}
      */
     private isDigitalPin(pinIndex: number): boolean {
         const pin = this.firmataBoard.pins[pinIndex];
@@ -751,10 +578,6 @@ class Board extends Model<Board> implements IBoard {
 
     /**
      * Check whether a pin is an analog pin.
-     *
-     * @access private
-     * @param {number} pinIndex
-     * @returns {boolean}
      */
     private isAnalogPin(pinIndex: number): boolean {
         const pin = this.firmataBoard.pins[pinIndex];

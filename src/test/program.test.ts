@@ -1,6 +1,6 @@
 import Program from '../domain/program';
 import { Sequelize } from 'sequelize-typescript';
-import ICommand from '../domain/interface/command';
+import ICommand from '../domain/interface/command.interface';
 
 let program: any;
 let sequelize: Sequelize;

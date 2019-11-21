@@ -30,7 +30,7 @@
     ],
     "scripts": {
         "test": "jest",
-        "start": "tsc && node ./dist/index.js --ethernet",
+        "start": "node ./dist/index.js --ethernet",
         "build": "tsc",
         "lint": "tslint --fix -p tsconfig.json",
         "lint:check": "tslint -p tsconfig.json",

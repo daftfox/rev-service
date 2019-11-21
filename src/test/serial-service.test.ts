@@ -1,12 +1,12 @@
-import Boards from '../model/boards';
-import SerialService from '../service/serial-service';
+import BoardsModel from '../model/boards.model';
+import SerialService from '../service/serial.service';
 
 let serialService: any;
 
 console.info = () => {};
 
 beforeEach(() => {
-    const model = new Boards();
+    const model = new BoardsModel();
     serialService = new SerialService(model);
 });
 
