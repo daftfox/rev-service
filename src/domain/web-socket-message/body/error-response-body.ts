@@ -1,6 +1,6 @@
-import IErrorResponse from '../../interface/error-response-body.interface';
+import { IErrorResponse } from '../interface';
 
-export default class ErrorResponseBody implements IErrorResponse {
+export class ErrorResponseBody implements IErrorResponse {
     message: string;
 
     constructor(values: IErrorResponse) {

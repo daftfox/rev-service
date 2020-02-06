@@ -1,7 +1,7 @@
-import IProgram from '../../interface/program';
-import IProgramResponseBody from '../../interface/program-response-body.interface';
+import { IProgram } from '../../program';
+import { IProgramResponseBody } from '../interface';
 
-export default class ProgramResponseBody implements IProgramResponseBody {
+export class ProgramResponseBody implements IProgramResponseBody {
     programs: IProgram[];
     programId: string;
 

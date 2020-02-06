@@ -1,50 +1,45 @@
-import BoardsModel from '../model/boards.model';
+import { BoardService } from './board.service';
 import * as FirmataBoard from 'firmata';
-import LoggerService from './logger.service';
+import { LoggerService } from './logger.service';
 import * as net from 'net';
-import IBoard from '../domain/interface/board';
-import Board from '../domain/board';
-import Chalk from 'chalk';
+import { Board, IBoard } from '../domain/board';
+import { container, injectable } from 'tsyringe';
 
 /**
  * A service that implements method(s) to connect to devices compatible with the firmata protocol.
  *
  * @namespace ConnectionService
  */
-class ConnectionService {
+@injectable()
+export class ConnectionService {
     /**
-     * Local instance of {#link BoardsModel}.
+     * Local instance of {#link BoardService}.
      *
      * @access private
-     * @type {BoardsModel}
+     * @type {BoardService}
      */
-    protected model: BoardsModel;
+    protected model: BoardService;
 
     /**
-     * Namespace used by the local instance of {@link LoggerService}
+     * Namespace used by the {@link LoggerService}
      *
      * @access protected
      * @type {string}
      */
-    protected namespace = 'ConnectionService';
-
-    /**
-     * Local instance of the {@link LoggerService} class.
-     *
-     * @access protected
-     * @type {LoggerService}
-     */
-    protected log: LoggerService;
+    protected namespace = 'connection-service';
 
     /**
      * @constructor
-     * @param {BoardsModel} model - Data model.
+     * @param {BoardService} model - Data model.
      */
-    constructor(model: BoardsModel) {
-        this.model = model;
-
-        this.log = new LoggerService(this.namespace);
+    constructor() {
+        this.model = container.resolve(BoardService);
     }
+
+    // public abstract listen(): void;
+    // public abstract closeServer(): void;
+    // protected abstract handleConnected(board: Board): void;
+    // protected abstract handleDisconnected(port: SerialPort.PortInfo | Socket, board?: Board): void;
 
     /**
      * Sets up a connection to a board.
@@ -82,8 +77,8 @@ class ConnectionService {
     }
 
     private handleDisconnectEvent = (board: Board, reject: (board: Board) => void) => {
-        this.log.debug('Disconnect event received from board.');
-        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} disconnected.`);
+        LoggerService.debug('Disconnect event received from board.', this.namespace);
+        LoggerService.info(`Device ${LoggerService.highlight(board.id, 'blue', true)} disconnected.`, this.namespace);
 
         this.model.disconnectBoard(board.id);
         reject(board);
@@ -94,21 +89,14 @@ class ConnectionService {
     };
 
     private handleConnectionTimeout = (firmataBoard: FirmataBoard, reject: () => void) => {
-        this.log.warn('Timeout while connecting to device.');
+        LoggerService.warn('Timeout while connecting to device.', this.namespace);
 
         firmataBoard.removeAllListeners();
         reject();
     };
 
     private handleConnectionEstablished = async (board: Board, resolve: () => void): Promise<IBoard> => {
-        /*
-         * The type and ID are defined by the name of the Arduino sketch file.
-         * For now the following devices have a tailor made class:
-         * - Major Tom ( MajorTom_<unique_identifier>.ino )
-         */
         resolve();
         return this.model.addBoard(board);
     };
 }
-
-export default ConnectionService;

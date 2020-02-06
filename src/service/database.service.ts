@@ -1,12 +1,12 @@
 import { Sequelize } from 'sequelize-typescript';
-import Program from '../domain/program';
-import Board from '../domain/board';
-import LoggerService from './logger.service';
+import { Program, blink, sos } from '../domain/program';
+import { Board } from '../domain/board';
 import { Dialect } from 'sequelize';
-import IDatabaseOptions from '../domain/interface/database-options';
-import DefaultPrograms from '../domain/programs/default';
+import {container, singleton} from "tsyringe";
+import {ConfigurationService} from "./configuration.service";
 
-class DatabaseService {
+@singleton()
+export class DatabaseService {
     /**
      * @static
      * @access private
@@ -19,23 +19,22 @@ class DatabaseService {
      * @access private
      * @type {string}
      */
-    private static namespace = `database`;
+    private namespace = `database-service`;
 
-    /**
-     * @static
-     * @access private
-     * @type {LoggerService}
-     */
-    private static log = new LoggerService(DatabaseService.namespace);
+    constructor() {
+        const configuration = container.resolve(ConfigurationService).databaseConfiguration;
 
-    constructor(options: IDatabaseOptions) {
-        DatabaseService.database = new Sequelize(options.schema, options.username, options.password, {
-            dialect: options.dialect as Dialect,
-            storage: options.dialect === 'sqlite' ? options.path : undefined,
-            logging: options.debug,
+        DatabaseService.database = new Sequelize(configuration.schema, configuration.username, configuration.password, {
+            dialect: configuration.dialect as Dialect,
+            storage: configuration.dialect === 'sqlite' ? configuration.path : undefined,
+            logging: configuration.debug,
         });
 
         DatabaseService.database.addModels([Program, Board]);
+    }
+
+    public synchronise(): Promise<void> {
+        return DatabaseService.database.sync();
     }
 
     /**
@@ -44,14 +43,11 @@ class DatabaseService {
      * @access public
      * @returns {Promise<void>}
      */
-    public async synchronise(): Promise<void> {
-        DatabaseService.log.info(`Synchronising database model.`);
-
-        await DatabaseService.database.sync();
-
-        Program.create(DefaultPrograms.BLINK);
-        Program.create(DefaultPrograms.SOS);
+    public async insertDefaultRecords(): Promise<void> {
+        return new Promise(async (resolve, reject) => {
+            await Program.create(blink);
+            await Program.create(sos);
+            resolve();
+        });
     }
 }
-
-export default DatabaseService;

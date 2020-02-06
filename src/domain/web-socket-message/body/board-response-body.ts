@@ -1,7 +1,7 @@
-import IBoard from '../../interface/board';
-import IBoardResponseBody from '../../interface/board-response-body.interface';
+import { IBoard } from '../../board';
+import { IBoardResponseBody } from '../interface';
 
-export default class BoardResponseBody implements IBoardResponseBody {
+export class BoardResponseBody implements IBoardResponseBody {
     boards: IBoard[];
 
     constructor(values: IBoardResponseBody) {

@@ -1,9 +1,9 @@
-import IBoard from '../../interface/board';
-import IProgram from '../../interface/program';
-import { BROADCAST_ACTION } from '../../enum/broadcast-action.enum';
-import IBroadcastBody from '../../interface/broadcast-body.interface';
+import { IBoard } from '../../board';
+import { IProgram } from '../../program';
+import { BROADCAST_ACTION } from '../enum';
+import { IBroadcastBody } from '../interface';
 
-export default class BroadcastBody implements IBroadcastBody {
+export class BroadcastBody implements IBroadcastBody {
     action: BROADCAST_ACTION;
     payload: IBoard[] | IProgram[];
 

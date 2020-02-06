@@ -1,16 +1,16 @@
-import ConnectionService from './connection.service';
-import BoardsModel from '../model/boards.model';
+import { ConnectionService } from './connection.service';
 import * as SerialPort from 'serialport';
-import LoggerService from './logger.service';
-import Chalk from 'chalk';
+import { LoggerService } from './logger.service';
 import Timeout = NodeJS.Timeout;
-import Board from '../domain/board';
+import { Board } from '../domain/board';
+import { singleton } from 'tsyringe';
 
 /**
  * @description Service that automatically connects to any Firmata compatible devices physically connected to the host.
  * @namespace SerialService
  */
-class SerialService extends ConnectionService {
+@singleton()
+export class SerialService extends ConnectionService {
     /**
      * A list of port IDs in which an unsupported device is plugged in.
      * @access private
@@ -22,15 +22,18 @@ class SerialService extends ConnectionService {
 
     private portScanInterval: Timeout;
 
+    protected namespace = 'serial-service';
+
     /**
      * @constructor
-     * @param {BoardsModel} model
      */
-    constructor(model: BoardsModel) {
-        super(model);
+    constructor() {
+        super();
+    }
 
-        this.namespace = 'serial';
-        this.log = new LoggerService(this.namespace);
+    public listen(): void {
+        LoggerService.info(`Listening on serial ports.`, this.namespace);
+        this.portScanInterval = setInterval(this.scanPorts, 10000);
     }
 
     public closeServer(): void {
@@ -38,14 +41,17 @@ class SerialService extends ConnectionService {
         this.portScanInterval = undefined;
     }
 
-    /**
-     * Scans the host's ports every 3 seconds.
-     * @access private
-     */
-    public listen(): void {
-        this.log.info(`Listening on serial ports.`);
-        this.portScanInterval = setInterval(this.scanPorts, 10000);
-    }
+    protected handleConnected = (board: Board): void => {
+        LoggerService.info(`Device ${LoggerService.highlight(board.id, 'blue', true)} connected.`, this.namespace);
+        board.setIsSerialConnection(true);
+    };
+
+    protected handleDisconnected = (port: SerialPort.PortInfo, board?: Board): void => {
+        this.usedPorts.splice(this.usedPorts.indexOf(port.comName), 1);
+        if (!board) {
+            this.unsupportedDevices.push(port.comName);
+        }
+    };
 
     private scanPorts = async (): Promise<void> => {
         const ports = await this.getAvailableSerialPorts();
@@ -95,18 +101,4 @@ class SerialService extends ConnectionService {
                 this.handleDisconnected(port, board);
             });
     };
-
-    private handleDisconnected = (port: SerialPort.PortInfo, board?: Board) => {
-        this.usedPorts.splice(this.usedPorts.indexOf(port.comName), 1);
-        if (!board) {
-            this.unsupportedDevices.push(port.comName);
-        }
-    };
-
-    private handleConnected = (board: Board) => {
-        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} connected.`);
-        board.setIsSerialConnection(true);
-    };
 }
-
-export default SerialService;

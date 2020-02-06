@@ -37,6 +37,7 @@
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "format:check": "prettier --list-different \"**/*.{ts,json,md}\"",
         "version": "npm run format && npm run lint && git add -A src",
+        "prestart": "npm run build",
         "postversion": "git push && git push --tags"
     },
     "husky": {
@@ -59,6 +60,7 @@
         "args": "^5.0.1",
         "chalk": "^2.4.2",
         "firmata": "^2.0.0",
+        "http-status-codes": "^1.4.0",
         "moment": "^2.24.0",
         "mysql2": "^2.0.0",
         "reflect-metadata": "^0.1.13",
@@ -66,18 +68,19 @@
         "sequelize-typescript": "^1.0.0",
         "serialport": "^7.1.0",
         "sqlite3": "^4.1.0",
+        "tsyringe": "^4.0.1",
         "uuid": "^3.3.3",
         "websocket": "^1.0.30"
     },
     "devDependencies": {
-        "@types/jest": "^24.0.22",
+        "@types/jest": "^24.9.1",
         "husky": "^3.0.9",
         "jest": "^24.9.0",
         "jest-html-reporter": "^2.6.2",
         "jest-junit": "^9.0.0",
         "prettier": "^1.18.2",
         "promise": "^8.0.3",
-        "ts-jest": "^24.1.0",
+        "ts-jest": "^24.3.0",
         "ts-node": "^8.0.3",
         "tslint": "^5.20.0",
         "tslint-config-prettier": "^1.18.0",
@@ -96,6 +99,9 @@
         ],
         "collectCoverage": true,
         "coverageDirectory": "reports/coverage",
+        "setupFilesAfterEnv": [
+            "<rootDir>/jest.setup.ts"
+        ],
         "collectCoverageFrom": [
             "**/*.ts",
             "!**/major-tom.ts",
