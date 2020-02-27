@@ -2,14 +2,13 @@ import {
     BoardService,
     DatabaseService,
     EthernetService,
-    ProgramService,
     SerialService,
     WebSocketService,
 } from '../service';
 import { LoggerService } from '../service/logger.service';
-import {container, inject} from "tsyringe";
-import {ConfigurationService} from "../service/configuration.service";
-import {IAppConfiguration} from "../domain/configuration/interface";
+import { container } from 'tsyringe';
+import { ConfigurationService } from '../service/configuration.service';
+import { IAppConfiguration } from '../domain/configuration/interface';
 
 /**
  * The MainController is the main controller. 'nuff said.
@@ -24,43 +23,6 @@ export class MainController {
      * @access private
      */
     private namespace = `main-controller`;
-
-    /**
-     * Data boardModel managing instances of {@link Board} or classes that extend it.
-     *
-     * @type {BoardService}
-     * @access private
-     */
-    private boardModel: BoardService;
-
-    private programModel: ProgramService;
-
-    /**
-     * Local instance of the {@link WebSocketService}.
-     *
-     * @type {WebSocketService}
-     * @access private
-     */
-    private socketService: WebSocketService;
-
-    /**
-     * Local instance of the {@link EthernetService}.
-     *
-     * @type {EthernetService}
-     * @access private
-     */
-    private ethernetService: EthernetService;
-
-    /**
-     * Local instance of the {@link SerialService}.
-     *
-     * @type {SerialService}
-     * @access private
-     */
-    private serialService: SerialService;
-
-    private databaseService: DatabaseService;
-
     private appConfiguration: IAppConfiguration;
 
     /**
@@ -69,6 +31,12 @@ export class MainController {
     constructor() {
         this.appConfiguration = container.resolve(ConfigurationService).appConfiguration;
         process.env.debug = this.appConfiguration.debug ? 'true' : '';
+
+        process.on('uncaughtException', (error: Error) => {
+            LoggerService.stack(error, this.namespace);
+        });
+
+        LoggerService.info('Starting rev-service', this.namespace);
     }
 
     /**
@@ -78,71 +46,45 @@ export class MainController {
      * @returns {void}
      */
     public async startAllServices(): Promise<void> {
-        LoggerService.info('Starting rev-service', this.namespace);
+        await MainController.startDatabaseService();
+        await MainController.synchroniseDataModels();
 
-        await this.startDatabaseService();
-
-        this.instantiateDataModels();
-        await this.synchroniseDataModels();
-
-        this.startWebSocketService();
+        MainController.startWebSocketService();
 
         if (this.appConfiguration.ethernet) {
-            this.startEthernetService();
+            MainController.startEthernetService();
         }
 
         if (this.appConfiguration.serial) {
-            this.startSerialService();
-        }
-
-        process.on('uncaughtException', (error: Error) => { LoggerService.stack(error, this.namespace)});
-    }
-
-    private stopServices(): void {
-        if (this.ethernetService) {
-            this.ethernetService.closeServer();
-            this.ethernetService = undefined;
-        }
-
-        if (this.serialService) {
-            this.serialService.closeServer();
-            this.serialService = undefined;
-        }
-
-        if (this.socketService) {
-            this.socketService.closeServer();
-            this.socketService = undefined;
+            MainController.startSerialService();
         }
     }
 
-    private startWebSocketService(): void {
-        this.socketService = container.resolve(WebSocketService);
-        this.socketService.startServer();
+    private static stopServices(): void {
+        container.resolve(EthernetService).closeServer();
+        container.resolve(SerialService).closeServer();
+        container.resolve(WebSocketService).closeServer();
     }
 
-    private async startDatabaseService(): Promise<void> {
-        this.databaseService = container.resolve(DatabaseService);
-        await this.databaseService.synchronise();
-        await this.databaseService.insertDefaultRecords();
+    private static startWebSocketService(): void {
+        container.resolve(WebSocketService).listen();
     }
 
-    private startEthernetService(): void {
-        this.ethernetService = container.resolve(EthernetService);
-        this.ethernetService.listen();
+    private static async startDatabaseService(): Promise<void> {
+        const service = container.resolve(DatabaseService);
+        await service.synchronise();
+        await service.insertDefaultRecords();
     }
 
-    private startSerialService(): void {
-        this.serialService = container.resolve(SerialService);
-        this.serialService.listen();
+    private static startEthernetService(): void {
+        container.resolve(EthernetService).listen();
     }
 
-    private instantiateDataModels(): void {
-        this.boardModel = container.resolve(BoardService);
-        this.programModel = container.resolve(ProgramService);
+    private static startSerialService(): void {
+        container.resolve(SerialService).listen();
     }
 
-    private async synchroniseDataModels(): Promise<void> {
-        await this.boardModel.synchronise();
-        await this.programModel.synchronise();
+    private static async synchroniseDataModels(): Promise<void> {
+        await container.resolve(BoardService).updateCache();
     }
 }

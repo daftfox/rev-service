@@ -47,9 +47,9 @@ export class SerialService extends ConnectionService {
     };
 
     protected handleDisconnected = (port: SerialPort.PortInfo, board?: Board): void => {
-        this.usedPorts.splice(this.usedPorts.indexOf(port.comName), 1);
+        this.usedPorts.splice(this.usedPorts.indexOf(port.path), 1);
         if (!board) {
-            this.unsupportedDevices.push(port.comName);
+            this.unsupportedDevices.push(port.path);
         }
     };
 
@@ -78,15 +78,15 @@ export class SerialService extends ConnectionService {
     private filterPorts = (ports: SerialPort.PortInfo[]): SerialPort.PortInfo[] => {
         return ports
             .filter(port => port.productId !== undefined)
-            .filter(port => this.usedPorts.indexOf(port.comName) < 0)
-            .filter(port => this.unsupportedDevices.indexOf(port.comName) < 0);
+            .filter(port => this.usedPorts.indexOf(port.path) < 0)
+            .filter(port => this.unsupportedDevices.indexOf(port.path) < 0);
     };
 
     private attemptConnectionToPorts(ports: SerialPort.PortInfo[]): Promise<void> {
         return new Promise((resolve, reject) => {
             ports.forEach(port => {
                 this.attemptConnectionToPort(port).then(() => {
-                    this.usedPorts.push(port.comName);
+                    this.usedPorts.push(port.path);
                 });
             });
 
@@ -95,7 +95,7 @@ export class SerialService extends ConnectionService {
     }
 
     private attemptConnectionToPort = (port: SerialPort.PortInfo): Promise<void> => {
-        return this.connectToBoard(port.comName)
+        return this.connectToBoard(port.path)
             .then(this.handleConnected)
             .catch((board?: Board) => {
                 this.handleDisconnected(port, board);

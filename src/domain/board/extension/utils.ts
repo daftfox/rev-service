@@ -7,19 +7,22 @@ export const AVAILABLE_EXTENSIONS_CLASSES = ((): IExtensionClasses => {
         Board: Board,
     };
 
-    for (const extensionName of Object.keys(extensions)) {
-        classes[extensionName] = extensions[extensionName];
+    for (const extension of Object.keys(extensions)) {
+        classes[extension] = extensions[extension];
     }
 
     return classes;
 })();
 
 export const AVAILABLE_EXTENSIONS_KEYS = ((): IExtensionKeys => {
-    const keys = {};
+    const keys = {
+        Board: 'Board',
+    };
 
-    Object.keys(AVAILABLE_EXTENSIONS_CLASSES).forEach((key: string) => {
-        keys[key.toUpperCase()] = key;
-    });
+
+    for (const extension of Object.keys(extensions)) {
+        keys[extension] = extensions[extension].name;
+    }
 
     return keys;
 })();

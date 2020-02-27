@@ -1,9 +1,9 @@
 import { Socket } from 'net';
-import {EthernetService} from './index';
-import {container} from "tsyringe";
-import {ConfigurationService} from "./configuration.service";
-import {configurationServiceMock} from "../mocks/configuration.service.mock";
-import {LoggerService} from "./logger.service";
+import { EthernetService } from './index';
+import { container } from 'tsyringe';
+import { ConfigurationService } from './configuration.service';
+import { configurationServiceMock } from '../mocks/configuration.service.mock';
+import { LoggerService } from './logger.service';
 jest.mock('./logger.service');
 
 let ethernetService: any;

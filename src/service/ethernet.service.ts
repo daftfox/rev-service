@@ -2,8 +2,8 @@ import { ConnectionService } from './connection.service';
 import { LoggerService } from './logger.service';
 import { Server, Socket } from 'net';
 import { Board } from '../domain/board';
-import {container, singleton} from 'tsyringe';
-import {ConfigurationService} from "./configuration.service";
+import { container, singleton } from 'tsyringe';
+import { ConfigurationService } from './configuration.service';
 
 /**
  * @classdesc An ethernet service that opens a socket and attempts to connect to boards that knock on the proverbial door.
@@ -31,7 +31,10 @@ export class EthernetService extends ConnectionService {
     public listen(): void {
         const port = container.resolve(ConfigurationService).ethernetPort;
 
-        LoggerService.info(`Listening on port ${LoggerService.highlight(port.toString(10), 'yellow', true)}.`, this.namespace);
+        LoggerService.info(
+            `Listening on port ${LoggerService.highlight(port.toString(10), 'yellow', true)}.`,
+            this.namespace,
+        );
 
         this.server.listen(port);
     }
@@ -44,7 +47,7 @@ export class EthernetService extends ConnectionService {
         LoggerService.info(`Device ${LoggerService.highlight(board.id, 'blue', true)} connected.`, this.namespace);
     };
 
-    protected handleDisconnected(socket: Socket, board?: Board): void {
+    protected handleDisconnected(socket: Socket): void {
         socket.end();
         socket.destroy();
     }
@@ -54,8 +57,8 @@ export class EthernetService extends ConnectionService {
 
         return this.connectToBoard(socket)
             .then(this.handleConnected)
-            .catch((board: Board) => {
-                this.handleDisconnected(socket, board);
+            .catch((boardId: string) => {
+                this.handleDisconnected(socket);
             });
     };
 }

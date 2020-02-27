@@ -9,7 +9,7 @@ export interface IBoard {
     online: boolean;
     lastUpdateReceived: string;
     architecture: BoardArchitecture;
-    availableCommands?: string[];
+    availableActions?: string[];
     refreshRate?: number;
     vendorId?: string;
     productId?: string;

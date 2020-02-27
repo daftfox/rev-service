@@ -1,7 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
 import FirmataBoardMock from '../../../mocks/firmata-board.mock';
-import * as FirmataBoard from 'firmata';
-import { Board } from '../base';
+import {Board, FirmataBoard} from '../base';
 import { LedController } from './';
 
 let board: any;
@@ -29,7 +28,7 @@ describe('LedController:', () => {
         });
 
         test('should set firmataBoard serial options', () => {
-            board = new LedController(undefined, undefined, mockFirmataBoard);
+            board = new LedController();
 
             const serialOptions = {
                 portId: board.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,

@@ -2,8 +2,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { Program, blink, sos } from '../domain/program';
 import { Board } from '../domain/board';
 import { Dialect } from 'sequelize';
-import {container, singleton} from "tsyringe";
-import {ConfigurationService} from "./configuration.service";
+import { container, singleton } from 'tsyringe';
+import { ConfigurationService } from './configuration.service';
 
 @singleton()
 export class DatabaseService {

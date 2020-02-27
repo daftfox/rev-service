@@ -1,6 +1,4 @@
 import { Sequelize } from 'sequelize-typescript';
-import FirmataBoardMock from '../../../mocks/firmata-board.mock';
-import * as FirmataBoard from 'firmata';
 import { Board } from '../base';
 import { LedController } from './led-controller.model';
 

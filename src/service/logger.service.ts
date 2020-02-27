@@ -1,4 +1,4 @@
-import Chalk from 'chalk';
+import * as Chalk from 'chalk';
 import * as moment from 'moment';
 
 /**
@@ -24,7 +24,9 @@ export class LoggerService {
      * @returns {string} Formatted message
      */
     private static formatMessage(message: string | Error, namespace?: string, addTimestamp: boolean = true): string {
-        return `${addTimestamp ? LoggerService.getTimestamp() : ''} ${Chalk.red.bold(LoggerService.appName)}${namespace ? LoggerService.formatNamespace(namespace) : ''} ${message}`;
+        return `${addTimestamp ? LoggerService.getTimestamp() : ''} ${Chalk.red.bold(LoggerService.appName)}${
+            namespace ? LoggerService.formatNamespace(namespace) : ''
+        } ${message}`;
     }
 
     private static formatNamespace(namespace: string): string {
@@ -110,7 +112,12 @@ export class LoggerService {
      * @param {Error} error
      */
     public static error(error: Error | string, namespace?: string): void {
-        console.error(`${Chalk.black.bgRed('ERROR')} ${LoggerService.formatMessage(LoggerService.formatErrorMessage(error), namespace)}`);
+        console.error(
+            `${Chalk.black.bgRed('ERROR')} ${LoggerService.formatMessage(
+                LoggerService.formatErrorMessage(error),
+                namespace,
+            )}`,
+        );
     }
 
     /**
@@ -118,6 +125,8 @@ export class LoggerService {
      * @param {Error} error
      */
     public static stack(error: Error, namespace?: string): void {
-        console.log(`${Chalk.black.bgRed('ERROR')} ${LoggerService.formatMessage(LoggerService.formatStack(error), namespace)}`);
+        console.log(
+            `${Chalk.black.bgRed('ERROR')} ${LoggerService.formatMessage(LoggerService.formatStack(error), namespace)}`,
+        );
     }
 }

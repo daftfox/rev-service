@@ -1,5 +1,5 @@
-import {IDatabaseConfiguration} from "../interface";
-import {IFlags} from "../interface/flags.interface";
+import { IDatabaseConfiguration } from '../interface';
+import { IFlags } from '../interface/flags.interface';
 
 export class DatabaseConfiguration implements IDatabaseConfiguration {
     username: string;
@@ -11,7 +11,7 @@ export class DatabaseConfiguration implements IDatabaseConfiguration {
     schema: string;
     debug: boolean;
 
-    constructor({dbUsername, dbPassword, dbHost, dbPort, dbPath, dbDialect, dbSchema, debug}: IFlags){
+    constructor({ dbUsername, dbPassword, dbHost, dbPort, dbPath, dbDialect, dbSchema, debug }: IFlags) {
         this.username = dbUsername;
         this.password = dbPassword;
         this.host = dbHost;

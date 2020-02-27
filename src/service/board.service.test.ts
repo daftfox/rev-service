@@ -1,550 +1,426 @@
-import { Sequelize } from 'sequelize-typescript';
-import BoardMock from '../mocks/board.mock';
-import FirmataBoardMock from '../mocks/firmata-board.mock';
-import { BoardService, DatabaseService } from './index';
-import { Board, IDLE, SUPPORTED_ARCHITECTURES } from '../domain/board/base';
-import {
-    BoardIncompatibleError,
-    BoardNotFoundError,
-    BoardTypeNotFoundError,
-    BoardUnavailableError,
-} from '../domain/error';
-import { AVAILABLE_EXTENSIONS_CLASSES } from '../domain/board/extension';
-import { ICommand } from '../domain/program/interface';
-import { blink } from '../domain/program/example';
+import { BoardService } from './index';
+import {BoardNotFoundError} from '../domain/error';
+import {container} from 'tsyringe';
+import {ConfigurationService} from './configuration.service';
+import {configurationServiceMock} from '../mocks/configuration.service.mock';
+import {BoardDAO} from '../dao/board.dao';
+import {boardMock, dataValuesMock, discreteBoardMock, idsMock} from '../domain/board/base/__mocks__/board.model';
+import {ServerError} from '../domain/error/server.error';
+import {LoggerService} from './logger.service';
+import {FirmataBoard} from '../domain/board/base';
+import {Socket} from 'net';
+import {firmataBoardMock} from "../domain/board/base/__mocks__/firmata-board.model";
+jest.mock('../domain/board/base/firmata-board.model');
+jest.mock('./logger.service');
+jest.mock('../dao/board.dao');
+jest.mock('../domain/board/base/board.model');
 
-let boards: any;
-let mockFirmataBoard: any;
-let sequelize: Sequelize;
-let databaseService: any;
-
-const databaseOptions = {
-    schema: 'rev',
-    host: 'localhost',
-    port: 3306,
-    username: '',
-    password: '',
-    dialect: 'sqlite',
-    path: ':memory:',
-    debug: false,
+let service: BoardService;
+const properties = {
+    cache: 'cache',
+    inCache: 'inCache',
+    createAndPersistNewBoard: 'createAndPersistNewBoard',
+    initialiseCachedBoard: 'initialiseCachedBoard',
+    deleteBoard: 'deleteBoard',
+    disconnectBoard: 'disconnectBoard',
+    removeFromCache: 'removeFromCache',
+    emit: 'emit',
+    updateBoard: 'updateBoard',
+    updateOnlineBoard: 'updateOnlineBoard',
+    updateOfflineBoard: 'updateOfflineBoard',
+    updateCachedBoard: 'updateCachedBoard',
+    addBoardToCache: 'addBoardToCache',
+    persistChanges: 'persistChanges',
+    initialiseBoard: 'initialiseBoard'
 };
 
-beforeEach(async () => {
-    boards = new BoardService();
-    mockFirmataBoard = new FirmataBoardMock();
-    databaseService = new DatabaseService();
-    await databaseService.synchronise();
+beforeAll(async () => {
+    container.registerInstance(ConfigurationService, configurationServiceMock);
 });
 
-beforeAll(() => {
-    sequelize = new Sequelize({
-        dialect: 'sqlite',
-        storage: ':memory:',
-    });
-    sequelize.addModels([Board]);
+beforeEach(() => {
+    service = new BoardService();
+    spyOn(service, 'emit');
 });
+
+const addBoardToCache = () => {
+    service[properties.cache].push(boardMock);
+};
 
 describe('BoardService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(boards).toBeDefined();
+            expect(service).toBeDefined();
         });
     });
 
-    describe('#instantiateNewBoard', () => {
+    describe('#inCache', () => {
+        beforeEach(() => {
+            addBoardToCache();
+        });
+
         test.each([
-            [new BoardMock('bacon', 'eggs', 'Board'), 'toggleLED'],
-            [new BoardMock('bacon', 'eggs', 'LedController'), 'kitt'],
-            [new BoardMock('bacon', 'eggs', 'MajorTom'), 'setDTC'],
-        ])('should create new instance of corresponding board types', (board, expectedProperty) => {
-            // @ts-ignore
-            const newBoard = BoardService.instantiateNewBoard(board);
-
-            expect(expectedProperty in newBoard).toEqual(true);
-        });
-
-        test('should throw BoardTypeNotFoundError', () => {
-            const mockBoard = new BoardMock('bacon', 'eggs', 'Fromage');
-
-            const newBoardError = () => {
-                // @ts-ignore
-                BoardService.instantiateNewBoard(mockBoard);
-            };
-
-            // @ts-ignore
-            expect(newBoardError).toThrowError(
-                new BoardTypeNotFoundError(
-                    `Type '${mockBoard.type}' is not a valid type. Valid types are${Object.keys(
-                        AVAILABLE_EXTENSIONS_CLASSES,
-                    ).map(type => ` '${type}'`)}`,
-                ),
-            );
+            [0, dataValuesMock.id],
+            [-1, 'unknown-board'],
+        ])('should return %p when checking if board with id %p exists in the cache', (expectedValue: number, boardId: string) => {
+            expect(service[properties.inCache](boardId)).toEqual(expectedValue);
         });
     });
 
-    describe('#findOrBuildBoard', () => {
-        test('should return a fresh new instance of a board', () => {
-            // @ts-ignore
-            return BoardService.findOrBuildBoard('bacon', 'Board').then(newBoard => {
-                expect(newBoard.isNewRecord).toEqual(true);
-                expect(newBoard).toBeDefined();
-            });
-        });
+    describe('#createAndPersistNewBoard', () => {
+        test('should create a new board, persist it and attach firmataBoard object', async () => {
+            const board = await BoardService[properties.createAndPersistNewBoard](dataValuesMock, firmataBoardMock);
 
-        test('should return an existing instance of a board from the database', () => {
-            const newBoard = new Board();
-            newBoard.save();
-
-            // @ts-ignore
-            return BoardService.findOrBuildBoard(newBoard.id, 'Board').then(existingBoard => {
-                expect(existingBoard.isNewRecord).toEqual(false);
-            });
+            expect(BoardDAO.create).toHaveBeenCalled();
+            expect(BoardDAO.persist).toHaveBeenCalled();
+            expect(board.getFirmataBoard()).toEqual(firmataBoardMock);
         });
     });
 
-    describe('#synchronise', () => {
-        test('should retrieve existing boards from the database', () => {
-            const newBoard = new Board();
-            newBoard.save();
-
-            return boards.synchronise().then(() => {
-                expect(boards._boards.length).toEqual(1);
-            });
+    describe('#updateCache', () => {
+        test('should call the DAO getAll method', async () => {
+            await service.updateCache();
+            expect(BoardDAO.getAll).toHaveBeenCalled();
         });
     });
 
-    describe('#getBoards', () => {
+    describe('#getAllBoards', () => {
         test('should return an array of IBoard objects', () => {
-            boards._boards.push(new Board());
-            const result = boards.getAllBoards();
+            addBoardToCache();
+            const result = service.getAllBoards();
 
             expect(Array.isArray(result)).toEqual(true);
             expect(result.length).toEqual(1);
         });
     });
 
-    describe('#getDiscreteBoardById', () => {
-        let board;
-
-        beforeEach(async () => {
-            board = new Board();
-            board.id = 'bacon';
-            board.name = 'eggs';
-            board.architecture = SUPPORTED_ARCHITECTURES.ARDUINO_UNO;
-            await board.save();
-            boards._boards = [board];
-        });
-
-        test('should return an object of type IBoard', () => {
-            const discreteBoard = boards.getDiscreteBoardById(board.id);
-            expect(discreteBoard.id).toEqual(board.id);
-        });
-    });
-
     describe('#getBoardById', () => {
-        let board;
+        test('should return an object of type IBoard', () => {
+            addBoardToCache();
 
-        beforeEach(async () => {
-            board = new Board();
-            board.id = 'bacon';
-            board.name = 'eggs';
-            board.architecture = SUPPORTED_ARCHITECTURES.ARDUINO_UNO;
-            await board.save();
-            boards._boards = [board];
+            const board = service.getBoardById(boardMock.id);
+            expect(board.id).toEqual(boardMock.id);
         });
 
-        describe('happy flows', () => {
-            test('should return an object of type IBoard', () => {
-                const discreteBoard = boards.getBoardById(board.id);
-                expect(discreteBoard.id).toEqual(board.id);
-            });
-        });
+        test('should throw a BoardNotFoundError', () => {
+            const boardId = 'unknown-board';
+            const expectedError = new BoardNotFoundError(`Board with id ${boardId} could not be found.`);
+            const getBoardByIdError = () => {
+                return service.getBoardById(boardId);
+            };
 
-        describe('exception flows', () => {
-            test('should throw error', () => {
-                const boardId = 'omelettedufromage';
-                const getDiscreteBoardByIdError = () => {
-                    boards.getDiscreteBoardById(boardId);
-                };
-
-                expect(getDiscreteBoardByIdError).toThrowError(
-                    new BoardNotFoundError(`Board with id ${boardId} could not be found.`),
-                );
-            });
+            expect(getBoardByIdError).toThrowError(expectedError);
         });
     });
 
     describe('#addBoard', () => {
-        describe('happy flows', () => {
-            test('should instantiate a new board and add it to the database', () => {
-                // @ts-ignore
-                BoardService.log.debug = jest.fn();
-                boards.emit = jest.fn();
-                const newBoard = new Board();
-                newBoard.id = 'bacon';
-                const discreteBoard = Board.toDiscrete(newBoard);
+        test('should add a new board to the cache', async () => {
+            const createAndPersistSpy = spyOn<any>(BoardService, properties.createAndPersistNewBoard).and.callThrough();
+            const initialiseCachedBoardSpy = spyOn<any>(service, properties.initialiseCachedBoard).and.callThrough();
 
-                return boards.addBoard(newBoard).then(_board => {
-                    expect(_board).toBeDefined();
-                    expect(boards._boards.length).toEqual(1);
-                    expect(boards.emit).toHaveBeenCalledWith('connected', discreteBoard, true);
+            await service.addBoard(dataValuesMock, firmataBoardMock);
 
-                    // @ts-ignore
-                    expect(BoardService.log.debug).toHaveBeenCalled();
-                });
-            });
+            expect(initialiseCachedBoardSpy).toHaveBeenCalledWith(dataValuesMock.id, firmataBoardMock);
+            expect(createAndPersistSpy).toHaveBeenCalledWith(dataValuesMock, firmataBoardMock);
+            expect(service.emit).toHaveBeenCalledWith('connected', discreteBoardMock, true );
+        });
 
-            test('should return an instance of an existing board and replace the cached board', async () => {
-                const board = new Board();
-                board.id = 'bacon';
-                await board.save();
-                boards._boards = [board];
-                boards.emit = jest.fn();
+        test('should log a server error', async () => {
+            spyOn<any>(service, properties.initialiseCachedBoard).and.callFake(() => {throw new Error()});
 
-                const updatedBoard = Object.assign(new Board(), board);
-                updatedBoard.lastUpdateReceived = '2019-11-16T03:55:34+00:00';
-
-                const discreteBoard = Board.toDiscrete(updatedBoard);
-
-                return boards.addBoard(updatedBoard).then(_board => {
-                    expect(_board).toBeDefined();
-                    expect(_board.lastUpdateReceived).toEqual(updatedBoard.lastUpdateReceived);
-                    expect(boards._boards.length).toEqual(1);
-                    expect(boards.emit).toHaveBeenCalledWith('connected', discreteBoard, false);
-                });
-            });
+            try {
+                await service.addBoard(dataValuesMock, firmataBoardMock);
+            } catch(error) {
+                expect(LoggerService.stack).toHaveBeenCalledWith(new ServerError(`Board with id ${dataValuesMock.id} could not be added due to an unknown error.`));
+            }
         });
     });
 
     describe('#deleteBoard', () => {
-        test('should remove a board from the database', () => {
-            // @ts-ignore
-            BoardService.log.debug = jest.fn();
-            const newBoard = new Board();
-            newBoard.save();
-            newBoard.destroy = jest.fn();
-            boards._boards = [newBoard];
-            boards.disconnectBoard = jest.fn();
+        test('should disconnect the board, destroy the instance and remove it from the cache', async () => {
+            spyOn(service, 'getBoardById').and.returnValue(boardMock);
+            spyOn<any>(service, 'disconnectBoard');
+            spyOn<any>(service, 'removeFromCache');
 
-            boards.deleteBoard(newBoard.id);
+            await service.deleteBoard(boardMock.id);
 
-            expect(boards.disconnectBoard).toHaveBeenCalled();
-            expect(newBoard.destroy).toHaveBeenCalled();
-
-            // @ts-ignore
-            expect(BoardService.log.debug).toHaveBeenCalled();
+            expect(service.getBoardById).toHaveBeenCalledWith(boardMock.id);
+            expect(service[properties.disconnectBoard]).toHaveBeenCalledWith(boardMock.id);
+            expect(service[properties.removeFromCache]).toHaveBeenCalledWith(boardMock.id);
+            expect(BoardDAO.destroy).toHaveBeenCalledWith(boardMock);
         });
     });
 
     describe('#disconnectBoard', () => {
-        describe('happy flows', () => {
-            test('should disconnect a board', () => {
-                // @ts-ignore
-                BoardService.log.debug = jest.fn();
-                const newBoard = new Board();
-                newBoard.id = 'bacon';
-                newBoard.save();
-                boards.emit = jest.fn();
-                boards._boards = [newBoard];
-                newBoard.disconnect = jest.fn();
-                newBoard.save = jest.fn();
+        test('should call the board disconnect method and emit the disconnect event', () => {
+            addBoardToCache();
+            service[properties.disconnectBoard](boardMock.id);
 
-                boards.disconnectBoard(newBoard.id);
-
-                expect(boards.emit).toHaveBeenCalledWith('disconnected', Board.toDiscrete(newBoard));
-                expect(newBoard.disconnect).toHaveBeenCalled();
-                expect(newBoard.save).toHaveBeenCalled();
-
-                // @ts-ignore
-                expect(BoardService.log.debug).toHaveBeenCalled();
-            });
-        });
-
-        describe('exception flows', () => {
-            test('should throw a not found error', () => {
-                const boardId = 'berd';
-                const disconnectBoardError = () => {
-                    boards.disconnectBoard(boardId);
-                };
-
-                expect(disconnectBoardError).toThrowError(
-                    new BoardNotFoundError(`Board with id ${boardId} could not be found.`),
-                );
-            });
+            expect(boardMock.disconnect).toHaveBeenCalled();
+            expect(service[properties.emit]).toHaveBeenCalledWith('disconnected', discreteBoardMock);
         });
     });
 
-    describe('#updateBoard', () => {
-        let board: Board;
+    describe('#removeFromCache', () => {
+        test('should remove the board from cache', () => {
+            addBoardToCache();
 
-        beforeEach(async () => {
-            board = new Board();
-            board.id = 'bacon';
-            board.name = 'eggs';
-            board.architecture = SUPPORTED_ARCHITECTURES.ARDUINO_UNO;
-            await board.save();
-            boards._boards = [board];
+            service[properties.removeFromCache](boardMock.id);
+
+            expect(service[properties.cache].length).toEqual(0);
+        });
+    });
+
+    describe('#addBoardToCache', () => {
+        test('should add the supplied board to the cache', () => {
+            service[properties.addBoardToCache](boardMock);
+
+            expect(service[properties.cache][0]).toEqual(boardMock);
+        });
+    });
+
+    describe('board update methods', () => {
+        let boardUpdates;
+        let board;
+        const name = 'newBoardName';
+
+        beforeEach(() => {
+            boardUpdates = Object.assign(discreteBoardMock, {name});
+            board = Object.assign(boardMock, boardUpdates);
+
+            spyOn<any>(service, 'persistChanges').and.returnValue(Promise.resolve(board));
         });
 
-        describe('happy flows', () => {
-            test('should update the board with the new name', async () => {
-                const boardUpdates = new Board();
-                boardUpdates.id = 'bacon';
-                boardUpdates.name = 'omelette du fromage';
-
-                await boards.updateBoard(Board.toDiscrete(boardUpdates));
-
-                expect(boards.getBoardById(boardUpdates.id).name).toEqual(boardUpdates.name);
+        describe('#updateBoard', () => {
+            beforeEach(() => {
+                spyOn<any>(service, 'updateCachedBoard');
             });
 
-            test('should update the board with the new architecture', async () => {
-                const boardUpdates = new Board();
-                boardUpdates.id = 'bacon';
-                boardUpdates.architecture = SUPPORTED_ARCHITECTURES.ESP_8266;
+            test('should run updateOnlineBoard and updateCachedBoard methods', async () => {
+                const boardUpdates = Object.assign({}, discreteBoardMock);
+                const onlineBoard = Object.assign({}, boardMock);
+                boardUpdates.online = true;
+                onlineBoard.online = true;
 
-                await boards.updateBoard(Board.toDiscrete(boardUpdates));
+                spyOn(service, 'getBoardById').and.returnValue(onlineBoard);
+                spyOn<any>(service, 'updateOnlineBoard').and.returnValue(Promise.resolve(onlineBoard));
 
-                expect(board.architecture).toEqual(boardUpdates.architecture);
+                await service[properties.updateBoard](boardUpdates);
+
+                expect(service[properties.updateOnlineBoard]).toHaveBeenCalledWith(onlineBoard, boardUpdates);
+                expect(service[properties.updateCachedBoard]).toHaveBeenCalledWith(onlineBoard);
             });
 
-            test('should update the board with the new type', async () => {
-                const boardUpdates = new Board();
-                boardUpdates.id = 'bacon';
-                boardUpdates.type = 'LedController';
+            test('should run updateOfflineBoard and updateCachedBoard methods', async () => {
+                spyOn(service, 'getBoardById').and.returnValue(boardMock);
+                spyOn<any>(service, 'updateOfflineBoard').and.returnValue(Promise.resolve(boardMock));
 
-                await boards.updateBoard(Board.toDiscrete(boardUpdates));
+                await service[properties.updateBoard](discreteBoardMock);
 
-                expect(board.type).toEqual(boardUpdates.type);
+                expect(service[properties.updateOfflineBoard]).toHaveBeenCalledWith(boardMock, discreteBoardMock);
+                expect(service[properties.updateCachedBoard]).toHaveBeenCalledWith(boardMock);
+            });
+        });
+
+        describe('#updateCachedBoard', () => {
+            test('should replace the cached board instance with the supplied one', () => {
+                addBoardToCache();
+                board.name = name;
+
+                service[properties.updateCachedBoard](board);
+
+                expect(service[properties.cache][0].name).toEqual(name);
+                expect(service[properties.cache][0]).toEqual(board);
+            });
+        });
+
+        describe('#updateOfflineBoard', () => {
+            test('should update the board and call the persistChanges method', async () => {
+                const result = await service[properties.updateOfflineBoard](boardMock, boardUpdates);
+
+                expect(result).toBeDefined();
+                expect(result.name).toEqual(name);
+                expect(service[properties.persistChanges]).toHaveBeenCalledWith(boardMock);
+            });
+        });
+
+        describe('#updateOnlineBoard', () => {
+            test('should update the board and call the persistChanges method if the board type has not changed', async () => {
+                const result = await service[properties.updateOnlineBoard](boardMock, boardUpdates);
+
+                expect(result).toBeDefined();
+                expect(result.name).toEqual(name);
+                expect(service[properties.persistChanges]).toHaveBeenCalledWith(boardMock);
             });
 
-            test('should clear all timers when updating online board with the new type', async () => {
-                board = new Board();
-                board.id = 'fromage';
-                board.online = true;
-                board.clearAllTimers = jest.fn();
-                await board.save();
-                boards._boards = [board];
-
-                const boardUpdates = new Board();
-                boardUpdates.id = 'fromage';
-                boardUpdates.type = 'LedController';
-
-                await boards.updateBoard(Board.toDiscrete(boardUpdates));
+            test('should update the board, call the persistChanges method and reinstantiate the board with the new type if the board type has changed', async () => {
+                const newType = 'LedController';
+                boardUpdates.type = newType;
+                const dataValues = board.getDataValues();
+                dataValues.type = newType;
+                const result = await service[properties.updateOnlineBoard](boardMock, boardUpdates);
 
                 expect(board.clearAllTimers).toHaveBeenCalled();
-            });
-        });
-
-        describe('exception flows', () => {
-            test('should throw an error', async () => {
-                board.type = 'Bacon';
-
-                const updateBoardError = async () => {
-                    await boards.updateBoard(board);
-                };
-
-                const expectedError = new BoardTypeNotFoundError(
-                    // @ts-ignore
-                    `Type 'Bacon' is not a valid type. Valid types are${Object.keys(AVAILABLE_EXTENSIONS_CLASSES).map(
-                        type => ` '${type}'`,
-                    )}.`,
-                );
-
-                await expect(updateBoardError()).rejects.toThrowError(expectedError);
+                expect(board.attachFirmataBoard).toHaveBeenCalled();
+                expect(BoardDAO.createBoardInstance).toHaveBeenCalledWith(dataValues);
+                expect(result).toBeDefined();
+                expect(result).toBeDefined();
+                expect(result.type).toEqual(newType);
+                expect(service[properties.persistChanges]).toHaveBeenCalledWith(board);
             });
         });
     });
 
-    describe('#executeActionOnBoard', () => {
-        let board: Board;
+    describe('#persistChanges', () => {
+        test('should call the BoardDAO persist method to persist the changes in a board and emit an update event', async () => {
+            const result = await service[properties.persistChanges](boardMock);
 
-        beforeEach(async () => {
-            board = new Board();
-            board.id = 'bacon';
-            board.name = 'eggs';
-            board.online = true;
-            await board.save();
-            boards._boards = [board];
+            expect(BoardDAO.persist).toHaveBeenCalledWith(boardMock);
+            expect(result).toBeDefined();
+            expect(service[properties.emit]).toHaveBeenCalledWith('update', discreteBoardMock);
         });
+    });
+    
+    describe('#initialiseCachedBoard', () => {
+        test('should initialise a cached board and update the cached instance with the new instance', () => {
+            addBoardToCache();
+            const expectedResult = Object.assign({}, boardMock);
+            expectedResult.firmataBoard = firmataBoardMock;
 
-        describe('happy flows', () => {
-            test.each([
-                [
-                    {
-                        action: 'TOGGLELED',
-                    },
-                    {
-                        action: 'SETPINVALUE',
-                        parameters: ['1', '128'],
-                    },
-                ],
-            ])('should execute the action', async (command: ICommand) => {
-                board.executeAction = jest.fn();
+            spyOn<any>(BoardService, 'initialiseBoard').and.returnValue(expectedResult);
 
-                await boards.executeActionOnBoard(board.id, command);
+            const result = service[properties.initialiseCachedBoard](boardMock.id, firmataBoardMock);
 
-                expect(board.executeAction).toHaveBeenCalledWith(command.action, command.parameters);
-            });
-        });
-
-        describe('exception flows', () => {
-            test('should throw an error if the action does not exist', () => {
-                const command: ICommand = {
-                    action: 'FROMAGE',
-                };
-
-                const executeActionOnBoardError = async () => {
-                    await boards.executeActionOnBoard(board.id, command);
-                };
-
-                expect(executeActionOnBoardError()).rejects.toThrowError(
-                    new BoardIncompatibleError(`'${command.action}' is not a valid action for this board.`),
-                );
-            });
-
-            test('should throw an error if the board is offline', () => {
-                board.online = false;
-                const command: ICommand = {
-                    action: 'TOGGLELED',
-                };
-
-                const executeActionOnBoardError = async () => {
-                    await boards.executeActionOnBoard(board.id, command);
-                };
-
-                expect(executeActionOnBoardError()).rejects.toThrowError(
-                    new BoardUnavailableError(`Unable to execute action on this board since it is not online.`),
-                );
-            });
+            expect(result).toBeDefined();
+            expect(BoardService[properties.initialiseBoard]).toHaveBeenCalled();
+            expect(service[properties.cache][0]).toEqual(expectedResult);
         });
     });
 
-    describe('#stopProgram', () => {
-        test("should set the board's current program to IDLE", () => {
-            const board = new Board();
-            board.id = 'bacon';
-            board.currentProgram = 'eggs';
-            boards._boards = [board];
+    describe('#initialiseBoard', () => {
+        test('should create a new instance of the given board and call the board attachFirmataBoard method', () => {
+            const result = BoardService[properties.initialiseBoard](boardMock, firmataBoardMock);
 
-            boards.stopProgram(board.id);
-
-            expect(board.currentProgram).toEqual(IDLE);
+            expect(result).toBeDefined();
+            expect(boardMock.attachFirmataBoard).toHaveBeenCalled();
+            expect(BoardDAO.createBoardInstance).toHaveBeenCalledWith(dataValuesMock);
         });
     });
 
-    describe('#executeProgramOnBoard', () => {
-        let board: Board;
-
-        beforeEach(async () => {
-            board = new Board();
-            board.id = 'bacon';
-            board.name = 'eggs';
-            board.online = true;
-            await board.save();
-            boards._boards = [board];
-            boards.runProgram = jest.fn(() => Promise.resolve());
-        });
-
-        describe('happy flows', () => {
-            test('should run the program once', async () => {
-                const boardClone = Object.assign(Object.create(Object.getPrototypeOf(board)), board);
-                boardClone.currentProgram = blink.name;
-
-                await boards.executeProgramOnBoard(board.id, blink);
-
-                expect(boards.runProgram).toHaveBeenCalledTimes(1);
-                expect(boards.runProgram).toHaveBeenCalledWith(Board.toDiscrete(boardClone), blink);
-            });
-
-            test('should run the program thrice', async () => {
-                await boards.executeProgramOnBoard(board.id, blink, 3);
-
-                expect(boards.runProgram).toHaveBeenCalledTimes(3);
-            });
-
-            // fixme: the indefinite part can't be tested yet
-            // xtest('should run the program indefinitely', done => {
-            //     boards.executeProgramOnBoard(board.id, blink, -1);
-            //
-            //     setTimeout(() => {
-            //         boards.stopProgram(board.id);
-            //         expect(board.currentProgram).toEqual(blink.name);
-            //         expect(boards.runProgram).toHaveBeenCalledTimes(1);
-            //         done();
-            //     }, 10);
-            // });
-        });
-
-        describe('exception flows', () => {
-            test('should return an error when the board is not idle', async () => {
-                board.currentProgram = 'eggs';
-
-                const executeProgramOnBoardError = async () => {
-                    await boards.executeProgramOnBoard(board.id, blink);
-                };
-
-                await expect(executeProgramOnBoardError()).rejects.toThrowError(
-                    new BoardUnavailableError(
-                        `Board with id ${board.id} is already running a program (${board.currentProgram}). Stop the currently running program or wait for it to finish.`,
-                    ),
-                );
-            });
-
-            test("should return an error if the program isn't compatible with the board", async () => {
-                board.currentProgram = IDLE;
-                // const blinkForOtherType = Object.assign({}, blink);
-
-                blink.deviceType = 'OtherBoardType';
-
-                const executeProgramOnBoardError = async () => {
-                    await boards.executeProgramOnBoard(board.id, blink);
-                };
-
-                await expect(executeProgramOnBoardError()).rejects.toThrowError(
-                    new BoardIncompatibleError(
-                        `The program ${blink.name} cannot be run on board with id ${board.id}, because it is of the wrong type. Program ${blink.name} can only be run on devices of type ${blink.deviceType}.`,
-                    ),
-                );
-            });
-        });
-    });
-
-    describe('#createAndPersistBoard', () => {
-        test('should create a new instance of the board parameter if type doesnt match constructor name', async () => {
-            let board = new Board();
-            board.type = 'LedController';
-
-            board = await boards.createAndPersistBoard(board);
-
-            expect(board.type).toEqual(board.type);
-        });
-    });
-
-    describe('#runProgram', () => {
-        test('should run the program', async () => {
-            const board = new Board();
-            board.id = 'bacon';
-            board.currentProgram = blink.name;
-            boards.executeActionOnBoard = jest.fn(() => Promise.resolve());
-
-            await boards.runProgram(Board.toDiscrete(board), blink);
-
-            expect(boards.executeActionOnBoard).toHaveBeenCalledTimes(blink.commands.length);
-            expect(boards.executeActionOnBoard).toHaveBeenLastCalledWith(
-                board.id,
-                blink.commands[blink.commands.length - 1],
-            );
-        });
-
-        test('should stop running the program', async () => {
-            const board = new Board();
-            board.id = 'bacon';
-            board.currentProgram = IDLE;
-            boards.executeActionOnBoard = jest.fn(() => Promise.resolve());
-
-            await boards.runProgram(Board.toDiscrete(board), blink);
-
-            expect(boards.executeActionOnBoard).toHaveBeenCalledTimes(0);
-        });
-    });
+    //
+    // describe('#executeProgramOnBoard', () => {
+    //     let board: Board;
+    //
+    //     beforeEach(async () => {
+    //         board = new Board();
+    //         board.id = 'bacon';
+    //         board.name = 'eggs';
+    //         board.online = true;
+    //         await board.save();
+    //         service._boards = [board];
+    //         service.runProgram = jest.fn(() => Promise.resolve());
+    //     });
+    //
+    //     describe('happy flows', () => {
+    //         test('should run the program once', async () => {
+    //             const boardClone = Object.assign(Object.create(Object.getPrototypeOf(board)), board);
+    //             boardClone.currentProgram = blink.name;
+    //
+    //             await service.executeProgramOnBoard(board.id, blink);
+    //
+    //             expect(service.runProgram).toHaveBeenCalledTimes(1);
+    //             expect(service.runProgram).toHaveBeenCalledWith(Board.toDiscrete(boardClone), blink);
+    //         });
+    //
+    //         test('should run the program thrice', async () => {
+    //             await service.executeProgramOnBoard(board.id, blink, 3);
+    //
+    //             expect(service.runProgram).toHaveBeenCalledTimes(3);
+    //         });
+    //
+    //         // fixme: the indefinite part can't be tested yet
+    //         // xtest('should run the program indefinitely', done => {
+    //         //     service.executeProgramOnBoard(board.id, blink, -1);
+    //         //
+    //         //     setTimeout(() => {
+    //         //         service.stopProgram(board.id);
+    //         //         expect(board.currentProgram).toEqual(blink.name);
+    //         //         expect(service.runProgram).toHaveBeenCalledTimes(1);
+    //         //         done();
+    //         //     }, 10);
+    //         // });
+    //     });
+    //
+    //     describe('exception flows', () => {
+    //         test('should return an error when the board is not idle', async () => {
+    //             board.currentProgram = 'eggs';
+    //
+    //             const executeProgramOnBoardError = async () => {
+    //                 await service.executeProgramOnBoard(board.id, blink);
+    //             };
+    //
+    //             await expect(executeProgramOnBoardError()).rejects.toThrowError(
+    //                 new BoardUnavailableError(
+    //                     `Board with id ${board.id} is already running a program (${board.currentProgram}). Stop the currently running program or wait for it to finish.`,
+    //                 ),
+    //             );
+    //         });
+    //
+    //         test('should return an error if the program isn't compatible with the board', async () => {
+    //             board.currentProgram = IDLE;
+    //             // const blinkForOtherType = Object.assign({}, blink);
+    //
+    //             blink.deviceType = 'OtherBoardType';
+    //
+    //             const executeProgramOnBoardError = async () => {
+    //                 await service.executeProgramOnBoard(board.id, blink);
+    //             };
+    //
+    //             await expect(executeProgramOnBoardError()).rejects.toThrowError(
+    //                 new BoardIncompatibleError(
+    //                     `The program ${blink.name} cannot be run on board with id ${board.id}, because it is of the wrong type. Program ${blink.name} can only be run on devices of type ${blink.deviceType}.`,
+    //                 ),
+    //             );
+    //         });
+    //     });
+    // });
+    //
+    // describe('#createAndPersistNewBoard', () => {
+    //     test('should create a new instance of the board parameter if type doesnt match constructor name', async () => {
+    //         let board = new Board();
+    //         board.type = 'LedController';
+    //
+    //         board = await service.createAndPersistBoard(board);
+    //
+    //         expect(board.type).toEqual(board.type);
+    //     });
+    // });
+    //
+    // describe('#runProgram', () => {
+    //     test('should run the program', async () => {
+    //         const board = new Board();
+    //         board.id = 'bacon';
+    //         board.currentProgram = blink.name;
+    //         service.executeCommandOnBoard = jest.fn(() => Promise.resolve());
+    //
+    //         await service.runProgram(Board.toDiscrete(board), blink);
+    //
+    //         expect(service.executeCommandOnBoard).toHaveBeenCalledTimes(blink.commands.length);
+    //         expect(service.executeCommandOnBoard).toHaveBeenLastCalledWith(
+    //             board.id,
+    //             blink.commands[blink.commands.length - 1],
+    //         );
+    //     });
+    //
+    //     test('should stop running the program', async () => {
+    //         const board = new Board();
+    //         board.id = 'bacon';
+    //         board.currentProgram = IDLE;
+    //         service.executeCommandOnBoard = jest.fn(() => Promise.resolve());
+    //
+    //         await service.runProgram(Board.toDiscrete(board), blink);
+    //
+    //         expect(service.executeCommandOnBoard).toHaveBeenCalledTimes(0);
+    //     });
+    // });
 });

@@ -1,6 +1,5 @@
-import { Board, SUPPORTED_ARCHITECTURES } from '../base';
+import {Board, FirmataBoard, SUPPORTED_ARCHITECTURES} from '../base';
 import { BuildOptions } from 'sequelize';
-import * as FirmataBoard from 'firmata';
 import { LoggerService } from '../../../service/logger.service';
 import Timeout = NodeJS.Timeout;
 import { injectable } from 'tsyringe';
@@ -87,10 +86,9 @@ export class MajorTom extends Board {
      * @param {FirmataBoard} firmataBoard
      * @param {string} id
      */
-    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
-        super(model, buildOptions, firmataBoard);
+    constructor(model?: any, buildOptions?: BuildOptions) {
+        super(model, buildOptions);
 
-        // override namespace and logger set by parent constructor
         this.namespace = `major-tom-${this.id}`;
 
         Object.assign(this.architecture.pinMap, {
@@ -144,23 +142,6 @@ export class MajorTom extends Board {
                 },
             },
         });
-
-        if (firmataBoard) {
-            // set correct pin modes
-            this.firmataBoard.pinMode(this.architecture.pinMap.FAN, FirmataBoard.PIN_MODE.OUTPUT);
-            this.firmataBoard.pinMode(this.architecture.pinMap.POWER, FirmataBoard.PIN_MODE.PWM);
-
-            const serialOptions = {
-                portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
-                baud: MajorTom.EMULATOR_BAUD,
-                rxPin: this.architecture.pinMap.RX,
-                txPin: this.architecture.pinMap.TX,
-            };
-
-            this.firmataBoard.serialConfig(serialOptions);
-
-            LoggerService.debug('🚀 ‍This is Major Tom to ground control.', this.namespace);
-        }
     }
 
     /**
@@ -173,6 +154,25 @@ export class MajorTom extends Board {
      */
     private static isValidDTC(dtc: string): boolean {
         return /^P[0-3][A-Z0-9][A-Z0-9][A-Z0-9]$/.exec(dtc) !== null;
+    }
+
+    public attachFirmataBoard(firmataBoard: FirmataBoard): void {
+        super.attachFirmataBoard(firmataBoard);
+
+        // set correct pin modes
+        this.firmataBoard.pinMode(this.architecture.pinMap.FAN, FirmataBoard.PIN_MODE.OUTPUT);
+        this.firmataBoard.pinMode(this.architecture.pinMap.POWER, FirmataBoard.PIN_MODE.PWM);
+
+        const serialOptions = {
+            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+            baud: MajorTom.EMULATOR_BAUD,
+            rxPin: this.architecture.pinMap.RX,
+            txPin: this.architecture.pinMap.TX,
+        };
+
+        this.firmataBoard.serialConfig(serialOptions);
+
+        LoggerService.debug('🚀 ‍This is Major Tom to ground control.', this.namespace);
     }
 
     /**

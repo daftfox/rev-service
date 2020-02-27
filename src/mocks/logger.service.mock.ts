@@ -1,3 +1,1 @@
-export class LoggerServiceMock {
-
-}
+export class LoggerServiceMock {}

@@ -1,7 +1,5 @@
-import { Board, SUPPORTED_ARCHITECTURES } from '../base';
+import {Board, FirmataBoard, SUPPORTED_ARCHITECTURES} from '../base';
 import { BuildOptions } from 'sequelize';
-import * as FirmataBoard from 'firmata';
-import { LoggerService } from '../../../service/logger.service';
 import { injectable } from 'tsyringe';
 
 @injectable()
@@ -30,10 +28,9 @@ export class LedController extends Board {
 
     public architecture = SUPPORTED_ARCHITECTURES.ESP_8266;
 
-    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
-        super(model, buildOptions, firmataBoard);
+    constructor(model?: any, buildOptions?: BuildOptions) {
+        super(model, buildOptions);
 
-        // override namespace and logger set by parent constructor
         this.namespace = `led-controller-${this.id}`;
 
         this.availableActions = {
@@ -62,17 +59,6 @@ export class LedController extends Board {
                 },
             },
         };
-
-        if (firmataBoard) {
-            const serialOptions = {
-                portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
-                baud: LedController.SERIAL_BAUD_RATE,
-                rxPin: this.architecture.pinMap.RX,
-                txPin: this.architecture.pinMap.TX,
-            };
-
-            this.firmataBoard.serialConfig(serialOptions);
-        }
     }
 
     private static buildPayload(command: string, ...parameters: any[]): any[] {
@@ -83,6 +69,19 @@ export class LedController extends Board {
         const parameters = Array.from(args).map(Board.is8BitNumber);
 
         return !parameters.includes(false);
+    }
+
+    public attachFirmataBoard(firmataBoard: FirmataBoard): void {
+        super.attachFirmataBoard(firmataBoard);
+
+        const serialOptions = {
+            portId: this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0,
+            baud: LedController.SERIAL_BAUD_RATE,
+            rxPin: this.architecture.pinMap.RX,
+            txPin: this.architecture.pinMap.TX,
+        };
+
+        this.firmataBoard.serialConfig(serialOptions);
     }
 
     private pulseColor(hue: number, saturation: number): void {

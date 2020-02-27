@@ -1,173 +1,181 @@
 import { MainController } from './index';
-import { BoardServiceMock } from '../mocks/board.service.mock';
+import {BoardService, DatabaseService, EthernetService, SerialService, WebSocketService} from "../service";
+import {container} from "tsyringe";
+import {ConfigurationService} from "../service/configuration.service";
+import {LoggerService} from "../service/logger.service";
+jest.mock('../service/serial.service');
+jest.mock('../service/logger.service');
 
-let mainController: any;
+let controller: MainController;
 
-// keeps the terminal clean
-console.info = () => {};
+const properties = {
+    stopServices: 'stopServices',
+    appConfiguration: 'appConfiguration',
+    startSerialService: 'startSerialService',
+    startEthernetService: 'startEthernetService',
+    startWebSocketService: 'startWebSocketService',
+    startDatabaseService: 'startDatabaseService',
+    synchroniseDataModels: 'synchroniseDataModels',
+    startAllServices: 'startAllServices',
+    namespace: 'namespace',
+};
 
-beforeEach(() => {
-    mainController = new MainController();
+const configurationServiceMock = {
+    appConfiguration: {
+        debug: false,
+        serial: true,
+        ethernet: true
+    },
+};
+
+const boardServiceMock = {
+    updateCache: jest.fn(() => Promise.resolve())
+};
+
+const databaseServiceMock = {
+    synchronise: jest.fn(() => Promise.resolve()),
+    insertDefaultRecords: jest.fn(() => Promise.resolve()),
+};
+
+const serialServiceMock = {
+    listen: jest.fn(),
+    closeServer: jest.fn()
+};
+
+const ethernetServiceMock = {
+    listen: jest.fn(),
+    closeServer: jest.fn()
+};
+
+const webSocketServiceMock = {
+    listen: jest.fn(),
+    closeServer: jest.fn()
+};
+
+beforeAll(() => {
+    container.registerInstance(ConfigurationService, configurationServiceMock);
+    container.registerInstance<any>(SerialService, serialServiceMock);
+    container.registerInstance<any>(EthernetService, ethernetServiceMock);
+    container.registerInstance<any>(WebSocketService, webSocketServiceMock);
+    container.registerInstance<any>(DatabaseService, databaseServiceMock);
+    container.registerInstance<any>(BoardService, boardServiceMock);
 });
 
-afterEach(() => {
-    mainController.stopServices();
+beforeEach(() => {
+    controller = new MainController();
 });
 
 describe('MainController:', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(mainController).toBeDefined();
+            expect(controller).toBeDefined();
         });
 
         test('should have defined options', () => {
-            expect(mainController.options).toBeDefined();
+            expect(controller[properties.appConfiguration]).toBeDefined();
         });
 
         test('should have set debug env parameter to an empty string by default', async () => {
             expect(process.env.debug).toEqual('');
         });
 
-        test("should have set debug env parameter to 'true'", async () => {
-            process.argv = [
-                '/usr/local/bin/node',
-                '/Users/tim/Projects/rev/rev-back-end/node_modules/jest-worker/build/workers/processChild.js',
-                '--debug',
-            ];
-            const _mainController = new MainController();
+        test('should have set debug env parameter to true', async () => {
+            configurationServiceMock.appConfiguration.debug = true;
+
+            new MainController();
 
             expect(process.env.debug).toEqual('true');
         });
     });
 
     describe('#startSerialService', () => {
-        test('should instantiate serial service', () => {
-            mainController.startSerialService();
+        test('should start listening using serial service', () => {
+            MainController[properties.startSerialService]();
 
-            expect(mainController.serialService).toBeDefined();
+            expect(serialServiceMock.listen).toHaveBeenCalled();
         });
     });
 
     describe('#startEthernetService', () => {
-        test('should instantiate ethernet service', () => {
-            mainController.startEthernetService(9000);
+        test('should start listening using ethernet service', () => {
+            MainController[properties.startEthernetService]();
 
-            expect(mainController.ethernetService).toBeDefined();
+            expect(ethernetServiceMock.listen).toHaveBeenCalled();
         });
     });
 
     describe('#startWebSocketService', () => {
-        test('should instantiate web socket service', () => {
-            const boardsMock = new BoardServiceMock();
-            const webSocketOptions = {
-                port: 3001,
-                boardModel: boardsMock,
-                programModel: {},
-            };
+        test('should start listening using web socket service', () => {
+            MainController[properties.startWebSocketService]();
 
-            mainController.startWebSocketService(webSocketOptions);
-
-            expect(mainController.socketService).toBeDefined();
+            expect(webSocketServiceMock.listen).toHaveBeenCalled();
         });
     });
 
     describe('#startDatabaseService', () => {
-        test('should instantiate database service', () => {
-            const databaseOptions = {
-                schema: 'rev',
-                host: 'localhost',
-                port: 3306,
-                username: '',
-                password: '',
-                dialect: 'sqlite',
-                path: ':memory:',
-            };
+        test('should initiate database service and synchronise with database', async () => {
+            await MainController[properties.startDatabaseService]();
 
-            mainController.startDatabaseService(databaseOptions);
-
-            expect(mainController.databaseService).toBeDefined();
+            expect(databaseServiceMock.synchronise).toHaveBeenCalled();
+            expect(databaseServiceMock.insertDefaultRecords).toHaveBeenCalled();
         });
     });
 
-    describe('#synchroniseDataModels', () => {
-        test('should call synchroniseDataModels', async () => {
-            const databaseOptions = {
-                schema: 'rev',
-                host: 'localhost',
-                port: 3306,
-                username: '',
-                password: '',
-                dialect: 'sqlite',
-                path: ':memory:',
-                debug: undefined,
-            };
+    describe('synchroniseDataModels', () => {
+        test('should synchronise BoardService cache with database', async () => {
+            await MainController[properties.synchroniseDataModels]();
 
-            await mainController.startDatabaseService(databaseOptions);
-            await mainController.instantiateDataModels();
-
-            mainController.boardModel.synchronise = jest.fn();
-
-            await mainController.synchroniseDataModels();
-
-            expect(mainController.boardModel.synchronise).toHaveBeenCalled();
-        });
-    });
-
-    describe('#instantiateDataModels', () => {
-        test('should instantiate models', () => {
-            mainController.instantiateDataModels();
-
-            expect(mainController.boardModel).toBeDefined();
-            expect(mainController.programModel).toBeDefined();
+            expect(boardServiceMock.updateCache).toHaveBeenCalled();
         });
     });
 
     describe('#startAllServices', () => {
         beforeEach(() => {
-            mainController.startDatabaseService = jest.fn(() => Promise.resolve());
-            mainController.instantiateDataModels = jest.fn();
-            mainController.synchroniseDataModels = jest.fn(() => Promise.resolve());
-            mainController.startWebSocketService = jest.fn();
-            mainController.startEthernetService = jest.fn();
-            mainController.startSerialService = jest.fn();
-            mainController.options = {
-                dbUsername: '',
-                dbPassword: '',
-                dbHost: 'localhost',
-                dbPort: 3306,
-                dbPath: ':memory:',
-                dbDialect: 'sqlite',
-                dbSchema: 'rev',
-                port: 3001,
-                debug: true,
-                ethernet: true,
-                serial: true,
-            };
+            spyOn<any>(MainController, 'startDatabaseService').and.callThrough();
+            spyOn<any>(MainController, 'synchroniseDataModels').and.callThrough();
+            spyOn<any>(MainController, 'startWebSocketService');
+            spyOn<any>(MainController, 'startEthernetService');
+            spyOn<any>(MainController, 'startSerialService');
+        });
+        test('should start all services by default', async () => {
+            await controller[properties.startAllServices]();
+
+            expect(MainController[properties.startDatabaseService]).toHaveBeenCalled();
+            expect(MainController[properties.synchroniseDataModels]).toHaveBeenCalled();
+            expect(MainController[properties.startWebSocketService]).toHaveBeenCalled();
+            expect(MainController[properties.startEthernetService]).toHaveBeenCalled();
+            expect(MainController[properties.startSerialService]).toHaveBeenCalled();
         });
 
-        test('should start all services', () => {
-            return mainController.startAllServices().then(() => {
-                expect(mainController.startDatabaseService).toHaveBeenCalled();
-                expect(mainController.instantiateDataModels).toHaveBeenCalled();
-                expect(mainController.synchroniseDataModels).toHaveBeenCalled();
-                expect(mainController.startWebSocketService).toHaveBeenCalled();
-                expect(mainController.startEthernetService).toHaveBeenCalled();
-                expect(mainController.startSerialService).toHaveBeenCalled();
-            });
+        test('should not start ethernet and serial services', async () => {
+            controller[properties.appConfiguration].serial = false;
+            controller[properties.appConfiguration].ethernet = false;
+            await controller[properties.startAllServices]();
+
+            expect(MainController[properties.startDatabaseService]).toHaveBeenCalled();
+            expect(MainController[properties.synchroniseDataModels]).toHaveBeenCalled();
+            expect(MainController[properties.startWebSocketService]).toHaveBeenCalled();
+            expect(MainController[properties.startEthernetService]).not.toHaveBeenCalled();
+            expect(MainController[properties.startSerialService]).not.toHaveBeenCalled();
         });
+    });
 
-        test('should start all services except serial and ethernet', () => {
-            mainController.options.ethernet = false;
-            mainController.options.serial = false;
+    describe('#stopServices', () => {
+        test('should call closeServer on all services', () => {
+            MainController[properties.stopServices]();
 
-            return mainController.startAllServices().then(() => {
-                expect(mainController.startDatabaseService).toHaveBeenCalled();
-                expect(mainController.instantiateDataModels).toHaveBeenCalled();
-                expect(mainController.synchroniseDataModels).toHaveBeenCalled();
-                expect(mainController.startWebSocketService).toHaveBeenCalled();
-                expect(mainController.startEthernetService).toHaveBeenCalledTimes(0);
-                expect(mainController.startSerialService).toHaveBeenCalledTimes(0);
-            });
+            expect(ethernetServiceMock.closeServer).toHaveBeenCalled();
+            expect(serialServiceMock.closeServer).toHaveBeenCalled();
+            expect(webSocketServiceMock.closeServer).toHaveBeenCalled();
+        });
+    });
+
+    describe('uncaughtException listener', () => {
+        test('should print the stacktrace when an uncaught exception occurs', async () => {
+            const error = new Error('Oops, something went wrong');
+            process.emit('uncaughtException', error);
+
+            expect(LoggerService.stack).toHaveBeenCalledWith(error, controller[properties.namespace])
         });
     });
 });

@@ -1,15 +1,12 @@
 import { BoardService } from './board.service';
-import * as FirmataBoard from 'firmata';
 import { LoggerService } from './logger.service';
-import * as net from 'net';
-import { Board, IBoard } from '../domain/board';
+import {Socket} from 'net';
+import {Board, FirmataBoard, IBoard} from '../domain/board';
 import { container, injectable } from 'tsyringe';
+import {IBoardDataValues} from "../domain/board/interface/board-data-values.interface";
 
-/**
- * A service that implements method(s) to connect to devices compatible with the firmata protocol.
- *
- * @namespace ConnectionService
- */
+export const CONNECTION_TIMEOUT = 10000;
+
 @injectable()
 export class ConnectionService {
     /**
@@ -36,67 +33,64 @@ export class ConnectionService {
         this.model = container.resolve(BoardService);
     }
 
-    // public abstract listen(): void;
-    // public abstract closeServer(): void;
-    // protected abstract handleConnected(board: Board): void;
-    // protected abstract handleDisconnected(port: SerialPort.PortInfo | Socket, board?: Board): void;
-
     /**
      * Sets up a connection to a board.
      *
      * @param {net.Socket} port - An EtherPort object or serial port address
      */
-    protected async connectToBoard(port: net.Socket | string): Promise<IBoard> {
-        return new Promise<IBoard>((resolve, reject) => {
+    protected async connectToBoard(port: Socket | string): Promise<Board> {
+        return new Promise<Board>(async (resolve, reject) => {
             const firmataBoard = new FirmataBoard(port);
-            const board = new Board(undefined, undefined, firmataBoard);
+            let dataValues: IBoardDataValues = {
+                id: undefined,
+                type: undefined
+            };
+
+            firmataBoard.error.attach((error: Error) => {
+                LoggerService.debug(error.message);
+                reject(dataValues.id);
+            });
+
+            firmataBoard.update.attach(this.handleUpdateEvent);
+
+            firmataBoard.disconnect.attachOnce(() => {
+                this.handleDisconnectEvent(dataValues.id, reject);
+            });
 
             /*
-             * Set a 10 second timeout.
+             * Wait ten seconds for a successful connection.
              * The device is deemed unsupported if a connection could not be made within that period.
              */
-            const connectionTimeout = setTimeout(() => {
-                this.handleConnectionTimeout(firmataBoard, reject);
-            }, 10000);
-
-            firmataBoard.on('ready', async () => {
-                clearTimeout(connectionTimeout);
-                await this.handleConnectionEstablished(board, resolve);
-            });
-
-            firmataBoard.on('error', e => {
-                reject(board);
-            });
-
-            firmataBoard.on('update', this.handleUpdateEvent);
-
-            firmataBoard.once('disconnect', () => {
-                this.handleDisconnectEvent(board, reject);
-            });
+            try {
+                const dataValues = await firmataBoard.firmwareUpdated.waitFor(CONNECTION_TIMEOUT);
+                await firmataBoard.ready.waitFor(CONNECTION_TIMEOUT);
+                resolve(await this.handleConnectionEstablished(dataValues, firmataBoard));
+            } catch (error) {
+                this.handleConnectionTimeout(firmataBoard);
+                reject();
+            }
         });
     }
 
-    private handleDisconnectEvent = (board: Board, reject: (board: Board) => void) => {
+    private handleDisconnectEvent = (boardId: string, reject: (boardId: string) => void) => {
         LoggerService.debug('Disconnect event received from board.', this.namespace);
-        LoggerService.info(`Device ${LoggerService.highlight(board.id, 'blue', true)} disconnected.`, this.namespace);
+        LoggerService.info(`Device ${LoggerService.highlight(boardId, 'blue', true)} disconnected.`, this.namespace);
 
-        this.model.disconnectBoard(board.id);
-        reject(board);
+        this.model.disconnectBoard(boardId);
+        reject(boardId);
     };
 
-    private handleUpdateEvent = (update: IBoard) => {
+    private handleUpdateEvent = (update: IBoard): void => {
         this.model.updateBoard(update);
     };
 
-    private handleConnectionTimeout = (firmataBoard: FirmataBoard, reject: () => void) => {
+    private handleConnectionTimeout = (firmataBoard: FirmataBoard) => {
         LoggerService.warn('Timeout while connecting to device.', this.namespace);
 
         firmataBoard.removeAllListeners();
-        reject();
     };
 
-    private handleConnectionEstablished = async (board: Board, resolve: () => void): Promise<IBoard> => {
-        resolve();
-        return this.model.addBoard(board);
+    private handleConnectionEstablished = async (dataValues: IBoardDataValues, firmataBoard: FirmataBoard): Promise<Board> => {
+        return this.model.addBoard(dataValues, firmataBoard);
     };
 }

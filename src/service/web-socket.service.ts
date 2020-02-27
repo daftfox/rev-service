@@ -22,8 +22,8 @@ import {
     IRequestResult,
 } from '../domain/web-socket-message';
 import { BAD_REQUEST, CREATED, NO_CONTENT, OK } from 'http-status-codes';
-import {container, inject, singleton} from "tsyringe";
-import {ConfigurationService} from "./configuration.service";
+import { container, singleton } from 'tsyringe';
+import { ConfigurationService } from './configuration.service';
 
 /**
  * @description Service that allows clients to interface using a near real-time web socket connection
@@ -36,10 +36,10 @@ export class WebSocketService {
     private httpServer: Server;
     private boardModel: BoardService;
     private programModel: ProgramService;
-    private port: number;
+    readonly port: number;
 
-    constructor(@inject(ConfigurationService) private configurationService?: ConfigurationService) {
-        this.port = this.configurationService.webSocketPort;
+    constructor() {
+        this.port = container.resolve(ConfigurationService).webSocketPort;
         this.boardModel = container.resolve(BoardService);
         this.programModel = container.resolve(ProgramService);
 
@@ -62,7 +62,7 @@ export class WebSocketService {
     /**
      * Start the WebSocket server
      */
-    public startServer(): void {
+    public listen(): void {
         this.httpServer = createServer().listen(this.port);
         this.webSocketServer = new WebSocket.server({
             httpServer: this.httpServer,
@@ -70,7 +70,7 @@ export class WebSocketService {
 
         LoggerService.info(
             `Listening on port ${LoggerService.highlight(this.port.toString(10), 'yellow', true)}.`,
-            this.namespace
+            this.namespace,
         );
         this.webSocketServer.on('request', this.handleConnectionRequest);
     }
@@ -156,14 +156,14 @@ export class WebSocketService {
                         // execute program
                         program = this.programModel.getProgramById(body.programId);
 
-                        await this.boardModel.executeProgramOnBoard(body.boardId, program, body.repeat);
+                        await this.programModel.executeProgramOnBoard(body.boardId, program, body.repeat);
 
                         result.responseCode = NO_CONTENT;
                         break;
 
                     case PROGRAM_REQUEST_ACTION.HALT:
                         // stop program execution
-                        this.boardModel.stopProgram(body.boardId);
+                        this.programModel.stopProgram(body.boardId);
                         result.responseCode = NO_CONTENT;
                         break;
 
@@ -237,10 +237,9 @@ export class WebSocketService {
             };
 
             try {
-                const board = this.boardModel.getDiscreteBoardById(body.boardId);
                 const command: ICommand = { action: body.action, parameters: body.parameters };
 
-                await this.boardModel.executeActionOnBoard(board.id, command);
+                await this.programModel.executeCommandOnBoard(body.boardId, command);
                 result.responseCode = NO_CONTENT;
 
                 resolve(result);
@@ -267,7 +266,7 @@ export class WebSocketService {
                         const boards = [];
                         if (body.boardId) {
                             // body single board
-                            boards.push(this.boardModel.getDiscreteBoardById(body.boardId));
+                            boards.push(this.boardModel.getBoardById(body.boardId).toDiscrete());
                         } else {
                             // body all boards
                             boards.push(...this.boardModel.getAllBoards());

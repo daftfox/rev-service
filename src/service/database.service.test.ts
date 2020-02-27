@@ -32,7 +32,7 @@ describe('ConnectionService:', () => {
         });
     });
 
-    describe('#synchronise', () => {
+    describe('#updateCache', () => {
         test('should sync schema', async () => {
             // @ts-ignore
             DatabaseService.database.sync = jest.fn(() => Promise.resolve());

@@ -1,61 +1,50 @@
-import { Sequelize } from 'sequelize-typescript';
-import ProgramsMock from '../mocks/programs.mock';
 import * as events from 'events';
 import { WebSocketService } from './web-socket.service';
-import { BoardServiceMock } from '../mocks/board.service.mock';
-import { BoardResponseBody, Response, MESSAGE_TOPIC, IRequestResult } from '../domain/web-socket-message';
-import { DatabaseService } from './database.service';
+import { Response, IRequestResult } from '../domain/web-socket-message';
 import { OK } from 'http-status-codes';
-import { Program } from '../domain/program/base';
+import { LoggerService } from './logger.service';
+import {container} from "tsyringe";
+import {BoardService} from "./board.service";
+import {responseMock} from "../mocks/response.mock";
 
-let webSocketService: any;
+jest.mock('./logger.service');
+jest.mock('./board.service');
 
-const options = {
-    port: 3001,
-    boardModel: new BoardServiceMock(),
-    programModel: new ProgramsMock(),
+let webSocketService: WebSocketService;
+let boardServiceMock = new BoardService();
+
+const privateProperties = {
+    sendResponse: 'sendResponse',
+    attachListeners: 'attachListeners',
+    webSocketServer: 'webSocketServer',
+    httpServer: 'httpServer',
+    boardModel: 'boardModel',
+    programModel: 'programModel',
+    handleRequest: 'handleRequest',
+    handleConnectionRequest: 'handleConnectionRequest',
+    broadcastBoardUpdated: 'broadcastBoardUpdated',
+    broadcastBoardDisconnected: 'broadcastBoardDisconnected',
+    broadcastBoardUpdate: 'broadcastBoardUpdate',
+    broadcast: 'broadcast',
+    handleClientConnected: 'handleClientConnected',
+    handleBoardRequest: 'handleBoardRequest',
+    handleCommandRequest: 'handleCommandRequest',
+    handleProgramRequest: 'handleProgramRequest',
 };
-
-let sequelize: Sequelize;
-let databaseService: any;
-let response: Response;
-
-console.info = () => {};
-
-const databaseOptions = {
-    schema: 'rev',
-    host: 'localhost',
-    port: 3306,
-    username: '',
-    password: '',
-    dialect: 'sqlite',
-    path: ':memory:',
-    debug: false,
-};
-
-beforeEach(async () => {
-    // @ts-ignore
-    webSocketService = new WebSocketService(options);
-
-    response = new Response(MESSAGE_TOPIC.BOARD, '1234', OK, new BoardResponseBody({ boards: [] }));
-
-    databaseService = new DatabaseService();
-    await databaseService.synchronise();
-});
 
 beforeAll(() => {
-    // @ts-ignore
-    WebSocketService.log.info = jest.fn();
-    sequelize = new Sequelize({
-        dialect: 'sqlite',
-        storage: ':memory:',
-    });
-    sequelize.addModels([Program]);
+    container.registerInstance(BoardService, boardServiceMock);
 });
 
-// afterEach(async() => {
-//     webSocketService.closeServer();
-// });
+beforeEach(async () => {
+    webSocketService = new WebSocketService();
+});
+
+afterEach(() => {
+    if (webSocketService[privateProperties.webSocketServer] && webSocketService[privateProperties.httpServer]) {
+        webSocketService.closeServer();
+    }
+});
 
 describe('WebSocketService', () => {
     describe('constructor', () => {
@@ -67,9 +56,9 @@ describe('WebSocketService', () => {
     describe('#attachListeners', () => {
         test('should attach listeners to the boardModel', () => {
             jest.clearAllMocks();
-            webSocketService.attachListeners();
+            webSocketService[privateProperties.attachListeners]();
 
-            expect(options.boardModel.on).toHaveBeenCalledTimes(3);
+            expect(boardServiceMock.on).toHaveBeenCalledTimes(3);
         });
     });
 
@@ -80,36 +69,35 @@ describe('WebSocketService', () => {
             };
 
             // @ts-ignore
-            WebSocketService.sendResponse(client, response);
+            WebSocketService.sendResponse(client, responseMock);
 
-            expect(client.sendUTF).toHaveBeenCalledWith(response.toJSON());
+            expect(client.sendUTF).toHaveBeenCalledWith(responseMock.toJSON());
         });
     });
 
-    describe('#startServer', () => {
+    describe('#listen', () => {
         test('should create an http server and web socket server', () => {
-            webSocketService.startServer();
-            expect(webSocketService.httpServer).toBeDefined();
-            expect(webSocketService.webSocketServer).toBeDefined();
+            webSocketService.listen();
+            expect(webSocketService[privateProperties.httpServer]).toBeDefined();
+            expect(webSocketService[privateProperties.webSocketServer]).toBeDefined();
 
-            // @ts-ignore
-            expect(WebSocketService.log.info).toHaveBeenCalled();
+            expect(LoggerService.info).toHaveBeenCalled();
         });
     });
 
     describe('#closeServer', () => {
         test('should close the server', () => {
-            webSocketService.webSocketServer = {
+            webSocketService[privateProperties.webSocketServer] = {
                 shutDown: jest.fn(),
             };
-            webSocketService.httpServer = {
+            webSocketService[privateProperties.httpServer] = {
                 close: jest.fn(),
             };
 
             webSocketService.closeServer();
 
-            expect(webSocketService.webSocketServer.shutDown).toHaveBeenCalled();
-            expect(webSocketService.httpServer.close).toHaveBeenCalled();
+            expect(webSocketService[privateProperties.webSocketServer].shutDown).toHaveBeenCalled();
+            expect(webSocketService[privateProperties.httpServer].close).toHaveBeenCalled();
         });
     });
 
@@ -132,21 +120,21 @@ describe('WebSocketService', () => {
 
             message = { type: 'utf8', utf8Data: '{"test": "test"}' };
 
-            webSocketService.handleRequest = jest.fn(() => Promise.resolve());
+            webSocketService[privateProperties.handleRequest] = jest.fn(() => Promise.resolve());
         });
 
         test('should send new client a list of existing boards', async () => {
             client.on = jest.fn();
-            await webSocketService.handleConnectionRequest(request);
+            await webSocketService[privateProperties.handleConnectionRequest](request);
             // @ts-ignore
             expect(WebSocketService.sendResponse).toHaveBeenCalled();
             expect(client.on).toHaveBeenCalled();
         });
 
         test('should call handle request on new message from client', async () => {
-            await webSocketService.handleConnectionRequest(request);
+            await webSocketService[privateProperties.handleConnectionRequest](request);
             client.emit('message', message);
-            expect(webSocketService.handleRequest).toHaveBeenCalledWith(message);
+            expect(webSocketService[privateProperties.handleRequest]).toHaveBeenCalledWith(message);
         });
     });
 
@@ -160,9 +148,9 @@ describe('WebSocketService', () => {
                     responseBody: { boards: [] },
                 };
 
-                webSocketService.handleProgramRequest = jest.fn(() => Promise.resolve(result));
-                webSocketService.handleBoardRequest = jest.fn(() => Promise.resolve(result));
-                webSocketService.handleCommandRequest = jest.fn(() => Promise.resolve(result));
+                webSocketService[privateProperties.handleProgramRequest] = jest.fn(() => Promise.resolve(result));
+                webSocketService[privateProperties.handleBoardRequest] = jest.fn(() => Promise.resolve(result));
+                webSocketService[privateProperties.handleCommandRequest] = jest.fn(() => Promise.resolve(result));
             });
 
             test.each([
@@ -170,7 +158,7 @@ describe('WebSocketService', () => {
                 [{ type: 'utf8', utf8Data: '{"topic": "command", "body": {}}' }, 'handleCommandRequest'],
                 [{ type: 'utf8', utf8Data: '{"topic": "program", "body": {}}' }, 'handleProgramRequest'],
             ])('should call the appropriate handler method', async (_message: any, method: string) => {
-                await webSocketService.handleRequest(_message);
+                await webSocketService[privateProperties.handleRequest](_message);
 
                 expect(webSocketService[method]).toHaveBeenCalledWith(JSON.parse(_message.utf8Data).body);
             });
@@ -180,7 +168,7 @@ describe('WebSocketService', () => {
                     type: 'utf8',
                     utf8Data: '{"topic": "board", "body": { "action": "get", "boardId": "test" }}',
                 };
-                const responseObject = await webSocketService.handleRequest(message);
+                const responseObject = await webSocketService[privateProperties.handleRequest](message);
 
                 expect(responseObject.constructor.name).toEqual('Response');
             });
@@ -191,7 +179,7 @@ describe('WebSocketService', () => {
                 const message = {};
 
                 try {
-                    await webSocketService.handleRequest(message);
+                    await webSocketService[privateProperties.handleRequest](message);
                 } catch (error) {
                     expect(error).toEqual(new Error('Message in unsupported format.'));
                 }
@@ -205,10 +193,10 @@ describe('WebSocketService', () => {
 
                 const error = new Error('beep');
 
-                webSocketService.handleBoardRequest = jest.fn(() => Promise.reject(error));
+                webSocketService[privateProperties.handleBoardRequest] = jest.fn(() => Promise.reject(error));
 
                 try {
-                    await webSocketService.handleRequest(message);
+                    await webSocketService[privateProperties.handleRequest](message);
                 } catch (error) {
                     expect(error).toEqual(error);
                 }

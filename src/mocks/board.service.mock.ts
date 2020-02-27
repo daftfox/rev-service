@@ -1,6 +1,4 @@
 import * as events from 'events';
-import { singleton } from 'tsyringe';
-import { Board } from '../domain/board';
 
 export const instantiateNewBoard = jest.fn();
 export const findOrBuildBoard = jest.fn();
@@ -17,7 +15,6 @@ export const stopProgram = jest.fn();
 export const executeProgramOnBoard = jest.fn();
 export const on = jest.fn();
 
-@singleton()
 export class BoardServiceMock extends events.EventEmitter {
     constructor() {
         super();

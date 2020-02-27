@@ -12,7 +12,6 @@ beforeEach(() => {
 });
 
 describe('LoggerService', () => {
-
     describe('#getTimestamp', () => {
         test("should return the current timestamp in the format 'DD-MM-YYYY HH:mm:ss.SSS'", () => {
             // @ts-ignore
@@ -30,7 +29,7 @@ describe('LoggerService', () => {
             const message = 'test-message';
 
             // @ts-ignore
-            const result = LoggerService.formatMessage(namespace, message, true);
+            const result = LoggerService.formatMessage(message, namespace, true);
             expect(typeof result).toEqual('string');
             expect(result).toContain(message);
             expect(result).toContain(namespace);
@@ -40,7 +39,7 @@ describe('LoggerService', () => {
             const message = 'test-message';
 
             // @ts-ignore
-            const result = LoggerService.formatMessage(namespace, message, false);
+            const result = LoggerService.formatMessage(message, namespace,  false);
             expect(typeof result).toEqual('string');
             expect(result).toContain(message);
             expect(result).toContain(namespace);

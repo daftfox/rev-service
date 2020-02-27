@@ -1,9 +1,9 @@
-import * as args from 'args';
-import {singleton} from "tsyringe";
-import {IAppConfiguration, IDatabaseConfiguration} from "../domain/configuration";
-import {DatabaseConfiguration} from "../domain/configuration/base";
-import {IFlags} from "../domain/configuration/interface/flags.interface";
-import {AppConfiguration} from "../domain/configuration/base/app-configuration.model";
+import * as Args from 'args';
+import { singleton } from 'tsyringe';
+import { IAppConfiguration, IDatabaseConfiguration } from '../domain/configuration';
+import { DatabaseConfiguration } from '../domain/configuration/base';
+import { IFlags } from '../domain/configuration/interface/flags.interface';
+import { AppConfiguration } from '../domain/configuration/base/app-configuration.model';
 
 @singleton()
 export class ConfigurationService {
@@ -13,7 +13,27 @@ export class ConfigurationService {
     private _ethernetPort: number;
     private _flags: IFlags;
 
-    private static flags = args
+    constructor() {
+        this.parseConfiguration(process.argv);
+    }
+
+    public get databaseConfiguration(): DatabaseConfiguration {
+        return this._databaseConfiguration;
+    }
+
+    public get webSocketPort(): number {
+        return this._webSocketPort;
+    }
+
+    public get ethernetPort(): number {
+        return this._ethernetPort;
+    }
+
+    public get appConfiguration(): AppConfiguration {
+        return this._appConfiguration;
+    }
+
+    private static flags = Args
         .option('port', 'Port from which the WebSocket service will be served.', 3001)
         .option('ethernetPort', 'Port from which the ethernet service will be served.', 9000)
         .option('debug', 'Enable debug logging.', false)
@@ -27,32 +47,12 @@ export class ConfigurationService {
         .option('dbDialect', "The database server's dialect (mysql, postgres, mariadb, sqlite, mssql).", 'sqlite')
         .option('dbPath', 'Path to database file (optional, only for sqlite).', ':memory:');
 
-    constructor() {
-        this.parseOptions(process.argv);
-    }
-
-    public parseOptions(flags: string[]): void {
-        this._flags =  ConfigurationService.flags.parse(flags);
+    public parseConfiguration(flags: string[]): void {
+        this._flags = ConfigurationService.flags.parse(flags);
 
         this._databaseConfiguration = new DatabaseConfiguration(this._flags);
         this._appConfiguration = new AppConfiguration(this._flags);
         this._webSocketPort = this._flags.port;
         this._ethernetPort = this._flags.ethernetPort;
-    }
-
-    public get databaseConfiguration(): IDatabaseConfiguration {
-        return this._databaseConfiguration;
-    }
-
-    public get webSocketPort(): number {
-        return this._webSocketPort;
-    }
-
-    public get ethernetPort(): number {
-        return this._ethernetPort;
-    }
-
-    public get appConfiguration(): IAppConfiguration {
-        return this._appConfiguration;
     }
 }

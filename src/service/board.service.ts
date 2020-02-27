@@ -1,21 +1,14 @@
 import {
-    Board,
-    IDLE,
+    Board, FirmataBoard,
     IBoard,
-    AVAILABLE_EXTENSIONS_CLASSES,
-    isAvailableExtension,
-    AVAILABLE_EXTENSIONS_KEYS,
 } from '../domain/board';
 import { LoggerService } from './logger.service';
-import { Program, ICommand } from '../domain/program';
 import {singleton} from 'tsyringe';
 import * as events from 'events';
-import {
-    BoardIncompatibleError,
-    BoardNotFoundError,
-    BoardTypeNotFoundError,
-    BoardUnavailableError,
-} from '../domain/error';
+import {BoardNotFoundError} from '../domain/error';
+import {BoardDAO} from "../dao/board.dao";
+import {IBoardDataValues} from "../domain/board/interface/board-data-values.interface";
+import {ServerError} from "../domain/error/server.error";
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
@@ -36,124 +29,83 @@ export class BoardService extends events.EventEmitter {
      * Locally stored array of {@link Board} instances that are currently online.
      * This is pre-filled with devices retrieved from the data storage.
      */
-    private _boards: Board[] = [];
+    private cache: Board[] = [];
 
     constructor() {
         super();
     }
 
-    /**
-     * Create an instance of a {@link Board} reflecting its type.
-     * Currently supported types are {@link Board} (default) and {@link MajorTom}, as dictated by {@link BoardService.AVAILABLE_TYPES}.
-     */
-    public static instantiateNewBoard(board: Board): Board {
-        const dataValues = {
-            id: board.id,
-            name: board.name,
-            type: board.type,
-            lastUpdateReceived: board.lastUpdateReceived,
-        };
-
-        if (isAvailableExtension(board.type)) {
-            return new AVAILABLE_EXTENSIONS_CLASSES[board.type](
-                dataValues,
-                { isNewRecord: board.isNewRecord },
-                board.getFirmataBoard(),
-            );
-        } else {
-            throw new BoardTypeNotFoundError(
-                `Type '${board.type}' is not a valid type. Valid types are${Object.values(
-                    AVAILABLE_EXTENSIONS_KEYS,
-                ).map(availableExtension => ` '${availableExtension}'`)}`,
-            );
-        }
-    }
-
-    /**
-     * Find or instantiate a {@link Board} instance.
-     */
-    private static async findOrBuildBoard(id: string, type: string): Promise<Board> {
-        let [board] = await Board.findOrBuild({
-            where: {
-                id,
-            },
-            defaults: {
-                id,
-                type,
-            },
-        });
-
-        board = BoardService.instantiateNewBoard(board);
-
-        return Promise.resolve(board);
-    }
-
-    public synchronise(): Promise<void> {
-        return Board.findAll().then(boards => {
-            this._boards = boards.map(board => BoardService.instantiateNewBoard(board));
-        });
+    public async updateCache(): Promise<void> {
+        this.cache = await BoardDAO.getAll();
     }
 
     /**
      * Returns an array of the currently online boards.
      */
     public getAllBoards(): IBoard[] {
-        return Board.toDiscreteArray(this._boards);
+        return Board.toDiscreteArray(this.cache);
     }
 
-    /**
-     * Returns the {@link Board} instance with the boardId supplied in the argument.
-     */
-    public getDiscreteBoardById(boardId: string): IBoard {
-        const board = this.getBoardById(boardId);
+    public getBoardById(boardId: string): Board {
+        let board: Board;
 
-        return Board.toDiscrete(board);
-    }
-
-    public getBoardById(boardId): Board {
-        const board = this._boards.find(({ id }) => id === boardId);
-
-        if (!board) {
+        if (this.inCache(boardId) > -1) {
+            board = this.cache.find(({id}) => id === boardId);
+        } else {
             throw new BoardNotFoundError(`Board with id ${boardId} could not be found.`);
         }
 
         return board;
     }
 
+    private inCache(boardId: string): number {
+        return this.cache.findIndex(({id}) => id === boardId);
+    }
+
+    private static async createAndPersistNewBoard(dataValues: IBoardDataValues, firmataBoard: FirmataBoard): Promise<Board> {
+        const newBoard = await BoardDAO.persist(await BoardDAO.create(dataValues));
+
+        newBoard.attachFirmataBoard(firmataBoard);
+
+        return newBoard;
+    }
+
     /**
      * Adds {@link Board} instance to the model. If the device is unknown it will be persisted to the data storage.
      */
-    public async addBoard(board: Board): Promise<IBoard> {
-        return new Promise<IBoard>(async (resolve, reject) => {
+    public async addBoard(dataValues: IBoardDataValues, firmataBoard: FirmataBoard): Promise<Board> {
+        return new Promise<Board>(async (resolve, reject) => {
+            let board: Board;
             let newBoard = false;
 
-            if (this.boardExists(board.id)) {
-                await this.updateBoard(Board.toDiscrete(board));
-            } else {
-                newBoard = true;
-                board = await this.createAndPersistBoard(board);
+            try {
+                board = this.initialiseCachedBoard(dataValues.id, firmataBoard);
+            } catch (error) {
+                if (error instanceof BoardNotFoundError) {
+                    newBoard = true;
+                    board = await BoardService.createAndPersistNewBoard(dataValues, firmataBoard);
+                    this.addBoardToCache(board);
+                } else {
+                    LoggerService.stack(new ServerError(`Board with id ${dataValues.id} could not be added due to an unknown error.`));
+                    reject();
+                    return;
+                }
             }
 
-            // retrieve a lean copy of the Board instance
-            const discreteBoard = Board.toDiscrete(board);
-
-            this.emit('connected', discreteBoard, newBoard);
-            resolve(discreteBoard);
+            this.emit('connected', board.toDiscrete(), newBoard);
+            resolve(board);
         });
     }
 
     /**
      * Disconnect a {@link Board} instance and removes it from the database.
      */
-    public deleteBoard(boardId: string): void {
+    public async deleteBoard(boardId: string): Promise<void> {
         const board = this.getBoardById(boardId);
-        LoggerService.debug(
-            `Deleting board with id ${LoggerService.highlight(board.id, 'blue', true)} from the database.`,
-            this.namespace
-        );
+
         this.disconnectBoard(board.id);
-        board.destroy();
-        this._boards.splice(this._boards.findIndex(({ id }) => id === board.id), 1);
+        await BoardDAO.destroy(board);
+        this.removeFromCache(board.id);
     }
 
     /**
@@ -161,185 +113,89 @@ export class BoardService extends events.EventEmitter {
      */
     public disconnectBoard(boardId: string): void {
         const board = this.getBoardById(boardId);
-        const discreteBoard = Board.toDiscrete(board);
+        const discreteBoard = board.toDiscrete();
 
         LoggerService.debug(
-            `Setting board with id ${LoggerService.highlight(boardId, 'blue', true)}'s status to disconnected.`,
-            this.namespace
+            `Disconnecting board with id ${LoggerService.highlight(discreteBoard.id, 'blue', true)}.`,
+            this.namespace,
         );
         board.disconnect();
-        board.save();
 
         this.emit('disconnected', discreteBoard);
+    }
+
+    private removeFromCache(boardId: string): void {
+        this.cache.splice(this.cache.findIndex(({id}) => id === boardId), 1);
+    }
+
+    public async updateBoard(boardUpdates: IBoard): Promise<void> {
+        let board = this.getBoardById(boardUpdates.id);
+
+        if (board.online) {
+            board = await this.updateOnlineBoard(board, boardUpdates);
+        } else {
+            board = await this.updateOfflineBoard(board, boardUpdates);
+        }
+
+        this.updateCachedBoard(board);
+    }
+
+    private updateCachedBoard(board: Board): void {
+        this.cache[this.inCache(board.id)] = board;
+    }
+
+    private addBoardToCache(board: Board): void {
+        this.cache.push(board);
+    }
+
+    private async updateOfflineBoard(board: Board, boardUpdates: IBoard): Promise<Board> {
+        const updatedBoard = Object.assign(board, boardUpdates);
+
+        return this.persistChanges(updatedBoard);
     }
 
     /**
      * Update a {@link Board} and notify subscribers.
      */
-    public async updateBoard(boardUpdates: IBoard): Promise<void> {
-        let board = this.getBoardById(boardUpdates.id);
-
-        // do not allow the user to change the Board.type property into an unsupported value
-        if (boardUpdates.type && !isAvailableExtension(boardUpdates.type)) {
-            throw new BoardTypeNotFoundError(
-                `Type '${boardUpdates.type}' is not a valid type. Valid types are${Object.values(
-                    AVAILABLE_EXTENSIONS_KEYS,
-                ).map(availableExtension => ` '${availableExtension}'`)}.`,
-            );
-        }
+    private async updateOnlineBoard(board: Board, boardUpdates: IBoard): Promise<Board> {
+        const firmataBoard = board.getFirmataBoard();
 
         // re-instantiate previous board to reflect type changes
         if (board.type !== boardUpdates.type) {
             board.type = boardUpdates.type;
 
-            // clear non-essential timers and listeners
-            if (board.online) {
-                board.clearAllTimers();
-            }
-
-            // create new instance if board is online and attach the existing online FirmataBoard instance to it
-            board = BoardService.instantiateNewBoard(board);
+            board.clearAllTimers();
+            board = BoardDAO.createBoardInstance(board.getDataValues());
+            board.attachFirmataBoard(firmataBoard);
         }
 
-        // update existing board values and persist changes to the data storage
-        LoggerService.debug(
-            `Storing update for board with id ${LoggerService.highlight(board.id, 'blue', true)} in the database.`,
-            this.namespace
-        );
-        await board.update(boardUpdates);
+        const updatedBoard = Object.assign(board, boardUpdates);
 
-        const discreteBoard = Board.toDiscrete(board);
+        return this.persistChanges(updatedBoard);
+    }
+
+    private async persistChanges(board: Board): Promise<Board> {
+        const persistedBoard = await BoardDAO.persist(board);
+        const discreteBoard = board.toDiscrete();
 
         this.emit('update', discreteBoard);
-        return Promise.resolve();
+
+        return persistedBoard;
     }
 
-    /**
-     * Execute an action on {@link Board} belonging to the supplied ID.
-     */
-    public executeActionOnBoard(id: string, command: ICommand): Promise<void> {
-        const board = this.getBoardById(id);
-        let timeout;
+    private initialiseCachedBoard(boardId: string, firmataBoard: FirmataBoard): Board {
+        const cachedBoard = this.getBoardById(boardId);
 
-        return new Promise((resolve, reject) => {
-            try {
-                board.executeAction(command.action, command.parameters);
-                timeout = setTimeout(resolve, command.duration || 100);
-            } catch (error) {
-                clearTimeout(timeout);
-                reject(error);
-            }
-        });
+        const initialisedBoard = BoardService.initialiseBoard(cachedBoard, firmataBoard);
+        this.updateCachedBoard(initialisedBoard);
+
+        return initialisedBoard;
     }
 
-    /**
-     * Stop a {@link Board} instance from running its current {@link Program}.
-     */
-    public stopProgram(id: string): void {
-        const board = this.getBoardById(id);
-        board.currentProgram = IDLE;
-    }
+    private static initialiseBoard(board: Board, firmataBoard: FirmataBoard): Board {
+        const initialisedBoard = BoardDAO.createBoardInstance(board.getDataValues());
+        initialisedBoard.attachFirmataBoard(firmataBoard);
 
-    /**
-     * Executes the program on the supplied board.
-     */
-    public async executeProgramOnBoard(id: string, program: Program, repeat: number = 1): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const board = this.getBoardById(id);
-
-            // do not allow the user to execute a program on the board if it is already busy executing one
-            if (board.currentProgram !== IDLE) {
-                reject(
-                    new BoardUnavailableError(
-                        `Board with id ${board.id} is already running a program (${board.currentProgram}). Stop the currently running program or wait for it to finish.`,
-                    ),
-                );
-                return;
-            }
-
-            // do not allow the user to execute a program on the board if the program doesn't support the board
-            if (program.deviceType !== board.type && program.deviceType !== 'all') {
-                reject(
-                    new BoardIncompatibleError(
-                        `The program ${program.name} cannot be run on board with id ${board.id}, because it is of the wrong type. Program ${program.name} can only be run on devices of type ${program.deviceType}.`,
-                    ),
-                );
-                return;
-            }
-
-            // set the board's current program status
-            board.currentProgram = program.name;
-            const discreteBoard = Board.toDiscrete(board);
-
-            try {
-                if (repeat === -1) {
-                    // execute program indefinitely
-                    while (board.currentProgram === program.name) {
-                        await this.runProgram(discreteBoard, program);
-                    }
-                } else {
-                    // execute program n times
-                    for (let repetition = 0; repetition < repeat; repetition++) {
-                        await this.runProgram(discreteBoard, program);
-                    }
-                }
-            } catch (error) {
-                reject(error);
-            }
-
-            // set the board's current program status to 'idle'
-            this.stopProgram(board.id);
-            resolve();
-        });
-    }
-
-    /**
-     * Run a {@link Program} on a {@link Board}.
-     */
-    private async runProgram(board: IBoard, program: Program): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            for (const command of program.commands) {
-                // stop executing the program as soon as the board's program status changes
-                if (board.currentProgram !== program.name) {
-                    break;
-                }
-
-                try {
-                    await this.executeActionOnBoard(board.id, command);
-                } catch (error) {
-                    reject(error);
-                    return;
-                }
-            }
-
-            resolve();
-            return;
-        });
-    }
-
-    private async createAndPersistBoard(board: Board): Promise<Board> {
-        return new Promise(async (resolve, reject) => {
-            LoggerService.debug(
-                `Storing new board with id ${LoggerService.highlight(board.id, 'blue', true)} in the database.`,
-                this.namespace
-            );
-            if (board.type !== board.constructor.name) {
-                board = BoardService.instantiateNewBoard(board);
-            }
-
-            try {
-                await board.save();
-                this._boards.push(board);
-                resolve(board);
-            } catch (error) {
-                reject(error);
-            }
-
-            return;
-        });
-    }
-
-    private boardExists(boardId: string): boolean {
-        return this._boards.filter(({ id }) => id === boardId).length > 0;
+        return initialisedBoard;
     }
 }

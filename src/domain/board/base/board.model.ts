@@ -1,10 +1,9 @@
 import { BuildOptions } from 'sequelize';
-import * as FirmataBoard from 'firmata';
 import { LoggerService } from '../../../service/logger.service';
 import Timeout = NodeJS.Timeout;
 import { BoardArchitecture, SUPPORTED_ARCHITECTURES } from './board-architecture.model';
 import { IBoard, IPin } from '../interface';
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import {Column, DataType, Model, PrimaryKey, Table, Unique} from 'sequelize-typescript';
 import {
     ArchitectureUnsupportedError,
     BoardIncompatibleError,
@@ -13,6 +12,8 @@ import {
     InvalidArgumentError,
 } from '../../error';
 import { injectable } from 'tsyringe';
+import {IBoardDataValues} from "../interface/board-data-values.interface";
+import {FirmataBoard, Pins, SERIAL_PORT_ID} from "./firmata-board.model";
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -22,20 +23,9 @@ import { injectable } from 'tsyringe';
 @injectable()
 @Table({ timestamps: true })
 export class Board extends Model<Board> implements IBoard {
-    constructor(model?: any, buildOptions?: BuildOptions, firmataBoard?: FirmataBoard) {
+    constructor(model?: any, buildOptions?: BuildOptions) {
         super(model, buildOptions);
-
         this.namespace = `board-${this.id}`;
-
-        if (firmataBoard) {
-            this.firmataBoard = firmataBoard;
-
-            this.firmataBoard.once('queryfirmware', this.parseQueryFirmwareResponse);
-
-            this.attachAnalogPinListeners();
-            this.attachDigitalPinListeners();
-            this.startHeartbeat();
-        }
     }
 
     /**
@@ -52,22 +42,25 @@ export class Board extends Model<Board> implements IBoard {
      * <generic_name>_<unique_identifier>.ino
      * This is persisted in the database.
      */
-    @Column({ type: DataType.STRING, primaryKey: true })
+
+    @PrimaryKey
+    @Unique
+    @Column
     public id: string;
 
     /**
      * A custom name, to be given by the user.
      * This is persisted in the database.
      */
-    @Column(DataType.STRING)
+    @Column
     public name: string;
 
     /**
      * String containing the type of device the {@link Board} instance represents. This could be a generic device (thus containing type: 'Board')
      * or an instance of {@link MajorTom} (type: 'MajorTom').
      */
-    @Column(DataType.STRING)
-    public type = this.constructor.name;
+    @Column
+    public type: string = this.constructor.name;
 
     /**
      * Boolean stating whether the board is online or not.
@@ -92,7 +85,7 @@ export class Board extends Model<Board> implements IBoard {
     /**
      * Last update received by board.
      */
-    @Column(DataType.STRING)
+    @Column
     public lastUpdateReceived: string;
 
     /**
@@ -100,7 +93,7 @@ export class Board extends Model<Board> implements IBoard {
      * validate and call them from elsewhere. The mapping should be obvious.
      * Currently available methods are: BLINKON, BLINKOFF and TOGGLELED.
      */
-    protected availableActions: any = {
+    public availableActions: any = {
         BLINKON: {
             requiresParams: false,
             method: () => {
@@ -151,7 +144,7 @@ export class Board extends Model<Board> implements IBoard {
      * The pinMapping set for generic boards. This is currently set to the pinMapping for Arduino Uno boards.
      */
     @Column(DataType.JSON)
-    public architecture = SUPPORTED_ARCHITECTURES.ARDUINO_UNO;
+    public architecture: BoardArchitecture = SUPPORTED_ARCHITECTURES.ARDUINO_UNO;
 
     /**
      * The ID of the interval that's executed when we blink the builtin LED.
@@ -174,27 +167,27 @@ export class Board extends Model<Board> implements IBoard {
     /**
      * Return an {@link IBoard}.
      */
-    public static toDiscrete(board: Board): IBoard {
+    public toDiscrete(): IBoard {
         let discreteBoard;
 
         discreteBoard = {
-            id: board.id,
-            name: board.name || undefined,
-            vendorId: board.vendorId || undefined,
-            productId: board.productId || undefined,
-            type: board.type,
-            currentProgram: board.currentProgram,
-            online: board.online,
-            lastUpdateReceived: board.lastUpdateReceived || undefined,
-            architecture: board.architecture,
-            availableCommands: board.getAvailableActions(),
+            id: this.id,
+            name: this.name || 'No name',
+            vendorId: this.vendorId,
+            productId: this.productId,
+            type: this.type,
+            currentProgram: this.currentProgram,
+            online: this.online,
+            lastUpdateReceived: this.lastUpdateReceived,
+            architecture: this.architecture,
+            availableActions: this.getAvailableActions(),
         };
 
-        if (board.firmataBoard) {
+        if (this.firmataBoard) {
             Object.assign(discreteBoard, {
-                refreshRate: board.firmataBoard.getSamplingInterval(),
-                pins: board.firmataBoard.pins
-                    .map((pin: FirmataBoard.Pins, index: number) =>
+                refreshRate: this.firmataBoard.getSamplingInterval(),
+                pins: this.firmataBoard.pins
+                    .map((pin: Pins, index: number) =>
                         Object.assign({ pinNumber: index, analog: pin.analogChannel !== 127 }, pin),
                     )
                     .filter((pin: IPin) => pin.supportedModes.length > 0),
@@ -212,7 +205,7 @@ export class Board extends Model<Board> implements IBoard {
      * Return an array of {@link IBoard}.
      */
     public static toDiscreteArray(boards: Board[]): IBoard[] {
-        return boards.map(Board.toDiscrete);
+        return boards.map((board: Board) => board.toDiscrete());
     }
 
     protected static is8BitNumber(value: number): boolean {
@@ -222,22 +215,14 @@ export class Board extends Model<Board> implements IBoard {
         return value <= 255 && value >= 0;
     }
 
-    private static parseBoardType(firmataBoard: FirmataBoard): string {
-        let type = firmataBoard.firmware.name.split('_').shift();
+    public attachFirmataBoard(firmataBoard: FirmataBoard): void {
+        this.firmataBoard = firmataBoard;
 
-        if (!type || type.indexOf('.') >= 0) {
-            type = 'Board';
-        }
+        this.firmataBoard.once('queryfirmware', this.setBoardOnline);
 
-        return type;
-    }
-
-    private static parseBoardId(firmataBoard: FirmataBoard): string {
-        // todo: handle exception flows
-        return firmataBoard.firmware.name
-            .split('_')
-            .pop()
-            .replace('.ino', '');
+        this.attachAnalogPinListeners();
+        this.attachDigitalPinListeners();
+        this.startHeartbeat();
     }
 
     /**
@@ -308,6 +293,16 @@ export class Board extends Model<Board> implements IBoard {
         this.firmataBoard = undefined;
     }
 
+    public getDataValues(): IBoardDataValues {
+        return {
+            id: this.id,
+            name: this.name,
+            type: this.type,
+            lastUpdateReceived: this.lastUpdateReceived,
+            architecture: this.architecture
+        };
+    }
+
     /**
      * Clear all timeouts and intervals. This is required when a physical device is online or the Board class reinstantiated.
      *
@@ -320,7 +315,7 @@ export class Board extends Model<Board> implements IBoard {
     }
 
     public clearListeners(): void {
-        this.firmataBoard.pins.forEach((pin: FirmataBoard.Pins, index: number) => {
+        this.firmataBoard.pins.forEach((pin: Pins, index: number) => {
             if (this.isDigitalPin(index)) {
                 this.firmataBoard.removeListener(`digital-read-${index}`, this.emitUpdate);
             }
@@ -391,7 +386,7 @@ export class Board extends Model<Board> implements IBoard {
                 LoggerService.debug(`Heartbeat timeout.`, this.namespace);
 
                 // emit disconnect event after which the board is removed from the data model
-                this.firmataBoard.emit('disconnect');
+                this.firmataBoard.disconnect.post();
                 this.clearInterval(heartbeat);
                 this.clearHeartbeatTimeout();
             }, Board.disconnectTimeout);
@@ -413,7 +408,7 @@ export class Board extends Model<Board> implements IBoard {
     /**
      * Writes a byte-array with the device's specified serial UART interface.
      */
-    protected serialWriteBytes(serialPort: FirmataBoard.SERIAL_PORT_ID, payload: any[]): void {
+    protected serialWriteBytes(serialPort: SERIAL_PORT_ID, payload: any[]): void {
         const buffer = Buffer.allocUnsafe(payload.length);
 
         payload.forEach((value: any, index: number) => {
@@ -456,7 +451,7 @@ export class Board extends Model<Board> implements IBoard {
      */
     protected emitUpdate = (): void => {
         this.lastUpdateReceived = new Date().toUTCString();
-        this.firmataBoard.emit('update', Board.toDiscrete(this));
+        this.firmataBoard.update.post(this.toDiscrete());
     };
 
     /**
@@ -488,9 +483,7 @@ export class Board extends Model<Board> implements IBoard {
         this.emitUpdate();
     }
 
-    private parseQueryFirmwareResponse = (): void => {
-        this.id = Board.parseBoardId(this.firmataBoard);
-        this.type = Board.parseBoardType(this.firmataBoard);
+    private setBoardOnline = (): void => {
         this.online = true;
     };
 
@@ -507,7 +500,7 @@ export class Board extends Model<Board> implements IBoard {
      * Once the pin's value changes an 'update' event will be emitted by calling the {@link Board.emitUpdate} method.
      */
     private attachDigitalPinListeners(): void {
-        this.firmataBoard.pins.forEach((pin: FirmataBoard.Pins, index: number) => {
+        this.firmataBoard.pins.forEach((pin: Pins, index: number) => {
             if (this.isDigitalPin(index)) {
                 this.firmataBoard.digitalRead(index, this.emitUpdate);
             }

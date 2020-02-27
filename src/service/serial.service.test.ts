@@ -1,4 +1,6 @@
 import { SerialService } from './index';
+import { LoggerService } from './logger.service';
+jest.mock('./logger.service');
 
 let serialService: any;
 
@@ -21,11 +23,9 @@ describe('SerialService', () => {
 
     describe('#listen', () => {
         test('should have logged an info message', () => {
-            serialService.log.info = jest.fn();
-
             serialService.listen();
 
-            expect(serialService.log.info).toHaveBeenCalled();
+            expect(LoggerService.info).toHaveBeenCalled();
         });
 
         test('should have created an interval instance', () => {
@@ -177,11 +177,9 @@ describe('SerialService', () => {
                 setIsSerialConnection: jest.fn(),
             };
 
-            serialService.log.info = jest.fn();
-
             serialService.handleConnected(board);
 
-            expect(serialService.log.info).toHaveBeenCalled();
+            expect(LoggerService.info).toHaveBeenCalled();
             expect(board.setIsSerialConnection).toHaveBeenCalledWith(true);
         });
     });
