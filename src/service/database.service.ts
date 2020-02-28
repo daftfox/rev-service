@@ -4,6 +4,7 @@ import { Board } from '../domain/board';
 import { Dialect } from 'sequelize';
 import { container, singleton } from 'tsyringe';
 import { ConfigurationService } from './configuration.service';
+import { LoggerService } from './logger.service';
 
 @singleton()
 export class DatabaseService {
@@ -34,6 +35,8 @@ export class DatabaseService {
     }
 
     public synchronise(): Promise<void> {
+        LoggerService.debug('Synchronising database.', this.namespace);
+
         return DatabaseService.database.sync();
     }
 
@@ -44,6 +47,8 @@ export class DatabaseService {
      * @returns {Promise<void>}
      */
     public async insertDefaultRecords(): Promise<void> {
+        LoggerService.debug('Inserting default records.', this.namespace);
+
         return new Promise(async (resolve, reject) => {
             await Program.create(blink);
             await Program.create(sos);

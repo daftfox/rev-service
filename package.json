@@ -49,7 +49,7 @@
         "rev-service": "./dist/index.js"
     },
     "engines": {
-        "node": "11.14"
+        "node": ">=11.14"
     },
     "dependencies": {
         "@types/args": "^3.0.0",
@@ -101,7 +101,7 @@
             "ts",
             "js"
         ],
-        "collectCoverage": false,
+        "collectCoverage": true,
         "coverageDirectory": "reports/coverage",
         "setupFilesAfterEnv": [
             "<rootDir>/jest.setup.ts"
@@ -111,7 +111,8 @@
             "!**/major-tom.ts",
             "!**/index.ts",
             "!**/node_modules/**",
-            "!**/test/**"
+            "!**/test/**",
+            "!**/__mocks__"
         ],
         "reporters": [
             "default",

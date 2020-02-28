@@ -1,4 +1,4 @@
-import {BoardArchitecture} from "../base";
+import { BoardArchitecture } from '../base';
 
 export interface IBoardDataValues {
     id: string;

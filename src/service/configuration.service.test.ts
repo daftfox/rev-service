@@ -1,6 +1,6 @@
-import {ConfigurationService} from "./configuration.service";
-import {DatabaseConfiguration} from "../domain/configuration/base";
-import {AppConfiguration} from "../domain/configuration/base/app-configuration.model";
+import { ConfigurationService } from './configuration.service';
+import { DatabaseConfiguration } from '../domain/configuration/base';
+import { AppConfiguration } from '../domain/configuration/base/app-configuration.model';
 
 let service: ConfigurationService;
 const argv = ['usr/local/bin/node', '/Users/tim/Projects/rev/rev-back-end/dist/index.js'];
@@ -27,7 +27,7 @@ const expectedDefaultConfiguration = {
 
 const properties = {
     parseConfiguration: 'parseConfiguration',
-    _flags: '_flags'
+    _flags: '_flags',
 };
 
 beforeEach(() => {

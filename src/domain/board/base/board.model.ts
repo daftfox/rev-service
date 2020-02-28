@@ -3,7 +3,7 @@ import { LoggerService } from '../../../service/logger.service';
 import Timeout = NodeJS.Timeout;
 import { BoardArchitecture, SUPPORTED_ARCHITECTURES } from './board-architecture.model';
 import { IBoard, IPin } from '../interface';
-import {Column, DataType, Model, PrimaryKey, Table, Unique} from 'sequelize-typescript';
+import { Column, DataType, Model, PrimaryKey, Table, Unique } from 'sequelize-typescript';
 import {
     ArchitectureUnsupportedError,
     BoardIncompatibleError,
@@ -12,8 +12,8 @@ import {
     InvalidArgumentError,
 } from '../../error';
 import { injectable } from 'tsyringe';
-import {IBoardDataValues} from "../interface/board-data-values.interface";
-import {FirmataBoard, Pins, SERIAL_PORT_ID} from "./firmata-board.model";
+import { IBoardDataValues } from '../interface/board-data-values.interface';
+import { FirmataBoard, Pins, SERIAL_PORT_ID } from './firmata-board.model';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -27,7 +27,6 @@ export class Board extends Model<Board> implements IBoard {
         super(model, buildOptions);
         this.namespace = `board-${this.id}`;
     }
-
     /**
      * The interval at which to send out a heartbeat. The heartbeat is used to 'test' the TCP connection with the physical
      * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
@@ -165,6 +164,20 @@ export class Board extends Model<Board> implements IBoard {
     private previousAnalogValue: number[] = [];
 
     /**
+     * Return an array of {@link IBoard}.
+     */
+    public static toDiscreteArray(boards: Board[]): IBoard[] {
+        return boards.map((board: Board) => board.toDiscrete());
+    }
+
+    protected static is8BitNumber(value: number): boolean {
+        if (typeof value !== 'number') {
+            return false;
+        }
+        return value <= 255 && value >= 0;
+    }
+
+    /**
      * Return an {@link IBoard}.
      */
     public toDiscrete(): IBoard {
@@ -201,24 +214,10 @@ export class Board extends Model<Board> implements IBoard {
         return discreteBoard;
     }
 
-    /**
-     * Return an array of {@link IBoard}.
-     */
-    public static toDiscreteArray(boards: Board[]): IBoard[] {
-        return boards.map((board: Board) => board.toDiscrete());
-    }
-
-    protected static is8BitNumber(value: number): boolean {
-        if (typeof value !== 'number') {
-            return false;
-        }
-        return value <= 255 && value >= 0;
-    }
-
     public attachFirmataBoard(firmataBoard: FirmataBoard): void {
         this.firmataBoard = firmataBoard;
 
-        this.firmataBoard.once('queryfirmware', this.setBoardOnline);
+        this.firmataBoard.firmwareUpdated.attach(this.setBoardOnline);
 
         this.attachAnalogPinListeners();
         this.attachDigitalPinListeners();
@@ -228,7 +227,7 @@ export class Board extends Model<Board> implements IBoard {
     /**
      * Method returning a string array containing the actions this device is able to execute.
      */
-    public getAvailableActions(): Array<{ name: string; requiresParams: boolean }> {
+    public getAvailableActions(): { name: string; requiresParams: boolean }[] {
         const actionNames = Object.keys(this.availableActions);
         return actionNames.map(action => ({
             name: action,
@@ -295,11 +294,11 @@ export class Board extends Model<Board> implements IBoard {
 
     public getDataValues(): IBoardDataValues {
         return {
-            id: this.id,
+            id: this.id || undefined,
             name: this.name,
             type: this.type,
             lastUpdateReceived: this.lastUpdateReceived,
-            architecture: this.architecture
+            architecture: this.architecture,
         };
     }
 
@@ -376,8 +375,7 @@ export class Board extends Model<Board> implements IBoard {
 
     /**
      * Starts an interval requesting the physical board to send its firmware version every 10 seconds.
-     * Emits a 'disconnect' event on the local {@link Board.firmataBoard} instance if the device fails to respond within 2 seconds of this query being sent.
-     * The device is deemed online and removed from the data model until it attempts reconnecting after the disconnect event is emitted.
+     * Emits a 'disconnect' event on the local {@link Board.firmataBoard} instance if the device fails to respond within 10 seconds of this query being sent.
      */
     protected startHeartbeat(): void {
         const heartbeat = setInterval(() => {
@@ -394,6 +392,8 @@ export class Board extends Model<Board> implements IBoard {
             this.timeouts.push(this.heartbeatTimeout);
 
             // we utilize the queryFirmware method to emulate a heartbeat
+            // this method executes the supplied callback method to indicate
+            // it has received a reply from the physical board
             this.firmataBoard.queryFirmware(this.clearHeartbeatTimeout);
         }, Board.heartbeatInterval);
 

@@ -4,7 +4,7 @@ import { IExtensionClasses, IExtensionKeys } from '../interface';
 
 export const AVAILABLE_EXTENSIONS_CLASSES = ((): IExtensionClasses => {
     const classes = {
-        Board: Board,
+        Board,
     };
 
     for (const extension of Object.keys(extensions)) {
@@ -18,7 +18,6 @@ export const AVAILABLE_EXTENSIONS_KEYS = ((): IExtensionKeys => {
     const keys = {
         Board: 'Board',
     };
-
 
     for (const extension of Object.keys(extensions)) {
         keys[extension] = extensions[extension].name;

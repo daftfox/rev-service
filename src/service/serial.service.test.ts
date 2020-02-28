@@ -92,12 +92,12 @@ describe('SerialService', () => {
 
     describe('#filterPorts', () => {
         test.each([
-            [1, [{ productId: 'test', comName: 'test' }], [], []],
-            [0, [{ productId: undefined, comName: 'test' }], [], []],
-            [1, [{ productId: 'test', comName: 'test' }], ['tost'], []],
-            [0, [{ productId: 'test', comName: 'test' }], ['test'], []],
-            [1, [{ productId: 'test', comName: 'test' }], [], ['tost']],
-            [0, [{ productId: 'test', comName: 'test' }], [], ['test']],
+            [1, [{ productId: 'test', path: 'test' }], [], []],
+            [0, [{ productId: undefined, path: 'test' }], [], []],
+            [1, [{ productId: 'test', path: 'test' }], ['tost'], []],
+            [0, [{ productId: 'test', path: 'test' }], ['test'], []],
+            [1, [{ productId: 'test', path: 'test' }], [], ['tost']],
+            [0, [{ productId: 'test', path: 'test' }], [], ['test']],
         ])('should return %p element', (length: number, ports: any[], usedPorts: any[], unsupportedDevices: any[]) => {
             serialService.usedPorts = usedPorts;
             serialService.unsupportedDevices = unsupportedDevices;

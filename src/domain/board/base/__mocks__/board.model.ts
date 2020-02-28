@@ -1,17 +1,14 @@
 import * as FirmataBoard from 'firmata';
-import {SUPPORTED_ARCHITECTURES} from "../board-architecture.model";
+import { SUPPORTED_ARCHITECTURES } from '../board-architecture.model';
 
-export const idsMock = [
-    'bacon',
-    'eggs',
-];
+export const idsMock = ['bacon', 'eggs'];
 export const unknownDataValuesMock = {
     id: 'bacon',
-    type: 'SuperBoard'
+    type: 'SuperBoard',
 };
 export const dataValuesMock = {
     id: 'bacon',
-    type: 'Board'
+    type: 'Board',
 };
 export const discreteBoardMock = {
     id: 'bacon',
@@ -27,13 +24,18 @@ export const discreteBoardMock = {
 };
 
 export class Board {
-    constructor(id) {this.id = id}
+    constructor(id) {
+        this.id = id;
+    }
+    static findAll = jest.fn(() => Promise.resolve(allBoardsMock));
+    static findByPk = jest.fn(() => Promise.resolve());
+    static toDiscreteArray = jest.fn(() => [discreteBoardMock]);
     id = dataValuesMock.id;
     type = dataValuesMock.type;
     firmataBoard = undefined;
     online = false;
     currentProgram = 'IDLE';
-    attachFirmataBoard = jest.fn((fb: FirmataBoard) => this.firmataBoard = fb);
+    attachFirmataBoard = jest.fn((fb: FirmataBoard) => (this.firmataBoard = fb));
     getFirmataBoard = jest.fn(() => this.firmataBoard);
     toDiscrete = jest.fn(() => discreteBoardMock);
     save = jest.fn(() => Promise.resolve());
@@ -43,14 +45,8 @@ export class Board {
     availableActions = {};
     executeAction = jest.fn();
     getDataValues = jest.fn(() => dataValuesMock);
-    static findAll = jest.fn(() => Promise.resolve(allBoardsMock));
-    static findByPk = jest.fn(() => Promise.resolve());
-    static toDiscreteArray = jest.fn( () => [discreteBoardMock] );
 }
 
 export const boardMock = new Board(idsMock[0]);
 
-export const allBoardsMock = [
-    boardMock,
-    new Board(idsMock[1]),
-];
+export const allBoardsMock = [boardMock, new Board(idsMock[1])];

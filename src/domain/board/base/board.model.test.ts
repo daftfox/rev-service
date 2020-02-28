@@ -1,5 +1,5 @@
 import { Board, IDLE } from './board.model';
-import {BoardArchitecture, SUPPORTED_ARCHITECTURES} from './board-architecture.model';
+import { BoardArchitecture, SUPPORTED_ARCHITECTURES } from './board-architecture.model';
 import {
     BoardIncompatibleError,
     BoardPinNotFoundError,
@@ -7,12 +7,14 @@ import {
     InvalidArgumentError,
 } from '../../error';
 // import {FirmataBoard} from './firmata-board.model';
-import {firmataBoardMock} from "./__mocks__/firmata-board.model";
-import {prepareOptions, Sequelize} from "sequelize-typescript";
-import {PIN_STATE} from "./firmata-board.model";
+import { firmataBoardMockFactory } from './__mocks__/firmata-board.model';
+import { prepareOptions, Sequelize } from 'sequelize-typescript';
+import { FirmataBoard, PIN_STATE, SERIAL_PORT_ID } from './firmata-board.model';
+import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
 jest.mock('./firmata-board.model');
 
 let board: Board;
+let firmataBoardMock: FirmataBoard;
 
 const properties = {
     firmataBoard: 'firmataBoard',
@@ -31,6 +33,22 @@ const properties = {
     setPinValue: 'setPinValue',
     startHeartbeat: 'startHeartbeat',
     heartbeatInterval: 'heartbeatInterval',
+    heartbeatTimeout: 'heartbeatTimeout',
+    disconnectTimeout: 'disconnectTimeout',
+    serialWriteBytes: 'serialWriteBytes',
+    attachDigitalPinListeners: 'attachDigitalPinListeners',
+    attachAnalogPinListeners: 'attachAnalogPinListeners',
+    previousAnalogValue: 'previousAnalogValue',
+    compareAnalogReadout: 'compareAnalogReadout',
+    isAvailableAction: 'isAvailableAction',
+    isDigitalPin: 'isDigitalPin',
+    isAnalogPin: 'isAnalogPin',
+    is8BitNumber: 'is8BitNumber',
+    setIsSerialConnection: 'setIsSerialConnection',
+    attachFirmataBoard: 'attachFirmataBoard',
+    getDataValues: 'getDataValues',
+    setBoardOnline: 'setBoardOnline',
+    online: 'online',
 };
 
 beforeAll(() => {
@@ -43,6 +61,8 @@ beforeAll(() => {
 
 beforeEach(() => {
     board = new Board();
+    firmataBoardMock = firmataBoardMockFactory();
+    firmataBoardMock['disableMockTimer']();
     board[properties.firmataBoard] = firmataBoardMock;
 });
 
@@ -93,7 +113,7 @@ describe('Board', () => {
 
         describe('exception flows', () => {
             test('should throw an error when setting unsupported architecture', () => {
-                const unsupportedArchitecture = new BoardArchitecture('Bacon', {LED: 13, RX: 1, TX: 0});
+                const unsupportedArchitecture = new BoardArchitecture('Bacon', { LED: 13, RX: 1, TX: 0 });
                 const setArchitectureError = () => {
                     board.setArchitecture(unsupportedArchitecture);
                 };
@@ -178,7 +198,7 @@ describe('Board', () => {
             ])(
                 'should run %s method and emit update when running executeAction(%p, %p)',
                 (action: string, method: string, parameters: any[]) => {
-                    spyOn(board[properties.firmataBoard].update, 'post');
+                    spyOn(firmataBoardMock.update, 'post');
                     spyOn<any>(board, method);
                     board.online = true;
 
@@ -242,7 +262,7 @@ describe('Board', () => {
     describe('#disconnect', () => {
         test('should disconnect the board and clear listeners', () => {
             board.online = true;
-            const removeAllListenersSpy = spyOn(board[properties.firmataBoard], 'removeAllListeners');
+            const removeAllListenersSpy = spyOn(firmataBoardMock, 'removeAllListeners');
             spyOn(board, 'clearAllTimers');
             board.disconnect();
 
@@ -269,14 +289,17 @@ describe('Board', () => {
 
     describe('#clearListeners', () => {
         test('should remove all listeners from pins and firmataBoard', () => {
-            const removeListenerSpy = spyOn(board[properties.firmataBoard], 'removeListener');
+            const removeListenerSpy = spyOn(firmataBoardMock, 'removeListener');
 
             board.clearListeners();
 
             expect(removeListenerSpy).toHaveBeenCalledTimes(3);
             expect(removeListenerSpy.calls.argsFor(0)).toEqual(['digital-read-1', board[properties.emitUpdate]]);
             expect(removeListenerSpy.calls.argsFor(1)).toEqual(['analog-read-0', board[properties.emitUpdate]]);
-            expect(removeListenerSpy.calls.argsFor(2)).toEqual(['queryfirmware', board[properties.clearHeartbeatTimeout]]);
+            expect(removeListenerSpy.calls.argsFor(2)).toEqual([
+                'queryfirmware',
+                board[properties.clearHeartbeatTimeout],
+            ]);
         });
     });
 
@@ -382,331 +405,360 @@ describe('Board', () => {
         });
     });
 
-    // describe('#startHeartbeat', () => {
-    //     beforeAll(() => {
-    //         jest.useFakeTimers();
-    //     });
-    //
-    //     afterAll(() => {
-    //         jest.useRealTimers();
-    //     });
-    //
-    //     describe('happy flows', () => {
-    //         test('should set a heartbeat interval', () => {
-    //             board[properties.startHeartbeat]();
-    //
-    //             jest.advanceTimersByTime(Board[properties.heartbeatInterval]);
-    //
-    //             expect(setInterval).toHaveBeenCalled();
-    //             expect(board[properties.intervals].length).toEqual(1);
-    //         });
-    //
-    //         test('should set a heartbeat timeout', () => {
-    //             board[properties.startHeartbeat]();
-    //
-    //             jest.advanceTimersByTime(Board[properties.heartbeatInterval]);
-    //
-    //             expect(board.heartbeatTimeout).toBeDefined();
-    //         });
-    //
-    //         test('shouldn't timeout if the board replies on time', () => {
-    //             const numheartbeats = 2;
-    //
-    //             board.startHeartbeat();
-    //
-    //             // @ts-ignore
-    //             jest.advanceTimersByTime(Board.heartbeatInterval * numheartbeats);
-    //
-    //             expect(board.firmataBoard.queryFirmware).toHaveBeenCalledTimes(numheartbeats);
-    //         });
-    //     });
-    //
-    //     describe('exception flows', () => {
-    //         test('should timeout if no response is received within 10 seconds', () => {
-    //             board.firmataBoard.queryFirmware = jest.fn(callback =>
-    //                 // @ts-ignore
-    //                 setTimeout(callback, Board.disconnectTimeout + 1000),
-    //             );
-    //
-    //             board.startHeartbeat();
-    //
-    //             // @ts-ignore
-    //             jest.advanceTimersByTime(Board.heartbeatInterval + Board.disconnectTimeout + 100);
-    //
-    //             expect(board.heartbeatTimeout).toBeUndefined();
-    //             expect(board.firmataBoard.emit).toHaveBeenCalledWith('disconnect');
-    //         });
-    //     });
-    // });
-    //
-    // describe('#clearHeartbeatTimeout', () => {
-    //     test('should clear the heartbeat timeout', () => {
-    //         board.heartbeatTimeout = setTimeout(() => {});
-    //         board.timeouts.push(board.heartbeatTimeout);
-    //
-    //         board.clearHeartbeatTimeout();
-    //
-    //         expect(board.heartbeatTimeout).toBeUndefined();
-    //         expect(board.timeouts.length).toEqual(0);
-    //     });
-    // });
-    //
-    // // fixme this fails if I use bytes, why? numbers should also be converted to bytes, shouldn't they? Returned value is [1, 3, 3, 7]
-    // describe('#serialWriteBytes', () => {
-    //     describe('happy flows', () => {
-    //         test('should write an array of numbers converted to bytes to a serial port', () => {
-    //             board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 1, 3, 3, 7]);
-    //
-    //             expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [
-    //                 104,
-    //                 1,
-    //                 3,
-    //                 3,
-    //                 7,
-    //             ]);
-    //         });
-    //
-    //         test('should write an array of characters converted to bytes to a serial port', () => {
-    //             board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 'e', 'l', 'l', 'o']);
-    //
-    //             expect(board.firmataBoard.serialWrite).toHaveBeenCalledWith(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [
-    //                 104,
-    //                 101,
-    //                 108,
-    //                 108,
-    //                 111,
-    //             ]);
-    //         });
-    //     });
-    //
-    //     describe('exception flows', () => {
-    //         test('should throw TypeError', () => {
-    //             const serialWriteBytesError = () => {
-    //                 board.serialWriteBytes(FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [{}, {}]);
-    //             };
-    //
-    //             expect(serialWriteBytesError).toThrowError(
-    //                 new InvalidArgumentError(`Expected string or number. Received object.`),
-    //             );
-    //         });
-    //     });
-    // });
-    //
-    // describe('#emitUpdate', () => {
-    //     test('should emit an update event containing a discrete copy of the board instance', () => {
-    //         board.emitUpdate();
-    //
-    //         expect(board.firmataBoard.emit).toHaveBeenCalledWith('update', board.toDiscrete());
-    //     });
-    // });
-    //
-    // describe('#setPinValue', () => {
-    //     describe('happy flows', () => {
-    //         test('should call analogWrite when supplied with an analog pin', () => {
-    //             const value = 128;
-    //             const pin = 0;
-    //             board.emitUpdate = jest.fn();
-    //
-    //             board.setPinValue(pin, value);
-    //
-    //             expect(board.firmataBoard.analogWrite).toHaveBeenCalledWith(pin, value);
-    //             expect(board.emitUpdate).toHaveBeenCalled();
-    //         });
-    //
-    //         test('should call digitalWrite when supplied with a digital pin', () => {
-    //             const value = 1;
-    //             const pin = 1;
-    //             board.emitUpdate = jest.fn();
-    //
-    //             board.setPinValue(pin, value);
-    //
-    //             expect(board.firmataBoard.digitalWrite).toHaveBeenCalledWith(pin, value);
-    //             expect(board.emitUpdate).toHaveBeenCalled();
-    //         });
-    //     });
-    //
-    //     describe('exception flows', () => {
-    //         test('should throw an error if non existent pin is supplied', () => {
-    //             const value = 1;
-    //             const pin = 1337;
-    //
-    //             const setPinValue = () => {
-    //                 board.setPinValue(pin, value);
-    //             };
-    //
-    //             expect(setPinValue).toThrowError(
-    //                 new BoardPinNotFoundError(`Attempted to set value of unknown pin ${pin}.`),
-    //             );
-    //         });
-    //
-    //         test.each([
-    //             [
-    //                 0,
-    //                 -20,
-    //                 new InvalidArgumentError(
-    //                     `Attempted to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
-    //                 ),
-    //             ],
-    //             [
-    //                 0,
-    //                 2000,
-    //                 new InvalidArgumentError(
-    //                     `Attempted to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
-    //                 ),
-    //             ],
-    //             [
-    //                 1,
-    //                 2,
-    //                 new InvalidArgumentError(
-    //                     `Attempted to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
-    //                 ),
-    //             ],
-    //         ])(
-    //             'should throw an error when running setPinValue(%p, %p)',
-    //             (pin: number, value: number, expectedError: Error) => {
-    //                 const setPinValue = () => {
-    //                     board.setPinValue(pin, value);
-    //                 };
-    //
-    //                 expect(setPinValue).toThrowError(expectedError);
-    //             },
-    //         );
-    //     });
-    // });
-    //
-    // describe('#attachDigitalPinListeners', () => {
-    //     test('should attach listeners to all digital pins', () => {
-    //         const pin = 1;
-    //
-    //         board.attachDigitalPinListeners();
-    //
-    //         expect(board.firmataBoard.digitalRead).toHaveBeenCalledTimes(1);
-    //         expect(board.firmataBoard.digitalRead).toHaveBeenCalledWith(pin, board.emitUpdate);
-    //     });
-    // });
-    //
-    // describe('#attachAnalogPinListeners', () => {
-    //     test('should attach listeners to all analog pins', () => {
-    //         const pin = 0;
-    //
-    //         board.attachAnalogPinListeners();
-    //
-    //         expect(board.firmataBoard.analogRead).toHaveBeenCalledTimes(1);
-    //         expect(board.firmataBoard.analogRead).toHaveBeenCalledWith(pin, board.emitUpdate);
-    //     });
-    // });
-    //
-    // describe('#compareAnalogReadout', () => {
-    //     test('should update the previous analog value', () => {
-    //         board.emitUpdate = jest.fn();
-    //         const pin = 0;
-    //         const value = 700;
-    //
-    //         board.compareAnalogReadout(pin, value);
-    //
-    //         expect(board.previousAnalogValue[pin]).toEqual(value);
-    //         expect(board.emitUpdate).toHaveBeenCalledTimes(1);
-    //     });
-    //
-    //     test('should retain the previous analog value', () => {
-    //         board.emitUpdate = jest.fn();
-    //         const pin = 0;
-    //         const value = 512;
-    //
-    //         board.compareAnalogReadout(pin, value);
-    //         board.compareAnalogReadout(pin, value);
-    //
-    //         expect(board.previousAnalogValue[pin]).toEqual(value);
-    //         expect(board.emitUpdate).toHaveBeenCalledTimes(1);
-    //     });
-    // });
-    //
-    // describe('#clearAllIntervals', () => {
-    //     test('should clear all intervals', () => {
-    //         board.intervals.push(setInterval(() => {}, 1000));
-    //         board.clearAllIntervals();
-    //
-    //         expect(board.intervals.length).toEqual(0);
-    //     });
-    // });
-    //
-    // describe('#clearAllTimeouts', () => {
-    //     test('should clear all timeouts', () => {
-    //         board.timeouts.push(setTimeout(() => {}, 1000));
-    //         board.clearAllTimeouts();
-    //
-    //         expect(board.timeouts.length).toEqual(0);
-    //     });
-    // });
-    //
-    // describe('#isAvailableAction', () => {
-    //     test('should return true if action is available', () => {
-    //         expect(board.isAvailableAction('TOGGLELED')).toEqual(true);
-    //     });
-    //
-    //     test('should return false if action is not available', () => {
-    //         expect(board.isAvailableAction('bacon')).toEqual(false);
-    //     });
-    // });
-    //
-    // describe('#isDigitalPin', () => {
-    //     test('should return true when a digital pin's index is passed in', () => {
-    //         const pinIndex = 1;
-    //
-    //         expect(board.isDigitalPin(pinIndex)).toEqual(true);
-    //     });
-    //
-    //     test('should return false when an analog pin's index is passed in', () => {
-    //         const pinIndex = 0;
-    //
-    //         expect(board.isDigitalPin(pinIndex)).toEqual(false);
-    //     });
-    // });
-    //
-    // describe('#isAnalogPin', () => {
-    //     test('should return true when an analog pin's index is passed in', () => {
-    //         const pinIndex = 0;
-    //
-    //         expect(board.isAnalogPin(pinIndex)).toEqual(true);
-    //     });
-    //
-    //     test('should return false when a digital pin's index is passed in', () => {
-    //         const pinIndex = 1;
-    //
-    //         expect(board.isAnalogPin(pinIndex)).toEqual(false);
-    //     });
-    // });
-    //
-    // describe('#is8BitNumber', () => {
-    //     test.each([[0], [32], [64], [128], [255]])(
-    //         'should return true when running is8BitNumber(%p)',
-    //         (value: number) => {
-    //             // @ts-ignore
-    //             const result = Board.is8BitNumber(value);
-    //
-    //             expect(result).toEqual(true);
-    //         },
-    //     );
-    //
-    //     test.each([[-1], ['0'], ['a'], [268], [{}], [[]]])(
-    //         'should return false when running is8BitNumber(%p)',
-    //         (value: any) => {
-    //             // @ts-ignore
-    //             const result = Board.is8BitNumber(value);
-    //
-    //             expect(result).toEqual(false);
-    //         },
-    //     );
-    // });
-    //
-    // describe('#setIsSerialConnection', () => {
-    //     test.each([[200, true], [1000, false]])(
-    //         'should set the samplingInterval to %pms',
-    //         (interval: number, isSerial: boolean) => {
-    //             board.setIsSerialConnection(isSerial);
-    //
-    //             expect(board.firmataBoard.setSamplingInterval).toHaveBeenCalledWith(interval);
-    //         },
-    //     );
-    // });
+    describe('#startHeartbeat', () => {
+        beforeAll(() => {
+            jest.useFakeTimers();
+        });
+
+        afterAll(() => {
+            jest.useRealTimers();
+        });
+
+        describe('happy flows', () => {
+            test('should set a heartbeat interval', () => {
+                const intervalSpy = spyOn(global, 'setInterval').and.callThrough();
+                board[properties.startHeartbeat]();
+
+                jest.advanceTimersByTime(Board[properties.heartbeatInterval]);
+
+                expect(intervalSpy).toHaveBeenCalled();
+                expect(board[properties.heartbeatTimeout]).toBeDefined();
+                expect(board[properties.intervals].length).toEqual(1);
+            });
+
+            test('should not timeout if the board replies on time', () => {
+                const numHeartbeats = 2;
+
+                board[properties.startHeartbeat]();
+
+                jest.advanceTimersByTime(Board[properties.heartbeatInterval] * numHeartbeats);
+
+                expect(board[properties.firmataBoard].queryFirmware).toHaveBeenCalledTimes(numHeartbeats);
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should timeout if no response is received within 10 seconds', () => {
+                const spy = spyOn(firmataBoardMock.disconnect, 'post');
+                board[properties.firmataBoard].queryFirmware = jest.fn(callback =>
+                    setTimeout(callback, Board[properties.disconnectTimeout] + 1000),
+                );
+
+                board[properties.startHeartbeat]();
+
+                jest.advanceTimersByTime(
+                    Board[properties.heartbeatInterval] + Board[properties.disconnectTimeout] + 100,
+                );
+
+                expect(board[properties.heartbeatTimeout]).toBeUndefined();
+                expect(spy).toHaveBeenCalledWith();
+            });
+        });
+    });
+
+    describe('#clearHeartbeatTimeout', () => {
+        test('should clear the heartbeat timeout', () => {
+            board[properties.heartbeatTimeout] = setTimeout(() => {});
+            board[properties.timeouts].push(board[properties.heartbeatTimeout]);
+
+            board[properties.clearHeartbeatTimeout]();
+
+            expect(board[properties.heartbeatTimeout]).toBeUndefined();
+            expect(board[properties.timeouts].length).toEqual(0);
+        });
+    });
+
+    // @FIXME: this fails if I use bytes, why? numbers should also be converted to bytes, shouldn't they? Returned value is [1, 3, 3, 7]
+    describe('#serialWriteBytes', () => {
+        describe('happy flows', () => {
+            test('should write an array of numbers converted to bytes to a serial port', () => {
+                board[properties.serialWriteBytes](SERIAL_PORT_ID.SW_SERIAL0, ['h', 1, 3, 3, 7]);
+
+                expect(board[properties.firmataBoard].serialWrite).toHaveBeenCalledWith(
+                    FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0,
+                    [104, 1, 3, 3, 7],
+                );
+            });
+
+            test('should write an array of characters converted to bytes to a serial port', () => {
+                board[properties.serialWriteBytes](FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, ['h', 'e', 'l', 'l', 'o']);
+
+                expect(board[properties.firmataBoard].serialWrite).toHaveBeenCalledWith(
+                    FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0,
+                    [104, 101, 108, 108, 111],
+                );
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw TypeError', () => {
+                const serialWriteBytesError = () => {
+                    board[properties.serialWriteBytes](FirmataBoard.SERIAL_PORT_ID.SW_SERIAL0, [{}, {}]);
+                };
+
+                expect(serialWriteBytesError).toThrowError(
+                    new InvalidArgumentError(`Expected string or number. Received object.`),
+                );
+            });
+        });
+    });
+
+    describe('#emitUpdate', () => {
+        test('should emit an update event containing a discrete copy of the board instance', () => {
+            const spy = spyOn(firmataBoardMock.update, 'post');
+            board[properties.emitUpdate]();
+
+            expect(spy).toHaveBeenCalledWith(board.toDiscrete());
+        });
+    });
+
+    describe('#setPinValue', () => {
+        describe('happy flows', () => {
+            test('should call analogWrite when supplied with an analog pin', () => {
+                const value = 128;
+                const pin = 0;
+                const spyEmitUpdate = spyOn<any>(board, 'emitUpdate');
+                const spyAnalogWrite = spyOn(firmataBoardMock, 'analogWrite');
+
+                board[properties.setPinValue](pin, value);
+
+                expect(spyAnalogWrite).toHaveBeenCalledWith(pin, value);
+                expect(spyEmitUpdate).toHaveBeenCalled();
+            });
+
+            test('should call digitalWrite when supplied with a digital pin', () => {
+                const value = 1;
+                const pin = 1;
+                const spyEmitUpdate = spyOn<any>(board, 'emitUpdate');
+                const spyDigitalWrite = spyOn(firmataBoardMock, 'digitalWrite');
+
+                board[properties.setPinValue](pin, value);
+
+                expect(spyDigitalWrite).toHaveBeenCalledWith(pin, value);
+                expect(spyEmitUpdate).toHaveBeenCalled();
+            });
+        });
+
+        describe('exception flows', () => {
+            test('should throw an error if non existent pin is supplied', () => {
+                const value = 1;
+                const pin = 1337;
+
+                const setPinValue = () => {
+                    board[properties.setPinValue](pin, value);
+                };
+
+                expect(setPinValue).toThrowError(
+                    new BoardPinNotFoundError(`Attempted to set value of unknown pin ${pin}.`),
+                );
+            });
+
+            test.each([
+                [
+                    0,
+                    -20,
+                    new InvalidArgumentError(
+                        `Attempted to write value -20 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    ),
+                ],
+                [
+                    0,
+                    2000,
+                    new InvalidArgumentError(
+                        `Attempted to write value 2000 to analog pin 0. Only values between or equal to 0 and 1023 are allowed.`,
+                    ),
+                ],
+                [
+                    1,
+                    2,
+                    new InvalidArgumentError(
+                        `Attempted to write value 2 to digital pin 1. Only values 1 (HIGH) or 0 (LOW) are allowed.`,
+                    ),
+                ],
+            ])(
+                'should throw an error when running setPinValue(%p, %p)',
+                (pin: number, value: number, expectedError: Error) => {
+                    const setPinValue = () => {
+                        board[properties.setPinValue](pin, value);
+                    };
+
+                    expect(setPinValue).toThrowError(expectedError);
+                },
+            );
+        });
+    });
+
+    describe('#attachDigitalPinListeners', () => {
+        test('should attach listeners to all digital pins', () => {
+            const pin = 1;
+            const spy = spyOn(firmataBoardMock, 'digitalRead');
+
+            board[properties.attachDigitalPinListeners]();
+
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(spy).toHaveBeenCalledWith(pin, board[properties.emitUpdate]);
+        });
+    });
+
+    describe('#attachAnalogPinListeners', () => {
+        test('should attach listeners to all analog pins', () => {
+            const pin = 0;
+            const spy = spyOn(firmataBoardMock, 'analogRead');
+
+            board[properties.attachAnalogPinListeners]();
+
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(spy).toHaveBeenCalledWith(pin, board[properties.emitUpdate]);
+        });
+    });
+
+    describe('#compareAnalogReadout', () => {
+        test('should update the previous analog value', () => {
+            const spy = spyOn<any>(board, 'emitUpdate');
+            const pin = 0;
+            const value = 700;
+
+            board[properties.compareAnalogReadout](pin, value);
+
+            expect(board[properties.previousAnalogValue][pin]).toEqual(value);
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+
+        test('should not emit an update twice', () => {
+            const spy = spyOn<any>(board, 'emitUpdate');
+            const pin = 0;
+            const value = 512;
+
+            board[properties.compareAnalogReadout](pin, value);
+            board[properties.compareAnalogReadout](pin, value);
+
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('#clearAllIntervals', () => {
+        test('should clear all intervals', () => {
+            board[properties.intervals].push(setInterval(() => {}, 1000));
+            board[properties.clearAllIntervals]();
+
+            expect(board[properties.intervals].length).toEqual(0);
+        });
+    });
+
+    describe('#clearAllTimeouts', () => {
+        test('should clear all timeouts', () => {
+            board[properties.timeouts].push(setTimeout(() => {}, 1000));
+            board[properties.clearAllTimeouts]();
+
+            expect(board[properties.timeouts].length).toEqual(0);
+        });
+    });
+
+    describe('#isAvailableAction', () => {
+        test('should return true if action is available', () => {
+            expect(board[properties.isAvailableAction]('TOGGLELED')).toEqual(true);
+        });
+
+        test('should return false if action is not available', () => {
+            expect(board[properties.isAvailableAction]('bacon')).toEqual(false);
+        });
+    });
+
+    describe('#isDigitalPin', () => {
+        test('should return true when a digital pin index is passed in', () => {
+            const pinIndex = 1;
+
+            expect(board[properties.isDigitalPin](pinIndex)).toEqual(true);
+        });
+
+        test('should return false when an analog pin index is passed in', () => {
+            const pinIndex = 0;
+
+            expect(board[properties.isDigitalPin](pinIndex)).toEqual(false);
+        });
+    });
+
+    describe('#isAnalogPin', () => {
+        test('should return true when an analog pins index is passed in', () => {
+            const pinIndex = 0;
+
+            expect(board[properties.isAnalogPin](pinIndex)).toEqual(true);
+        });
+
+        test('should return false when a digital pins index is passed in', () => {
+            const pinIndex = 1;
+
+            expect(board[properties.isAnalogPin](pinIndex)).toEqual(false);
+        });
+    });
+
+    describe('#is8BitNumber', () => {
+        test.each([[0], [32], [64], [128], [255]])(
+            'should return true when running is8BitNumber(%p)',
+            (value: number) => {
+                const result = Board[properties.is8BitNumber](value);
+
+                expect(result).toEqual(true);
+            },
+        );
+
+        test.each([[-1], ['0'], ['a'], [268], [{}], [[]]])(
+            'should return false when running is8BitNumber(%p)',
+            (value: any) => {
+                const result = Board[properties.is8BitNumber](value);
+
+                expect(result).toEqual(false);
+            },
+        );
+    });
+
+    describe('#attachFirmataBoard', () => {
+        test('should attach the given firmataBoard object to the board instance and reattach listeners', () => {
+            const spyAttachAnalogPinListeners = spyOn<any>(board, 'attachAnalogPinListeners');
+            const spyAttachDigitalPinListeners = spyOn<any>(board, 'attachDigitalPinListeners');
+            const spyStartHeartbeat = spyOn<any>(board, 'startHeartbeat');
+
+            const newFirmataBoardMock = firmataBoardMockFactory();
+            board[properties.attachFirmataBoard](newFirmataBoardMock);
+
+            expect(spyAttachAnalogPinListeners).toHaveBeenCalled();
+            expect(spyAttachDigitalPinListeners).toHaveBeenCalled();
+            expect(spyStartHeartbeat).toHaveBeenCalled();
+        });
+    });
+
+    describe('#setBoardOnline', () => {
+        test('should set the board to online status', () => {
+            board[properties.setBoardOnline]();
+
+            expect(board[properties.online]).toEqual(true);
+        });
+    });
+
+    describe('#getDataValues', () => {
+        test('should return the instance data values', () => {
+            const result = board[properties.getDataValues]();
+            const expected = {
+                id: undefined,
+                name: undefined,
+                type: AVAILABLE_EXTENSIONS_KEYS.Board,
+                lastUpdateReceived: undefined,
+                architecture: SUPPORTED_ARCHITECTURES.ARDUINO_UNO,
+            };
+
+            expect(result).toEqual(expected);
+        });
+    });
+
+    describe('#setIsSerialConnection', () => {
+        test.each([
+            [200, true],
+            [1000, false],
+        ])('should set the samplingInterval to %pms', (interval: number, isSerial: boolean) => {
+            const spy = spyOn(firmataBoardMock, 'setSamplingInterval');
+            board[properties.setIsSerialConnection](isSerial);
+
+            expect(spy).toHaveBeenCalledWith(interval);
+        });
+    });
 });

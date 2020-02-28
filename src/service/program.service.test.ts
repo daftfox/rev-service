@@ -1,9 +1,9 @@
 import { DatabaseService, ProgramService } from './';
 import { blink, sos } from '../domain/program/example';
-import {BoardUnavailableError, ProgramNotFoundError} from '../domain/error';
-import {boardMock} from "../domain/board/base/__mocks__/board.model";
-import {ICommand} from "../domain/program/interface";
-import {IDLE} from "../domain/board/base";
+import { BoardUnavailableError, ProgramNotFoundError } from '../domain/error';
+import { boardMock } from '../domain/board/base/__mocks__/board.model';
+import { ICommand } from '../domain/program/interface';
+import { IDLE } from '../domain/board/base';
 
 let service: ProgramService;
 
@@ -74,7 +74,10 @@ xdescribe('ProgramsService', () => {
             const program = ProgramService.createProgram({
                 name: 'test',
                 deviceType: 'all',
-                commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
+                commands: [
+                    { action: 'TOGGLELED', duration: 1000 },
+                    { action: 'TOGGLELED', duration: 1000 },
+                ],
             });
 
             expect(program).toBeDefined();
@@ -88,14 +91,17 @@ xdescribe('ProgramsService', () => {
             const program = ProgramService.createProgram({
                 name: 'test',
                 deviceType: 'all',
-                commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
+                commands: [
+                    { action: 'TOGGLELED', duration: 1000 },
+                    { action: 'TOGGLELED', duration: 1000 },
+                ],
             });
 
             program.save = jest.fn();
 
             await service.addProgram(program);
 
-            //expect(service._service.length).toEqual(1);
+            // expect(service._service.length).toEqual(1);
             expect(program.save).toHaveBeenCalled();
         });
     });
@@ -105,7 +111,10 @@ xdescribe('ProgramsService', () => {
             const program = ProgramService.createProgram({
                 name: 'test',
                 deviceType: 'all',
-                commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
+                commands: [
+                    { action: 'TOGGLELED', duration: 1000 },
+                    { action: 'TOGGLELED', duration: 1000 },
+                ],
             });
             program.destroy = jest.fn();
 
@@ -122,7 +131,10 @@ xdescribe('ProgramsService', () => {
             const program = ProgramService.createProgram({
                 name: 'test',
                 deviceType: 'all',
-                commands: [{ action: 'TOGGLELED', duration: 1000 }, { action: 'TOGGLELED', duration: 1000 }],
+                commands: [
+                    { action: 'TOGGLELED', duration: 1000 },
+                    { action: 'TOGGLELED', duration: 1000 },
+                ],
             });
             program.update = jest.fn();
             await service.addProgram(program);
@@ -148,7 +160,7 @@ xdescribe('ProgramsService', () => {
 
         beforeEach(() => {
             jest.useFakeTimers();
-            //service[properties.cache].push(boardMock);
+            // service[properties.cache].push(boardMock);
         });
 
         afterEach(() => {
@@ -165,7 +177,7 @@ xdescribe('ProgramsService', () => {
                     parameters: ['1', '128'],
                 },
             ],
-        ])('should execute the action',(command: ICommand) => {
+        ])('should execute the action', (command: ICommand) => {
             service.executeCommandOnBoard(boardMock.id, command);
             jest.advanceTimersByTime(100);
 
@@ -173,32 +185,35 @@ xdescribe('ProgramsService', () => {
             expect(global.setTimeout).toHaveBeenCalled();
         });
 
-        test('should execute the given action and resolve after ~50ms',(done) => {
+        test('should execute the given action and resolve after ~50ms', done => {
             jest.useRealTimers();
             const expectedDuration = 50;
 
             const command: ICommand = {
                 action: 'TOGGLELED',
-                duration: expectedDuration
+                duration: expectedDuration,
             };
             const timestampBefore = Date.now();
 
-            service.executeCommandOnBoard(boardMock.id, command)
-                .then(() => {
-                    const difference = (Date.now() - timestampBefore);
-                    expect(difference >= expectedDuration && difference < (expectedDuration + 20)).toEqual(true);
-                    done();
-                });
+            service.executeCommandOnBoard(boardMock.id, command).then(() => {
+                const difference = Date.now() - timestampBefore;
+                expect(difference >= expectedDuration && difference < expectedDuration + 20).toEqual(true);
+                done();
+            });
 
             expect(boardMock.executeAction).toHaveBeenCalledWith(command.action, undefined);
         });
 
         test('should run clearTimeout and reject when an error occurs', () => {
-            const expectedError = new BoardUnavailableError(`Unable to execute action on this board since it is not online.`);
-            spyOn(boardMock, 'executeAction').and.callFake(() => {throw expectedError});
+            const expectedError = new BoardUnavailableError(
+                `Unable to execute action on this board since it is not online.`,
+            );
+            spyOn(boardMock, 'executeAction').and.callFake(() => {
+                throw expectedError;
+            });
 
             const command: ICommand = {
-                action: 'TOGGLELED'
+                action: 'TOGGLELED',
             };
 
             expect(service.executeCommandOnBoard(boardMock.id, command)).rejects.toEqual(expectedError);

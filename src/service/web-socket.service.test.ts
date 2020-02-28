@@ -1,17 +1,16 @@
 import * as events from 'events';
 import { WebSocketService } from './web-socket.service';
-import { Response, IRequestResult } from '../domain/web-socket-message';
+import { Response, IRequestResult, MESSAGE_TOPIC, BoardResponseBody } from '../domain/web-socket-message';
 import { OK } from 'http-status-codes';
 import { LoggerService } from './logger.service';
-import {container} from "tsyringe";
-import {BoardService} from "./board.service";
-import {responseMock} from "../mocks/response.mock";
-
+import { container } from 'tsyringe';
+import { BoardService } from './board.service';
 jest.mock('./logger.service');
 jest.mock('./board.service');
 
 let webSocketService: WebSocketService;
-let boardServiceMock = new BoardService();
+const boardServiceMock = new BoardService();
+const responseMock = new Response(MESSAGE_TOPIC.BOARD, '1234', OK, new BoardResponseBody({ boards: [] }));
 
 const privateProperties = {
     sendResponse: 'sendResponse',

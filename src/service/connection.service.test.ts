@@ -1,10 +1,10 @@
-import {CONNECTION_TIMEOUT, ConnectionService} from './index';
-import {boardMock, dataValuesMock, discreteBoardMock} from "../domain/board/base/__mocks__/board.model";
-import {Socket} from 'net';
-import {LoggerService} from "./logger.service";
-import {Board, FirmataBoard} from "../domain/board/base";
-import {errorMock} from "../domain/board/base/__mocks__/firmata-board.model";
-import {container} from "tsyringe";
+import { CONNECTION_TIMEOUT, ConnectionService } from './index';
+import { boardMock, dataValuesMock, discreteBoardMock } from '../domain/board/base/__mocks__/board.model';
+import { Socket } from 'net';
+import { LoggerService } from './logger.service';
+import { Board, FirmataBoard } from '../domain/board/base';
+import { errorMock } from '../domain/board/base/__mocks__/firmata-board.model';
+import { container } from 'tsyringe';
 jest.mock('../domain/board/base/firmata-board.model');
 jest.mock('../service/board.service');
 jest.mock('./logger.service');
@@ -21,7 +21,7 @@ const properties = {
     namespace: 'namespace',
     connectToBoard: 'connectToBoard',
     handleDisconnectEvent: 'handleDisconnectEvent',
-    handleUpdateEvent: 'handleUpdateEvent'
+    handleUpdateEvent: 'handleUpdateEvent',
 };
 
 beforeEach(() => {
@@ -50,17 +50,19 @@ describe('ConnectionService', () => {
 
     describe('#handleConnectionTimeout', () => {
         test('should call removeAllListeners, reject callback and log warning', () => {
-
             service[properties.handleConnectionTimeout](firmataBoardMock);
 
             expect(firmataBoardMock.removeAllListeners).toHaveBeenCalled();
-            expect(LoggerService.warn).toHaveBeenCalledWith('Timeout while connecting to device.', service[properties.namespace]);
+            expect(LoggerService.warn).toHaveBeenCalledWith(
+                'Timeout while connecting to device.',
+                service[properties.namespace],
+            );
         });
     });
 
     describe('#connectToBoard', () => {
         // @FIXME: somehow breaks the next test
-        xtest('should reject and log on error', async (done) => {
+        xtest('should reject and log on error', async done => {
             FirmataBoard['postError'] = true;
 
             try {
@@ -71,7 +73,7 @@ describe('ConnectionService', () => {
             }
         });
 
-        test('should connect successfully', async (done) => {
+        test('should connect successfully', async done => {
             const spyConnection = spyOn<any>(service, 'handleConnectionEstablished');
             const spyUpdate = spyOn<any>(service, 'handleUpdateEvent');
 
@@ -85,20 +87,19 @@ describe('ConnectionService', () => {
                 expect(spyConnection.calls.argsFor(0)[0]).toEqual(dataValuesMock);
                 expect(spyUpdate).toHaveBeenCalledWith(discreteBoardMock);
                 done();
-            } catch(error) {
+            } catch (error) {
                 expect(spyUpdate).toHaveBeenCalledWith(discreteBoardMock);
             }
         });
 
-        test('should timeout if connection could not be made within ten seconds', (done) => {
+        test('should timeout if connection could not be made within ten seconds', done => {
             jest.useFakeTimers();
             const spy = spyOn<any>(service, 'handleConnectionTimeout');
 
-            service[properties.connectToBoard](socketMock)
-                .catch( _ => {
-                    expect(spy).toHaveBeenCalled();
-                    done();
-                });
+            service[properties.connectToBoard](socketMock).catch(_ => {
+                expect(spy).toHaveBeenCalled();
+                done();
+            });
 
             jest.runOnlyPendingTimers();
 
@@ -106,57 +107,6 @@ describe('ConnectionService', () => {
         });
     });
 
-
-    //
-    //     test("should run handleConnectionTimeout method when a connection can't be made", done => {
-    //         jest.useFakeTimers();
-    //
-    //         service.handleConnectionTimeout = jest.fn((firmataBoard, reject) => {
-    //             reject();
-    //         });
-    //
-    //         // @ts-ignore
-    //         mockSocket.write = (data: Buffer, cb: () => {}) => {
-    //             cb();
-    //         };
-    //
-    //         service.connectToBoard(mockSocket).catch(() => {
-    //             expect(service.handleConnectionTimeout).toHaveBeenCalled();
-    //             done();
-    //         });
-    //
-    //         jest.runOnlyPendingTimers();
-    //         jest.useRealTimers();
-    //     });
-    //
-    //     test('should reject when an error occurs during connecting', done => {
-    //         jest.useFakeTimers();
-    //
-    //         service.handleDisconnectEvent = jest.fn();
-    //
-    //         service.connectToBoard(mockSocket).catch(board => {
-    //             expect(board).toBeDefined();
-    //             expect('id' in board).toEqual(true);
-    //             expect(service.handleDisconnectEvent).not.toHaveBeenCalled();
-    //             done();
-    //         });
-    //
-    //         jest.runOnlyPendingTimers();
-    //         jest.useRealTimers();
-    //     });
-    // });
-    //
-    // describe('disconnect event listener', () => {
-    //     test("should run disconnect callback method and handleDisconnectEvent handler when a connection can't be made", () => {
-    //         service.handleDisconnectEvent = jest.fn();
-    //
-    //         service.connectToBoard(mockSocket);
-    //         mockSocket.emit('close', { disconnect: true, disconnected: true });
-    //
-    //         expect(service.handleDisconnectEvent).toHaveBeenCalled();
-    //     });
-    // });
-    //
     describe('#handleDisconnectEvent', () => {
         test("should run disconnectBoard method when the service can't connect", () => {
             const reject = jest.fn();
@@ -164,19 +114,19 @@ describe('ConnectionService', () => {
             service[properties.handleDisconnectEvent](boardMock.id, reject);
 
             expect(service[properties.model].disconnectBoard).toHaveBeenCalledWith(boardMock.id);
-            expect(LoggerService.debug).toHaveBeenCalledWith('Disconnect event received from board.', service[properties.namespace]);
+            expect(LoggerService.debug).toHaveBeenCalledWith(
+                'Disconnect event received from board.',
+                service[properties.namespace],
+            );
             expect(reject).toHaveBeenCalledWith(boardMock.id);
         });
     });
 
     describe('#handleUpdateEvent', () => {
         test('should run updateOnlineBoard method of model when an update event was received', () => {
-
             service[properties.handleUpdateEvent](dataValuesMock);
 
             expect(service[properties.model].updateBoard).toHaveBeenCalledWith(dataValuesMock);
         });
     });
-
-
 });

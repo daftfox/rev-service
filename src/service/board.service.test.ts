@@ -1,19 +1,15 @@
 import { BoardService } from './index';
-import {BoardNotFoundError} from '../domain/error';
-import {container} from 'tsyringe';
-import {ConfigurationService} from './configuration.service';
-import {configurationServiceMock} from '../mocks/configuration.service.mock';
-import {BoardDAO} from '../dao/board.dao';
-import {boardMock, dataValuesMock, discreteBoardMock, idsMock} from '../domain/board/base/__mocks__/board.model';
-import {ServerError} from '../domain/error/server.error';
-import {LoggerService} from './logger.service';
-import {FirmataBoard} from '../domain/board/base';
-import {Socket} from 'net';
-import {firmataBoardMock} from "../domain/board/base/__mocks__/firmata-board.model";
+import { BoardNotFoundError } from '../domain/error';
+import { BoardDAO } from '../dao/board.dao';
+import { boardMock, dataValuesMock, discreteBoardMock, idsMock } from '../domain/board/base/__mocks__/board.model';
+import { ServerError } from '../domain/error/server.error';
+import { LoggerService } from './logger.service';
+import { firmataBoardMockFactory } from '../domain/board/base/__mocks__/firmata-board.model';
 jest.mock('../domain/board/base/firmata-board.model');
 jest.mock('./logger.service');
 jest.mock('../dao/board.dao');
 jest.mock('../domain/board/base/board.model');
+jest.mock('./configuration.service');
 
 let service: BoardService;
 const properties = {
@@ -31,12 +27,8 @@ const properties = {
     updateCachedBoard: 'updateCachedBoard',
     addBoardToCache: 'addBoardToCache',
     persistChanges: 'persistChanges',
-    initialiseBoard: 'initialiseBoard'
+    initialiseBoard: 'initialiseBoard',
 };
-
-beforeAll(async () => {
-    container.registerInstance(ConfigurationService, configurationServiceMock);
-});
 
 beforeEach(() => {
     service = new BoardService();
@@ -62,18 +54,24 @@ describe('BoardService', () => {
         test.each([
             [0, dataValuesMock.id],
             [-1, 'unknown-board'],
-        ])('should return %p when checking if board with id %p exists in the cache', (expectedValue: number, boardId: string) => {
-            expect(service[properties.inCache](boardId)).toEqual(expectedValue);
-        });
+        ])(
+            'should return %p when checking if board with id %p exists in the cache',
+            (expectedValue: number, boardId: string) => {
+                expect(service[properties.inCache](boardId)).toEqual(expectedValue);
+            },
+        );
     });
 
     describe('#createAndPersistNewBoard', () => {
         test('should create a new board, persist it and attach firmataBoard object', async () => {
-            const board = await BoardService[properties.createAndPersistNewBoard](dataValuesMock, firmataBoardMock);
+            const board = await BoardService[properties.createAndPersistNewBoard](
+                dataValuesMock,
+                firmataBoardMockFactory,
+            );
 
             expect(BoardDAO.create).toHaveBeenCalled();
             expect(BoardDAO.persist).toHaveBeenCalled();
-            expect(board.getFirmataBoard()).toEqual(firmataBoardMock);
+            expect(board.getFirmataBoard()).toEqual(firmataBoardMockFactory);
         });
     });
 
@@ -117,21 +115,27 @@ describe('BoardService', () => {
         test('should add a new board to the cache', async () => {
             const createAndPersistSpy = spyOn<any>(BoardService, properties.createAndPersistNewBoard).and.callThrough();
             const initialiseCachedBoardSpy = spyOn<any>(service, properties.initialiseCachedBoard).and.callThrough();
+            const firmataBoardMock = firmataBoardMockFactory();
 
             await service.addBoard(dataValuesMock, firmataBoardMock);
 
             expect(initialiseCachedBoardSpy).toHaveBeenCalledWith(dataValuesMock.id, firmataBoardMock);
             expect(createAndPersistSpy).toHaveBeenCalledWith(dataValuesMock, firmataBoardMock);
-            expect(service.emit).toHaveBeenCalledWith('connected', discreteBoardMock, true );
+            expect(service.emit).toHaveBeenCalledWith('connected', discreteBoardMock, true);
         });
 
         test('should log a server error', async () => {
-            spyOn<any>(service, properties.initialiseCachedBoard).and.callFake(() => {throw new Error()});
+            spyOn<any>(service, properties.initialiseCachedBoard).and.callFake(() => {
+                throw new Error();
+            });
+            const firmataBoardMock = firmataBoardMockFactory();
 
             try {
                 await service.addBoard(dataValuesMock, firmataBoardMock);
-            } catch(error) {
-                expect(LoggerService.stack).toHaveBeenCalledWith(new ServerError(`Board with id ${dataValuesMock.id} could not be added due to an unknown error.`));
+            } catch (error) {
+                expect(LoggerService.stack).toHaveBeenCalledWith(
+                    new ServerError(`Board with id ${dataValuesMock.id} could not be added due to an unknown error.`),
+                );
             }
         });
     });
@@ -185,7 +189,7 @@ describe('BoardService', () => {
         const name = 'newBoardName';
 
         beforeEach(() => {
-            boardUpdates = Object.assign(discreteBoardMock, {name});
+            boardUpdates = Object.assign(discreteBoardMock, { name });
             board = Object.assign(boardMock, boardUpdates);
 
             spyOn<any>(service, 'persistChanges').and.returnValue(Promise.resolve(board));
@@ -197,17 +201,17 @@ describe('BoardService', () => {
             });
 
             test('should run updateOnlineBoard and updateCachedBoard methods', async () => {
-                const boardUpdates = Object.assign({}, discreteBoardMock);
+                const _boardUpdates = Object.assign({}, discreteBoardMock);
                 const onlineBoard = Object.assign({}, boardMock);
-                boardUpdates.online = true;
+                _boardUpdates.online = true;
                 onlineBoard.online = true;
 
                 spyOn(service, 'getBoardById').and.returnValue(onlineBoard);
                 spyOn<any>(service, 'updateOnlineBoard').and.returnValue(Promise.resolve(onlineBoard));
 
-                await service[properties.updateBoard](boardUpdates);
+                await service[properties.updateBoard](_boardUpdates);
 
-                expect(service[properties.updateOnlineBoard]).toHaveBeenCalledWith(onlineBoard, boardUpdates);
+                expect(service[properties.updateOnlineBoard]).toHaveBeenCalledWith(onlineBoard, _boardUpdates);
                 expect(service[properties.updateCachedBoard]).toHaveBeenCalledWith(onlineBoard);
             });
 
@@ -280,16 +284,16 @@ describe('BoardService', () => {
             expect(service[properties.emit]).toHaveBeenCalledWith('update', discreteBoardMock);
         });
     });
-    
+
     describe('#initialiseCachedBoard', () => {
         test('should initialise a cached board and update the cached instance with the new instance', () => {
             addBoardToCache();
             const expectedResult = Object.assign({}, boardMock);
-            expectedResult.firmataBoard = firmataBoardMock;
+            expectedResult.firmataBoard = firmataBoardMockFactory;
 
             spyOn<any>(BoardService, 'initialiseBoard').and.returnValue(expectedResult);
 
-            const result = service[properties.initialiseCachedBoard](boardMock.id, firmataBoardMock);
+            const result = service[properties.initialiseCachedBoard](boardMock.id, firmataBoardMockFactory);
 
             expect(result).toBeDefined();
             expect(BoardService[properties.initialiseBoard]).toHaveBeenCalled();
@@ -299,7 +303,7 @@ describe('BoardService', () => {
 
     describe('#initialiseBoard', () => {
         test('should create a new instance of the given board and call the board attachFirmataBoard method', () => {
-            const result = BoardService[properties.initialiseBoard](boardMock, firmataBoardMock);
+            const result = BoardService[properties.initialiseBoard](boardMock, firmataBoardMockFactory);
 
             expect(result).toBeDefined();
             expect(boardMock.attachFirmataBoard).toHaveBeenCalled();

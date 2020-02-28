@@ -1,4 +1,4 @@
-import {Board, FirmataBoard, SUPPORTED_ARCHITECTURES} from '../base';
+import { Board, FirmataBoard, SUPPORTED_ARCHITECTURES } from '../base';
 import { BuildOptions } from 'sequelize';
 import { LoggerService } from '../../../service/logger.service';
 import Timeout = NodeJS.Timeout;

@@ -7,12 +7,6 @@ import { AppConfiguration } from '../domain/configuration/base/app-configuration
 
 @singleton()
 export class ConfigurationService {
-    private _databaseConfiguration: IDatabaseConfiguration;
-    private _appConfiguration: IAppConfiguration;
-    private _webSocketPort: number;
-    private _ethernetPort: number;
-    private _flags: IFlags;
-
     constructor() {
         this.parseConfiguration(process.argv);
     }
@@ -33,8 +27,7 @@ export class ConfigurationService {
         return this._appConfiguration;
     }
 
-    private static flags = Args
-        .option('port', 'Port from which the WebSocket service will be served.', 3001)
+    private static flags = Args.option('port', 'Port from which the WebSocket service will be served.', 3001)
         .option('ethernetPort', 'Port from which the ethernet service will be served.', 9000)
         .option('debug', 'Enable debug logging.', false)
         .option('serial', 'Enable serial interface.', true)
@@ -46,6 +39,11 @@ export class ConfigurationService {
         .option('dbPassword', 'Password to log in to database server.', '')
         .option('dbDialect', "The database server's dialect (mysql, postgres, mariadb, sqlite, mssql).", 'sqlite')
         .option('dbPath', 'Path to database file (optional, only for sqlite).', ':memory:');
+    private _databaseConfiguration: IDatabaseConfiguration;
+    private _appConfiguration: IAppConfiguration;
+    private _webSocketPort: number;
+    private _ethernetPort: number;
+    private _flags: IFlags;
 
     public parseConfiguration(flags: string[]): void {
         this._flags = ConfigurationService.flags.parse(flags);

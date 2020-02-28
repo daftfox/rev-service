@@ -1,10 +1,10 @@
 import { LoggerService } from './logger.service';
-import {ICommand, IProgram, Program} from '../domain/program';
-import {BoardIncompatibleError, BoardUnavailableError, ProgramNotFoundError} from '../domain/error';
-import {BoardService} from "./board.service";
-import {container} from "tsyringe";
-import {IDLE} from "../domain/board/base";
-import {IBoard} from "../domain/board/interface";
+import { ICommand, IProgram, Program } from '../domain/program';
+import { BoardIncompatibleError, BoardUnavailableError, ProgramNotFoundError } from '../domain/error';
+import { BoardService } from './board.service';
+import { container } from 'tsyringe';
+import { IDLE } from '../domain/board/base';
+import { IBoard } from '../domain/board/interface';
 
 /**
  * @classdesc Data model for storing and sharing {@link Program} instances across services.
@@ -82,7 +82,10 @@ export class ProgramService {
             `Removing program ${LoggerService.highlight(program.id, 'blue', true)} from list of available programs.`,
             this.namespace,
         );
-        this._programs.splice(this._programs.findIndex(({ id }) => id === program.id), 1);
+        this._programs.splice(
+            this._programs.findIndex(({ id }) => id === program.id),
+            1,
+        );
         return program.destroy();
     }
 

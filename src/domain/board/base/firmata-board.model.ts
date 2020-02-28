@@ -1,9 +1,9 @@
 import * as fb from 'firmata';
-import {Socket} from 'net';
-import {Evt} from 'ts-evt';
-import {IBoard} from '../interface';
-import {IBoardDataValues} from '../interface/board-data-values.interface';
-import {AVAILABLE_EXTENSIONS_KEYS, isAvailableExtension} from "../extension";
+import { Socket } from 'net';
+import { Evt } from 'ts-evt';
+import { IBoard } from '../interface';
+import { IBoardDataValues } from '../interface/board-data-values.interface';
+import { AVAILABLE_EXTENSIONS_KEYS, isAvailableExtension } from '../extension';
 
 export { SERIAL_PORT_ID, PIN_MODE, PIN_STATE, Pins } from 'firmata';
 
@@ -14,12 +14,11 @@ export class FirmataBoard extends fb {
     public update = new Evt<IBoard>();
     public disconnect = new Evt<void>();
 
-
     constructor(port: Socket | string) {
         super(port);
 
         this.on('queryfirmware', () => {
-            this.firmwareUpdated.post({id: this.parseId(), type: this.parseType()});
+            this.firmwareUpdated.post({ id: this.parseId(), type: this.parseType() });
         });
 
         this.on('ready', () => {

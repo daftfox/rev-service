@@ -1,6 +1,6 @@
-import {FirmataBoard} from "./firmata-board.model";
-import {Socket} from 'net';
-import {AVAILABLE_EXTENSIONS_KEYS} from "../extension";
+import { FirmataBoard } from './firmata-board.model';
+import { Socket } from 'net';
+import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
 
 let firmataBoard: FirmataBoard;
 let socket: Socket;
@@ -10,7 +10,7 @@ const properties = {
     ready: 'ready',
     error: 'error',
     update: 'update',
-    disconnect: 'disconnect'
+    disconnect: 'disconnect',
 };
 
 beforeEach(() => {
@@ -21,8 +21,8 @@ beforeEach(() => {
         name: 'LedController_123456.ino',
         version: {
             major: 1,
-            minor: 1
-        }
+            minor: 1,
+        },
     };
 });
 
@@ -38,16 +38,15 @@ describe('FirmataBoard', () => {
             expect(result).toEqual('LedController');
         });
 
-        test.each([
-            ['scrambled.ino'],
-            ['_123.ino'],
-            ['unsupportedtype.ino'],
-        ])("should return 'Board'", (firmwareName: string) => {
-            firmataBoard.firmware.name = firmwareName;
-            const result = firmataBoard.parseType();
+        test.each([['scrambled.ino'], ['_123.ino'], ['unsupportedtype.ino']])(
+            "should return 'Board'",
+            (firmwareName: string) => {
+                firmataBoard.firmware.name = firmwareName;
+                const result = firmataBoard.parseType();
 
-            expect(result).toEqual(AVAILABLE_EXTENSIONS_KEYS.BOARD);
-        });
+                expect(result).toEqual(AVAILABLE_EXTENSIONS_KEYS.BOARD);
+            },
+        );
     });
 
     describe('#parseId', () => {
@@ -64,7 +63,7 @@ describe('FirmataBoard', () => {
 
             firmataBoard.emit('queryfirmware');
 
-            expect(spy).toHaveBeenCalledWith({id: '123456', type: 'LedController'});
+            expect(spy).toHaveBeenCalledWith({ id: '123456', type: 'LedController' });
         });
 
         test('should execute post method of ready property', () => {

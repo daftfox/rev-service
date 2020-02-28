@@ -39,7 +39,7 @@ describe('LoggerService', () => {
             const message = 'test-message';
 
             // @ts-ignore
-            const result = LoggerService.formatMessage(message, namespace,  false);
+            const result = LoggerService.formatMessage(message, namespace, false);
             expect(typeof result).toEqual('string');
             expect(result).toContain(message);
             expect(result).toContain(namespace);

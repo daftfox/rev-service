@@ -49,11 +49,18 @@ export class LoggerService {
             highlightedString = Chalk.bold(text);
         }
 
+        const rgb = LoggerService.getRGBFromColor(color);
+
+        return Chalk.rgb(rgb.red, rgb.green, rgb.blue)(highlightedString);
+    }
+
+    private static getRGBFromColor(color: string): { red: number; green: number; blue: number } {
         const rgb = {
             red: 0,
             green: 0,
             blue: 0,
         };
+
         switch (color) {
             case 'orange':
                 rgb.red = 255;
@@ -75,10 +82,9 @@ export class LoggerService {
                 rgb.red = 0;
                 rgb.green = 143;
                 rgb.blue = 255;
-                return;
         }
 
-        return Chalk.rgb(rgb.red, rgb.green, rgb.blue)(highlightedString);
+        return rgb;
     }
 
     /**

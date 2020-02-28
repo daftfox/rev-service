@@ -1,13 +1,20 @@
-import {Evt} from 'ts-evt';
-import {IBoardDataValues} from '../../interface/board-data-values.interface';
-import {IBoard} from '../../interface';
-import {Socket} from 'net';
+import { Evt } from 'ts-evt';
+import { IBoardDataValues } from '../../interface/board-data-values.interface';
+import { IBoard } from '../../interface';
+import { Socket } from 'net';
 import * as fb from 'firmata';
-import {dataValuesMock, discreteBoardMock} from "./board.model";
+import { dataValuesMock, discreteBoardMock } from './board.model';
+jest.mock('net');
+jest.mock('firmata');
 
 export const errorMock = new Error('oops, something went wrong');
 
 export class FirmataBoard extends fb {
+    constructor(port: Socket | string) {
+        super(port);
+
+        this.mockTimer = setInterval(this.mockCalls);
+    }
     static postFirmwareUpdate = false;
     static postReady = false;
     static postError = false;
@@ -20,10 +27,14 @@ export class FirmataBoard extends fb {
     public update = new Evt<IBoard>();
     public disconnect = new Evt<void>();
 
-    constructor(port: Socket | string) {
-        super(port);
+    private mockTimer: number;
 
-        setInterval(this.mockCalls);
+    public static resetMocks(): void {
+        FirmataBoard.postError = false;
+        FirmataBoard.postDisconnect = false;
+        FirmataBoard.postUpdate = false;
+        FirmataBoard.postFirmwareUpdate = false;
+        FirmataBoard.postReady = false;
     }
 
     private mockCalls = (): void => {
@@ -34,20 +45,16 @@ export class FirmataBoard extends fb {
         else if (FirmataBoard.postReady) this.postReady();
     };
 
+    public disableMockTimer(): void {
+        clearInterval(this.mockTimer);
+    }
+
     public parseId(): string {
         return dataValuesMock.id;
     }
 
     public parseType(): string {
         return dataValuesMock.type;
-    }
-
-    public static resetMocks(): void {
-        FirmataBoard.postError = false;
-        FirmataBoard.postDisconnect = false;
-        FirmataBoard.postUpdate = false;
-        FirmataBoard.postFirmwareUpdate = false;
-        FirmataBoard.postReady = false;
     }
 
     public async postFirmwareUpdate(): Promise<void> {
@@ -76,26 +83,40 @@ export class FirmataBoard extends fb {
     }
 }
 
+export const firmataBoardMockFactory = () => {
+    const socketMock = new Socket();
+    const mock = new FirmataBoard(socketMock);
+    mock.pins = [
+        {
+            analogChannel: 0,
+            supportedModes: [FirmataBoard.PIN_MODE.ANALOG],
+            value: 512,
+            mode: FirmataBoard.PIN_MODE.ANALOG,
+            report: FirmataBoard.REPORTING.ON,
+            state: FirmataBoard.PIN_STATE.LOW,
+        },
+        {
+            analogChannel: 127,
+            supportedModes: [FirmataBoard.PIN_MODE.INPUT],
+            value: 0,
+            mode: FirmataBoard.PIN_MODE.INPUT,
+            report: FirmataBoard.REPORTING.ON,
+            state: FirmataBoard.PIN_STATE.LOW,
+        },
+    ];
 
-const socketMock = new Socket();
-export const firmataBoardMock = new FirmataBoard(socketMock);
-firmataBoardMock.pins = [
-    {
-        analogChannel: 0,
-        supportedModes: [FirmataBoard.PIN_MODE.ANALOG],
-        value: 512,
-        mode: FirmataBoard.PIN_MODE.ANALOG,
-        report: FirmataBoard.REPORTING.ON,
-        state: FirmataBoard.PIN_STATE.LOW,
-    },
-    {
-        analogChannel: 127,
-        supportedModes: [FirmataBoard.PIN_MODE.INPUT],
-        value: 0,
-        mode: FirmataBoard.PIN_MODE.INPUT,
-        report: FirmataBoard.REPORTING.ON,
-        state: FirmataBoard.PIN_STATE.LOW,
-    },
-];
+    mock.analogPins = [0];
+    mock.SERIAL_PORT_IDs = {
+        HW_SERIAL0: 0x00,
+        HW_SERIAL1: 0x00,
+        HW_SERIAL2: 0x00,
+        HW_SERIAL3: 0x00,
+        SW_SERIAL0: 0x08,
+        SW_SERIAL1: 0x08,
+        SW_SERIAL2: 0x08,
+        SW_SERIAL3: 0x08,
+        DEFAULT: 0x08,
+    };
 
-firmataBoardMock.analogPins = [0];
+    return mock;
+};

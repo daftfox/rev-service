@@ -1,14 +1,11 @@
-import {
-    Board, FirmataBoard,
-    IBoard,
-} from '../domain/board';
+import { Board, FirmataBoard, IBoard } from '../domain/board';
 import { LoggerService } from './logger.service';
-import {singleton} from 'tsyringe';
+import { singleton } from 'tsyringe';
 import * as events from 'events';
-import {BoardNotFoundError} from '../domain/error';
-import {BoardDAO} from "../dao/board.dao";
-import {IBoardDataValues} from "../domain/board/interface/board-data-values.interface";
-import {ServerError} from "../domain/error/server.error";
+import { BoardNotFoundError } from '../domain/error';
+import { BoardDAO } from '../dao/board.dao';
+import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
+import { ServerError } from '../domain/error/server.error';
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
@@ -16,6 +13,9 @@ import {ServerError} from "../domain/error/server.error";
  */
 @singleton()
 export class BoardService extends events.EventEmitter {
+    constructor() {
+        super();
+    }
     /**
      * Namespace used by the {@link LoggerService}
      *
@@ -31,8 +31,22 @@ export class BoardService extends events.EventEmitter {
      */
     private cache: Board[] = [];
 
-    constructor() {
-        super();
+    private static async createAndPersistNewBoard(
+        dataValues: IBoardDataValues,
+        firmataBoard: FirmataBoard,
+    ): Promise<Board> {
+        const newBoard = await BoardDAO.persist(await BoardDAO.create(dataValues));
+
+        newBoard.attachFirmataBoard(firmataBoard);
+
+        return newBoard;
+    }
+
+    private static initialiseBoard(board: Board, firmataBoard: FirmataBoard): Board {
+        const initialisedBoard = BoardDAO.createBoardInstance(board.getDataValues());
+        initialisedBoard.attachFirmataBoard(firmataBoard);
+
+        return initialisedBoard;
     }
 
     public async updateCache(): Promise<void> {
@@ -50,7 +64,7 @@ export class BoardService extends events.EventEmitter {
         let board: Board;
 
         if (this.inCache(boardId) > -1) {
-            board = this.cache.find(({id}) => id === boardId);
+            board = this.cache.find(({ id }) => id === boardId);
         } else {
             throw new BoardNotFoundError(`Board with id ${boardId} could not be found.`);
         }
@@ -59,15 +73,7 @@ export class BoardService extends events.EventEmitter {
     }
 
     private inCache(boardId: string): number {
-        return this.cache.findIndex(({id}) => id === boardId);
-    }
-
-    private static async createAndPersistNewBoard(dataValues: IBoardDataValues, firmataBoard: FirmataBoard): Promise<Board> {
-        const newBoard = await BoardDAO.persist(await BoardDAO.create(dataValues));
-
-        newBoard.attachFirmataBoard(firmataBoard);
-
-        return newBoard;
+        return this.cache.findIndex(({ id }) => id === boardId);
     }
 
     /**
@@ -86,7 +92,9 @@ export class BoardService extends events.EventEmitter {
                     board = await BoardService.createAndPersistNewBoard(dataValues, firmataBoard);
                     this.addBoardToCache(board);
                 } else {
-                    LoggerService.stack(new ServerError(`Board with id ${dataValues.id} could not be added due to an unknown error.`));
+                    LoggerService.stack(
+                        new ServerError(`Board with id ${dataValues.id} could not be added due to an unknown error.`),
+                    );
                     reject();
                     return;
                 }
@@ -125,17 +133,18 @@ export class BoardService extends events.EventEmitter {
     }
 
     private removeFromCache(boardId: string): void {
-        this.cache.splice(this.cache.findIndex(({id}) => id === boardId), 1);
+        this.cache.splice(
+            this.cache.findIndex(({ id }) => id === boardId),
+            1,
+        );
     }
 
     public async updateBoard(boardUpdates: IBoard): Promise<void> {
         let board = this.getBoardById(boardUpdates.id);
 
-        if (board.online) {
-            board = await this.updateOnlineBoard(board, boardUpdates);
-        } else {
-            board = await this.updateOfflineBoard(board, boardUpdates);
-        }
+        board = board.online
+            ? await this.updateOnlineBoard(board, boardUpdates)
+            : await this.updateOfflineBoard(board, boardUpdates);
 
         this.updateCachedBoard(board);
     }
@@ -188,13 +197,6 @@ export class BoardService extends events.EventEmitter {
 
         const initialisedBoard = BoardService.initialiseBoard(cachedBoard, firmataBoard);
         this.updateCachedBoard(initialisedBoard);
-
-        return initialisedBoard;
-    }
-
-    private static initialiseBoard(board: Board, firmataBoard: FirmataBoard): Board {
-        const initialisedBoard = BoardDAO.createBoardInstance(board.getDataValues());
-        initialisedBoard.attachFirmataBoard(firmataBoard);
 
         return initialisedBoard;
     }

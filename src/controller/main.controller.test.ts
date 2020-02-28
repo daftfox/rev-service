@@ -1,8 +1,8 @@
 import { MainController } from './index';
-import {BoardService, DatabaseService, EthernetService, SerialService, WebSocketService} from "../service";
-import {container} from "tsyringe";
-import {ConfigurationService} from "../service/configuration.service";
-import {LoggerService} from "../service/logger.service";
+import { BoardService, DatabaseService, EthernetService, SerialService, WebSocketService } from '../service';
+import { container } from 'tsyringe';
+import { ConfigurationService } from '../service/configuration.service';
+import { LoggerService } from '../service/logger.service';
 jest.mock('../service/serial.service');
 jest.mock('../service/logger.service');
 
@@ -24,12 +24,12 @@ const configurationServiceMock = {
     appConfiguration: {
         debug: false,
         serial: true,
-        ethernet: true
+        ethernet: true,
     },
 };
 
 const boardServiceMock = {
-    updateCache: jest.fn(() => Promise.resolve())
+    updateCache: jest.fn(() => Promise.resolve()),
 };
 
 const databaseServiceMock = {
@@ -39,17 +39,17 @@ const databaseServiceMock = {
 
 const serialServiceMock = {
     listen: jest.fn(),
-    closeServer: jest.fn()
+    closeServer: jest.fn(),
 };
 
 const ethernetServiceMock = {
     listen: jest.fn(),
-    closeServer: jest.fn()
+    closeServer: jest.fn(),
 };
 
 const webSocketServiceMock = {
     listen: jest.fn(),
-    closeServer: jest.fn()
+    closeServer: jest.fn(),
 };
 
 beforeAll(() => {
@@ -63,6 +63,10 @@ beforeAll(() => {
 
 beforeEach(() => {
     controller = new MainController();
+});
+
+afterEach(() => {
+    process.removeAllListeners('uncaughtException');
 });
 
 describe('MainController:', () => {
@@ -82,7 +86,7 @@ describe('MainController:', () => {
         test('should have set debug env parameter to true', async () => {
             configurationServiceMock.appConfiguration.debug = true;
 
-            new MainController();
+            const c = new MainController();
 
             expect(process.env.debug).toEqual('true');
         });
@@ -175,7 +179,7 @@ describe('MainController:', () => {
             const error = new Error('Oops, something went wrong');
             process.emit('uncaughtException', error);
 
-            expect(LoggerService.stack).toHaveBeenCalledWith(error, controller[properties.namespace])
+            expect(LoggerService.stack).toHaveBeenCalledWith(error, controller[properties.namespace]);
         });
     });
 });

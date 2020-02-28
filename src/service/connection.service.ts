@@ -1,9 +1,9 @@
 import { BoardService } from './board.service';
 import { LoggerService } from './logger.service';
-import {Socket} from 'net';
-import {Board, FirmataBoard, IBoard} from '../domain/board';
+import { Socket } from 'net';
+import { Board, FirmataBoard, IBoard } from '../domain/board';
 import { container, injectable } from 'tsyringe';
-import {IBoardDataValues} from "../domain/board/interface/board-data-values.interface";
+import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
 
 export const CONNECTION_TIMEOUT = 10000;
 
@@ -43,7 +43,7 @@ export class ConnectionService {
             const firmataBoard = new FirmataBoard(port);
             let dataValues: IBoardDataValues = {
                 id: undefined,
-                type: undefined
+                type: undefined,
             };
 
             firmataBoard.error.attach((error: Error) => {
@@ -62,7 +62,7 @@ export class ConnectionService {
              * The device is deemed unsupported if a connection could not be made within that period.
              */
             try {
-                const dataValues = await firmataBoard.firmwareUpdated.waitFor(CONNECTION_TIMEOUT);
+                dataValues = await firmataBoard.firmwareUpdated.waitFor(CONNECTION_TIMEOUT);
                 await firmataBoard.ready.waitFor(CONNECTION_TIMEOUT);
                 resolve(await this.handleConnectionEstablished(dataValues, firmataBoard));
             } catch (error) {
@@ -90,7 +90,10 @@ export class ConnectionService {
         firmataBoard.removeAllListeners();
     };
 
-    private handleConnectionEstablished = async (dataValues: IBoardDataValues, firmataBoard: FirmataBoard): Promise<Board> => {
+    private handleConnectionEstablished = async (
+        dataValues: IBoardDataValues,
+        firmataBoard: FirmataBoard,
+    ): Promise<Board> => {
         return this.model.addBoard(dataValues, firmataBoard);
     };
 }

@@ -1,20 +1,17 @@
-import {BoardDAO} from './board.dao';
-import {Board} from '../domain/board/base/board.model';
-import {
-    AVAILABLE_EXTENSIONS_CLASSES,
-    AVAILABLE_EXTENSIONS_KEYS,
-} from "../domain/board/extension";
-import {BuildOptions} from "sequelize";
-import {BoardTypeNotFoundError} from "../domain/error";
-import {IBoardDataValues} from "../domain/board/interface/board-data-values.interface";
-import {BoardDuplicateError} from "../domain/error/board-duplicate.error";
+import { BoardDAO } from './board.dao';
+import { Board } from '../domain/board/base/board.model';
+import { AVAILABLE_EXTENSIONS_CLASSES, AVAILABLE_EXTENSIONS_KEYS } from '../domain/board/extension';
+import { BuildOptions } from 'sequelize';
+import { BoardTypeNotFoundError } from '../domain/error';
+import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
+import { BoardDuplicateError } from '../domain/error/board-duplicate.error';
 import {
     allBoardsMock,
     boardMock,
     dataValuesMock,
     idsMock,
-    unknownDataValuesMock
-} from "../domain/board/base/__mocks__/board.model";
+    unknownDataValuesMock,
+} from '../domain/board/base/__mocks__/board.model';
 jest.mock('../domain/board/base/board.model');
 
 let service: BoardDAO;
@@ -47,10 +44,10 @@ describe('BoardDAO', () => {
 
     describe('#create', () => {
         test('should call the instantiateNewBoard method', async () => {
-            spyOn<any>(BoardDAO, 'instantiateNewBoard');
+            const spy = spyOn<any>(BoardDAO, 'instantiateNewBoard');
             await BoardDAO[properties.create](dataValuesMock);
 
-            expect(BoardDAO['instantiateNewBoard']).toHaveBeenCalledWith(dataValuesMock);
+            expect(spy).toHaveBeenCalledWith(dataValuesMock);
         });
 
         test('should throw a BoardDuplicateError', async () => {
@@ -60,8 +57,8 @@ describe('BoardDAO', () => {
             spyOn(BoardDAO, 'exists').and.returnValue(true);
 
             try {
-                await BoardDAO[properties.create]({id, type: dataValuesMock.type});
-            } catch(error) {
+                await BoardDAO[properties.create]({ id, type: dataValuesMock.type });
+            } catch (error) {
                 expect(error).toEqual(expectedError);
             }
         });
@@ -69,11 +66,11 @@ describe('BoardDAO', () => {
 
     describe('#instantiateNewBoard', () => {
         test('should call the createBoardInstance method', () => {
-            spyOn(BoardDAO, 'createBoardInstance');
+            const spy = spyOn(BoardDAO, 'createBoardInstance');
 
             BoardDAO['instantiateNewBoard'](dataValuesMock);
 
-            expect(BoardDAO[properties.createBoardInstance]).toHaveBeenCalledWith(dataValuesMock);
+            expect(spy).toHaveBeenCalledWith(dataValuesMock);
         });
     });
 
@@ -82,22 +79,25 @@ describe('BoardDAO', () => {
             [AVAILABLE_EXTENSIONS_KEYS.Board, AVAILABLE_EXTENSIONS_CLASSES.Board],
             [AVAILABLE_EXTENSIONS_KEYS.MajorTom, AVAILABLE_EXTENSIONS_CLASSES.MajorTom],
             [AVAILABLE_EXTENSIONS_KEYS.LedController, AVAILABLE_EXTENSIONS_CLASSES.LedController],
-        ])('should instantiate a board of type %p', (type: string, className: new (model?: any, buildOptions?: BuildOptions) => Board) => {
-            const dataValues: IBoardDataValues = {
-                id: 'bacon',
-                type: type
-            };
+        ])(
+            'should instantiate a board of type %p',
+            (type: string, className: new (model?: any, buildOptions?: BuildOptions) => Board) => {
+                const dataValues: IBoardDataValues = {
+                    id: 'bacon',
+                    type,
+                };
 
-            const result = BoardDAO[properties.createBoardInstance](dataValues);
+                const result = BoardDAO[properties.createBoardInstance](dataValues);
 
-            expect(result).toBeDefined();
-            expect(result instanceof className).toEqual(true);
-        });
+                expect(result).toBeDefined();
+                expect(result instanceof className).toEqual(true);
+            },
+        );
 
         test('should throw a BoardTypeNotFoundError', () => {
             const expectedError = new BoardTypeNotFoundError(
                 `Type '${unknownDataValuesMock.type}' is not a valid type. Valid types are${Object.values(
-                    AVAILABLE_EXTENSIONS_KEYS
+                    AVAILABLE_EXTENSIONS_KEYS,
                 ).map(availableExtension => ` '${availableExtension}'`)}`,
             );
 
@@ -111,23 +111,23 @@ describe('BoardDAO', () => {
 
     describe('#getAll', () => {
         test('should return an array of all the boards in the database', async () => {
-            spyOn(BoardDAO, 'createBoardInstance');
+            const spy = spyOn(BoardDAO, 'createBoardInstance');
 
             const result = await BoardDAO[properties.getAll]();
 
             expect(result.length).toEqual(2);
             expect(Board.findAll).toHaveBeenCalled();
-            expect(BoardDAO[properties.createBoardInstance]).toHaveBeenCalledTimes(allBoardsMock.length);
+            expect(spy).toHaveBeenCalledTimes(allBoardsMock.length);
         });
     });
 
     describe('#exists', () => {
         test('should return true for an existing board', async () => {
-            spyOn(Board, 'findByPk').and.returnValue({});
+            const spy = spyOn(Board, 'findByPk').and.returnValue({});
 
             await BoardDAO[properties.exists](idsMock[0]);
 
-            expect(Board.findByPk).toHaveBeenCalled();
+            expect(spy).toHaveBeenCalled();
         });
 
         test('should return false for an nonexistent board', async () => {

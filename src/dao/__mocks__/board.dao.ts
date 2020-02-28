@@ -1,4 +1,4 @@
-import {boardMock} from "../../domain/board/base/__mocks__/board.model";
+import { boardMock } from '../../domain/board/base/__mocks__/board.model';
 
 export class BoardDAO {
     static create = jest.fn(() => Promise.resolve(boardMock));
