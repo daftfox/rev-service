@@ -1,7 +1,7 @@
 # This file is a template, and might need editing before it works on your project.
 # Official framework image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/node/tags/
-image: node:11.14
+image: node:13.8.0
 
 # Pick zero or more services to be used on all builds.
 # Only needed when using a docker container to run your tests in.
@@ -29,8 +29,9 @@ install_dependencies:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
       - node_modules/
+      - .yarn
   script:
-    - npm ci
+    - yarn
 #  only:
 #    changes:
 #      - package-lock.json
@@ -42,12 +43,13 @@ build:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
       - node_modules/
+      - .yarn
     policy: pull
   artifacts:
     paths:
       - dist/
   script:
-    - npm run build
+    - yarn build
   only:
     - develop
     - master
@@ -59,6 +61,7 @@ unit-test:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
       - node_modules/
+      - .yarn
     policy: pull
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   artifacts:
@@ -67,7 +70,7 @@ unit-test:
     reports:
       junit: junit.xml
   script:
-    - npm test
+    - yarn test
 
 lint:
   stage: test
@@ -75,10 +78,11 @@ lint:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
       - node_modules/
+      - .yarn
     policy: pull
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   script:
-    - npm run lint:check
+    - yarn lint:check
 
 format:
   stage: test
@@ -86,10 +90,11 @@ format:
     key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
     paths:
       - node_modules/
+      - .yarn
     policy: pull
   coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
   script:
-    - npm run format:check
+    - yarn format:check
 
 publish:
   stage: deploy
@@ -108,8 +113,8 @@ publish:
   dependencies:
     - build
   script:
-    - npm config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
-    - npm publish
+    - yarn config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
+    - yarn publish
 
 pages:
   stage: deploy
