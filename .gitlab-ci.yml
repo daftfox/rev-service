@@ -34,6 +34,7 @@ install_dependencies:
   only:
     changes:
       - package-lock.json
+      - yarn.lock
 
 build:
   stage: build
