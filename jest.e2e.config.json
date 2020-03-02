@@ -1,0 +1,12 @@
+{
+    "roots": ["<rootDir>/e2e"],
+    "testTimeout": 20000,
+    "transform": {
+        "^.+\\.ts?$": "ts-jest"
+    },
+    "testMatch": ["**/?(*.)e2e.ts"],
+    "moduleFileExtensions": ["ts", "js"],
+    "collectCoverage": false,
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
+    "reporters": ["default"]
+}

@@ -1,0 +1,32 @@
+{
+    "roots": ["<rootDir>/src"],
+    "transform": {
+        "^.+\\.ts?$": "ts-jest"
+    },
+    "moduleFileExtensions": ["ts", "js"],
+    "testMatch": ["**/?(*.)test.ts"],
+    "collectCoverage": true,
+    "coverageDirectory": "reports/coverage",
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
+    "collectCoverageFrom": [
+        "**/*.ts",
+        "!**/major-tom.ts",
+        "!**/index.ts",
+        "!**/node_modules/**",
+        "!**/test/**",
+        "!**/__mocks__"
+    ],
+    "reporters": [
+        "default",
+        "jest-junit",
+        [
+            "jest-html-reporter",
+            {
+                "pageTitle": "rev-service test report",
+                "outputPath": "reports/test/index.html",
+                "theme": "darkTheme",
+                "dateFormat": "dd-mm-yyyy HH:MM:ss"
+            }
+        ]
+    ]
+}

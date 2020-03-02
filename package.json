@@ -29,7 +29,10 @@
         "dist/**/*"
     ],
     "scripts": {
-        "test": "jest",
+        "test:sequential": "yarn test:unit && yarn test:e2e",
+        "test:concurrent": "yarn test:unit & yarn test:e2e",
+        "test:unit": "jest --config=./jest.unit.config.json",
+        "test:e2e": "jest --config=./jest.e2e.config.json",
         "start": "node ./dist/index.js --ethernet",
         "build": "tsc",
         "lint": "tslint --fix -p tsconfig.json",
@@ -89,43 +92,5 @@
         "tslint": "^6.0.0",
         "tslint-config-prettier": "^1.18.0",
         "typescript": "^3.7.5"
-    },
-    "jest": {
-        "roots": [
-            "<rootDir>/src"
-        ],
-        "transform": {
-            "^.+\\.ts?$": "ts-jest"
-        },
-        "moduleFileExtensions": [
-            "ts",
-            "js"
-        ],
-        "collectCoverage": true,
-        "coverageDirectory": "reports/coverage",
-        "setupFilesAfterEnv": [
-            "<rootDir>/jest.setup.ts"
-        ],
-        "collectCoverageFrom": [
-            "**/*.ts",
-            "!**/major-tom.ts",
-            "!**/index.ts",
-            "!**/node_modules/**",
-            "!**/test/**",
-            "!**/__mocks__"
-        ],
-        "reporters": [
-            "default",
-            "jest-junit",
-            [
-                "jest-html-reporter",
-                {
-                    "pageTitle": "rev-service test report",
-                    "outputPath": "reports/test/index.html",
-                    "theme": "darkTheme",
-                    "dateFormat": "dd-mm-yyyy HH:MM:ss"
-                }
-            ]
-        ]
     }
 }

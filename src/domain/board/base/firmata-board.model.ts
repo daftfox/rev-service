@@ -2,8 +2,7 @@ import * as fb from 'firmata';
 import { Socket } from 'net';
 import { Evt } from 'ts-evt';
 import { AVAILABLE_EXTENSIONS_KEYS, isAvailableExtension } from '../extension';
-import { BoardDisconnectedEvent, BoardReadyEvent, Event, FirmwareUpdatedEvent } from '../../event';
-import { BoardErrorEvent } from '../../event/base/board-error.model';
+import { BoardDisconnectedEvent, BoardReadyEvent, Event, FirmwareUpdatedEvent, BoardErrorEvent } from '../../event';
 
 export { SERIAL_PORT_ID, PIN_MODE, PIN_STATE, Pins } from 'firmata';
 
@@ -41,7 +40,7 @@ export class FirmataBoard extends fb {
         let type = this.firmware.name.split('_').shift();
 
         if (!type || type.indexOf('.') >= 0 || !isAvailableExtension(type)) {
-            type = AVAILABLE_EXTENSIONS_KEYS.BOARD;
+            type = AVAILABLE_EXTENSIONS_KEYS.Board;
         }
 
         return type;

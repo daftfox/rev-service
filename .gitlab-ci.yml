@@ -69,7 +69,18 @@ unit-test:
     reports:
       junit: junit.xml
   script:
-    - yarn test
+    - yarn test:unit
+
+e2e-test:
+  stage: test
+  cache:
+    key: $CI_COMMIT_REF_SLUG-$CI_PROJECT_DIR
+    paths:
+      - node_modules/
+      - .yarn
+    policy: pull
+  script:
+    - yarn test:e2e
 
 lint:
   stage: test

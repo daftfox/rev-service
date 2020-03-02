@@ -23,6 +23,7 @@ let service: WebSocketService;
 const responseMock = new Response(MESSAGE_TOPIC.BOARD, '1234', OK, new BoardResponseBody({ boards: [] }));
 
 const properties = {
+    port: 'port',
     sendResponse: 'sendResponse',
     attachListeners: 'attachListeners',
     webSocketServer: 'webSocketServer',
@@ -81,6 +82,7 @@ describe('WebSocketService', () => {
 
     describe('#listen', () => {
         test('should create an http server and web socket server', () => {
+            service[properties.port] = 3002;
             service.listen();
             expect(service[properties.httpServer]).toBeDefined();
             expect(service[properties.webSocketServer]).toBeDefined();

@@ -5,6 +5,7 @@ import { ConfigurationService } from '../service/configuration.service';
 import { LoggerService } from '../service/logger.service';
 jest.mock('../service/serial.service');
 jest.mock('../service/logger.service');
+jest.mock('../service/database.service');
 
 let controller: MainController;
 

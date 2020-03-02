@@ -1,8 +1,7 @@
 import { FirmataBoard } from './firmata-board.model';
 import { Socket } from 'net';
 import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
-import { BoardErrorEvent } from '../../event/base/board-error.model';
-import { FirmwareUpdatedEvent } from '../../event/base';
+import { FirmwareUpdatedEvent, BoardErrorEvent } from '../../event';
 
 let firmataBoard: FirmataBoard;
 let socket: Socket;
@@ -46,7 +45,7 @@ describe('FirmataBoard', () => {
                 firmataBoard.firmware.name = firmwareName;
                 const result = firmataBoard.parseType();
 
-                expect(result).toEqual(AVAILABLE_EXTENSIONS_KEYS.BOARD);
+                expect(result).toEqual(AVAILABLE_EXTENSIONS_KEYS.Board);
             },
         );
     });

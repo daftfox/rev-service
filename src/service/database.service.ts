@@ -34,6 +34,10 @@ export class DatabaseService {
         DatabaseService.database.addModels([Program, Board]);
     }
 
+    public static closeConnection(): Promise<void> {
+        return DatabaseService.database.close();
+    }
+
     public synchronise(): Promise<void> {
         LoggerService.debug('Synchronising database.', this.namespace);
 

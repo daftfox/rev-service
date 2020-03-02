@@ -1,4 +1,4 @@
-import { Board } from '../domain/board/base/board.model';
+import { Board, IBoardDataValues } from '../domain/board';
 import { singleton } from 'tsyringe';
 import {
     AVAILABLE_EXTENSIONS_CLASSES,
@@ -6,7 +6,6 @@ import {
     isAvailableExtension,
 } from '../domain/board/extension';
 import { BoardTypeNotFoundError } from '../domain/error';
-import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
 import { BoardDuplicateError } from '../domain/error/board-duplicate.error';
 import { LoggerService } from '../service/logger.service';
 
@@ -15,7 +14,7 @@ export class BoardDAO {
     private static namespace = 'board-dao';
 
     public static async exists(boardId: string): Promise<boolean> {
-        return (await Board.findByPk(boardId)) !== undefined;
+        return !!(await Board.findByPk(boardId));
     }
 
     public static async create(dataValues: IBoardDataValues): Promise<Board> {

@@ -32,10 +32,11 @@ export class MainController {
     private namespace = `main-controller`;
     private appConfiguration: IAppConfiguration;
 
-    private static stopServices(): void {
+    public static stopServices(): void {
         container.resolve(EthernetService).closeServer();
         container.resolve(SerialService).closeServer();
         container.resolve(WebSocketService).closeServer();
+        DatabaseService.closeConnection();
     }
 
     private static startWebSocketService(): void {
