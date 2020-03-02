@@ -2,89 +2,105 @@ import { SerialService } from './index';
 import { LoggerService } from './logger.service';
 jest.mock('./logger.service');
 
-let serialService: any;
+let service: SerialService;
 
-console.info = () => {};
+const properties = {
+    portScanInterval: 'portScanInterval',
+    scanPorts: 'scanPorts',
+    handleConnected: 'handleConnected',
+    handleDisconnected: 'handleDisconnected',
+    connectToBoard: 'connectToBoard',
+    getAvailableSerialPorts: 'getAvailableSerialPorts',
+    attemptConnectionToPort: 'attemptConnectionToPort',
+    attemptConnectionToPorts: 'attemptConnectionToPorts',
+    usedPorts: 'usedPorts',
+    unsupportedDevices: 'unsupportedDevices',
+    filterPorts: 'filterPorts',
+};
 
 beforeEach(() => {
-    serialService = new SerialService();
+    service = new SerialService();
 });
 
 afterEach(async () => {
-    serialService.closeServer();
+    service.closeServer();
 });
 
 describe('SerialService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(serialService).toBeDefined();
+            expect(service).toBeDefined();
         });
     });
 
     describe('#listen', () => {
         test('should have logged an info message', () => {
-            serialService.listen();
+            service.listen();
 
             expect(LoggerService.info).toHaveBeenCalled();
         });
 
         test('should have created an interval instance', () => {
-            serialService.listen();
+            service.listen();
 
-            expect(serialService.portScanInterval).toBeDefined();
+            expect(service[properties.portScanInterval]).toBeDefined();
         });
 
         test('should have called getAvailableSerialPorts and attemptConnectionToPorts', async () => {
-            serialService.scanPorts = jest.fn();
+            const spy = spyOn<any>(service, 'scanPorts');
 
             jest.useFakeTimers();
-            serialService.listen();
+            service.listen();
 
             jest.advanceTimersByTime(20000);
             jest.useRealTimers();
 
-            expect(serialService.scanPorts).toHaveBeenCalledTimes(2);
+            expect(spy).toHaveBeenCalledTimes(2);
         });
     });
 
     describe('#attemptConnectionToPort', () => {
-        const port = { comName: 'test' };
+        const port = { path: 'test' };
 
         test('should call handleConnected', async () => {
-            serialService.handleConnected = jest.fn();
-            serialService.connectToBoard = jest.fn(() => Promise.resolve());
+            const spyConnected = spyOn<any>(service, 'handleConnected');
+            spyOn<any>(service, 'connectToBoard').and.returnValue(Promise.resolve());
 
-            await serialService.attemptConnectionToPort(port);
+            await service[properties.attemptConnectionToPort](port);
 
-            expect(serialService.handleConnected).toHaveBeenCalled();
+            expect(spyConnected).toHaveBeenCalled();
         });
 
         test('should call handleDisconnected', async () => {
-            serialService.handleDisconnected = jest.fn();
-            serialService.connectToBoard = jest.fn(() => Promise.reject());
+            const spyDisconnected = spyOn<any>(service, 'handleDisconnected');
+            spyOn<any>(service, 'connectToBoard').and.returnValue(Promise.reject());
 
-            await serialService.attemptConnectionToPort(port);
+            await service[properties.attemptConnectionToPort](port);
 
-            expect(serialService.handleDisconnected).toHaveBeenCalled();
+            expect(spyDisconnected).toHaveBeenCalled();
         });
     });
 
     describe('#scanPorts', () => {
         test('should have called getAvailableSerialPorts and attemptConnectionToPorts', async () => {
             const ports = [{}];
-            serialService.getAvailableSerialPorts = jest.fn(() => Promise.resolve(ports));
-            serialService.attemptConnectionToPorts = jest.fn(() => Promise.resolve());
+            const spyGetAvailableSerialPorts = spyOn<any>(service, 'getAvailableSerialPorts').and.returnValue(
+                Promise.resolve(ports),
+            );
+            const spyAttemptConnectionToPorts = spyOn<any>(service, 'attemptConnectionToPorts').and.returnValue(
+                Promise.resolve(),
+            );
 
-            await serialService.scanPorts();
+            await service[properties.scanPorts]();
 
-            expect(serialService.getAvailableSerialPorts).toHaveBeenCalled();
-            expect(serialService.attemptConnectionToPorts).toHaveBeenCalledWith(ports);
+            expect(spyGetAvailableSerialPorts).toHaveBeenCalled();
+            expect(spyAttemptConnectionToPorts).toHaveBeenCalledWith(ports);
         });
     });
 
     describe('#getAvailableSerialPorts', () => {
         test('should return an array', async () => {
-            const result = await serialService.getAvailableSerialPorts();
+            const result = await service[properties.getAvailableSerialPorts]();
 
             expect(Array.isArray(result)).toEqual(true);
         });
@@ -99,10 +115,10 @@ describe('SerialService', () => {
             [1, [{ productId: 'test', path: 'test' }], [], ['tost']],
             [0, [{ productId: 'test', path: 'test' }], [], ['test']],
         ])('should return %p element', (length: number, ports: any[], usedPorts: any[], unsupportedDevices: any[]) => {
-            serialService.usedPorts = usedPorts;
-            serialService.unsupportedDevices = unsupportedDevices;
+            service[properties.usedPorts] = usedPorts;
+            service[properties.unsupportedDevices] = unsupportedDevices;
 
-            expect(serialService.filterPorts(ports).length).toEqual(length);
+            expect(service[properties.filterPorts](ports).length).toEqual(length);
         });
     });
 
@@ -117,23 +133,24 @@ describe('SerialService', () => {
         ];
 
         test('should execute attemptConnectionToPorts twice', async () => {
-            serialService.attemptConnectionToPort = jest.fn(() => Promise.resolve());
+            const spyAttemptConnectionToPort = spyOn<any>(service, 'attemptConnectionToPort').and.returnValue(
+                Promise.resolve(),
+            );
 
-            await serialService.attemptConnectionToPorts(ports);
+            await service[properties.attemptConnectionToPorts](ports);
 
-            expect(serialService.attemptConnectionToPort).toHaveBeenCalledTimes(ports.length);
-            expect(serialService.usedPorts.length).toEqual(ports.length);
+            expect(spyAttemptConnectionToPort).toHaveBeenCalledTimes(ports.length);
+            expect(service[properties.usedPorts].length).toEqual(ports.length);
         });
     });
 
     describe('#closeServer', () => {
         test('should clear the portScanInterval and set it to undefined', () => {
-            jest.useFakeTimers();
-            serialService.closeServer();
+            const spy = spyOn(global, 'clearInterval');
+            service.closeServer();
 
-            expect(clearInterval).toHaveBeenCalled();
-            expect(serialService.portScanInterval).toBeUndefined();
-            jest.useRealTimers();
+            expect(spy).toHaveBeenCalled();
+            expect(service[properties.portScanInterval]).toBeUndefined();
         });
     });
 
@@ -149,24 +166,24 @@ describe('SerialService', () => {
         };
 
         beforeEach(() => {
-            serialService.usedPorts = [port.comName];
+            service[properties.usedPorts] = [port.comName];
         });
 
         test('should clear the port for a new device', () => {
-            expect(serialService.usedPorts.length).toEqual(1);
+            expect(service[properties.usedPorts].length).toEqual(1);
 
-            serialService.handleDisconnected(port, {});
+            service[properties.handleDisconnected](port, {});
 
-            expect(serialService.usedPorts.length).toEqual(0);
+            expect(service[properties.usedPorts].length).toEqual(0);
         });
 
         test('should add the port to the list of unsupported devices', () => {
-            expect(serialService.unsupportedDevices.length).toEqual(0);
+            expect(service[properties.unsupportedDevices].length).toEqual(0);
 
-            serialService.handleDisconnected(port);
+            service[properties.handleDisconnected](port);
 
-            expect(serialService.usedPorts.length).toEqual(0);
-            expect(serialService.unsupportedDevices.length).toEqual(1);
+            expect(service[properties.usedPorts].length).toEqual(0);
+            expect(service[properties.unsupportedDevices].length).toEqual(1);
         });
     });
 
@@ -177,7 +194,7 @@ describe('SerialService', () => {
                 setIsSerialConnection: jest.fn(),
             };
 
-            serialService.handleConnected(board);
+            service[properties.handleConnected](board);
 
             expect(LoggerService.info).toHaveBeenCalled();
             expect(board.setIsSerialConnection).toHaveBeenCalledWith(true);

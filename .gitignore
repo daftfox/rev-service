@@ -6,4 +6,5 @@ reports/
 *.js.map
 !jest.config.js
 dist/
+package-lock.json
 report.*

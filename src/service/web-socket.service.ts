@@ -24,6 +24,8 @@ import {
 import { BAD_REQUEST, CREATED, NO_CONTENT, OK } from 'http-status-codes';
 import { container, singleton } from 'tsyringe';
 import { ConfigurationService } from './configuration.service';
+import { BoardConnectedEvent, BoardDisconnectedEvent, BoardUpdatedEvent, Event } from '../domain/event/base';
+import { matchBoardConnectedEvent, matchBoardDisonnectedEvent, matchBoardUpdatedEvent } from '../domain/event/matcher';
 
 /**
  * @description Service that allows clients to interface using a near real-time web socket connection
@@ -34,14 +36,14 @@ export class WebSocketService {
     private namespace = `web-socket`;
     private webSocketServer: WebSocket.server;
     private httpServer: Server;
-    private boardModel: BoardService;
-    private programModel: ProgramService;
+    private boardService: BoardService;
+    private programService: ProgramService;
     readonly port: number;
 
     constructor() {
         this.port = container.resolve(ConfigurationService).webSocketPort;
-        this.boardModel = container.resolve(BoardService);
-        this.programModel = container.resolve(ProgramService);
+        this.boardService = container.resolve(BoardService);
+        this.programService = container.resolve(ProgramService);
 
         this.attachListeners();
     }
@@ -54,9 +56,11 @@ export class WebSocketService {
     }
 
     private attachListeners(): void {
-        this.boardModel.on('connected', this.broadcastBoardConnected);
-        this.boardModel.on('update', this.broadcastBoardUpdated);
-        this.boardModel.on('disconnected', this.broadcastBoardDisconnected);
+        this.boardService.event.attach(matchBoardUpdatedEvent, this.broadcastBoardUpdated);
+
+        this.boardService.event.attach(matchBoardConnectedEvent, this.broadcastBoardConnected);
+
+        this.boardService.event.attach(matchBoardDisonnectedEvent, this.broadcastBoardDisconnected);
     }
 
     /**
@@ -154,16 +158,16 @@ export class WebSocketService {
                 switch (body.action) {
                     case PROGRAM_REQUEST_ACTION.EXEC:
                         // execute program
-                        program = this.programModel.getProgramById(body.programId);
+                        program = this.programService.getProgramById(body.programId);
 
-                        await this.programModel.executeProgramOnBoard(body.boardId, program, body.repeat);
+                        await this.programService.executeProgramOnBoard(body.boardId, program, body.repeat);
 
                         result.responseCode = NO_CONTENT;
                         break;
 
                     case PROGRAM_REQUEST_ACTION.HALT:
                         // stop program execution
-                        this.programModel.stopProgram(body.boardId);
+                        this.programService.stopProgram(body.boardId);
                         result.responseCode = NO_CONTENT;
                         break;
 
@@ -172,10 +176,10 @@ export class WebSocketService {
                         // body program(s)
                         if (body.programId) {
                             // by id
-                            programs.push(this.programModel.getProgramById(body.programId));
+                            programs.push(this.programService.getProgramById(body.programId));
                         } else {
                             // all programs
-                            programs.push(...this.programModel.getAllPrograms());
+                            programs.push(...this.programService.getAllPrograms());
                         }
 
                         result.responseBody = new ProgramResponseBody({ programs });
@@ -185,7 +189,7 @@ export class WebSocketService {
                     case PROGRAM_REQUEST_ACTION.POST:
                         // add a new program
                         program = ProgramService.createProgram(body.program);
-                        const id = await this.programModel.addProgram(program);
+                        const id = await this.programService.addProgram(program);
 
                         result.responseBody = new ProgramResponseBody({ programId: id });
                         result.responseCode = CREATED;
@@ -194,7 +198,7 @@ export class WebSocketService {
 
                     case PROGRAM_REQUEST_ACTION.PUT:
                         // update existing program
-                        await this.programModel.updateProgram(body.program);
+                        await this.programService.updateProgram(body.program);
 
                         result.responseCode = NO_CONTENT;
 
@@ -202,7 +206,7 @@ export class WebSocketService {
 
                     case PROGRAM_REQUEST_ACTION.DELETE:
                         // remove existing program
-                        await this.programModel.deleteProgram(body.programId);
+                        await this.programService.deleteProgram(body.programId);
 
                         result.responseCode = NO_CONTENT;
 
@@ -239,7 +243,7 @@ export class WebSocketService {
             try {
                 const command: ICommand = { action: body.action, parameters: body.parameters };
 
-                await this.programModel.executeCommandOnBoard(body.boardId, command);
+                await this.programService.executeCommandOnBoard(body.boardId, command);
                 result.responseCode = NO_CONTENT;
 
                 resolve(result);
@@ -266,10 +270,10 @@ export class WebSocketService {
                         const boards = [];
                         if (body.boardId) {
                             // body single board
-                            boards.push(this.boardModel.getBoardById(body.boardId).toDiscrete());
+                            boards.push(this.boardService.getBoardById(body.boardId).toDiscrete());
                         } else {
                             // body all boards
-                            boards.push(...this.boardModel.getAllBoards());
+                            boards.push(...this.boardService.getAllBoards());
                         }
 
                         result.responseBody = new BoardResponseBody({ boards });
@@ -277,7 +281,7 @@ export class WebSocketService {
 
                         break;
                     case BOARD_REQUEST_ACTION.PUT:
-                        await this.boardModel.updateBoard(body.board);
+                        await this.boardService.updateBoard(body.board);
                         result.responseCode = NO_CONTENT;
                         break;
                     case BOARD_REQUEST_ACTION.DELETE:
@@ -306,7 +310,7 @@ export class WebSocketService {
     private handleClientConnected(): Promise<Response> {
         return new Promise(resolve => {
             const body = new BoardResponseBody({
-                boards: this.boardModel.getAllBoards(),
+                boards: this.boardService.getAllBoards(),
             });
 
             resolve(new Response(MESSAGE_TOPIC.BOARD, undefined, OK, body));
@@ -316,22 +320,22 @@ export class WebSocketService {
     /**
      * BroadcastBody an update with the newly connected board to connected clients.
      */
-    private broadcastBoardConnected = (board: IBoard, newRecord: boolean): void => {
-        this.broadcastBoardUpdate(newRecord ? BROADCAST_ACTION.NEW : BROADCAST_ACTION.UPDATE, board);
+    private broadcastBoardConnected = (event: BoardConnectedEvent): void => {
+        this.broadcastBoardUpdate(event.newBoard ? BROADCAST_ACTION.NEW : BROADCAST_ACTION.UPDATE, event.board);
     };
 
     /**
      * BroadcastBody the updated board to all connected clients.
      */
-    private broadcastBoardUpdated = (board: IBoard): void => {
-        this.broadcastBoardUpdate(BROADCAST_ACTION.UPDATE, board);
+    private broadcastBoardUpdated = (event: BoardUpdatedEvent): void => {
+        this.broadcastBoardUpdate(BROADCAST_ACTION.UPDATE, event.board);
     };
 
     /**
      * BroadcastBody an update with the disconnected board to connected clients.
      */
-    private broadcastBoardDisconnected = (board: IBoard): void => {
-        this.broadcastBoardUpdate(BROADCAST_ACTION.UPDATE, board);
+    private broadcastBoardDisconnected = (event: BoardDisconnectedEvent): void => {
+        this.broadcastBoardUpdate(BROADCAST_ACTION.UPDATE, event.board);
     };
 
     /**

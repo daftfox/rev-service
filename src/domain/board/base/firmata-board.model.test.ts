@@ -1,6 +1,8 @@
 import { FirmataBoard } from './firmata-board.model';
 import { Socket } from 'net';
 import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
+import { BoardErrorEvent } from '../../event/base/board-error.model';
+import { FirmwareUpdatedEvent } from '../../event/base';
 
 let firmataBoard: FirmataBoard;
 let socket: Socket;
@@ -59,15 +61,15 @@ describe('FirmataBoard', () => {
 
     describe('events', () => {
         test('should execute post method of firmwareUpdated property', () => {
-            const spy = spyOn(firmataBoard.firmwareUpdated, 'post');
+            const spy = spyOn(firmataBoard.event, 'post');
 
             firmataBoard.emit('queryfirmware');
 
-            expect(spy).toHaveBeenCalledWith({ id: '123456', type: 'LedController' });
+            expect(spy).toHaveBeenCalledWith(new FirmwareUpdatedEvent({ id: '123456', type: 'LedController' }));
         });
 
         test('should execute post method of ready property', () => {
-            const spy = spyOn(firmataBoard.ready, 'post');
+            const spy = spyOn(firmataBoard.event, 'post');
 
             firmataBoard.emit('ready');
 
@@ -75,16 +77,16 @@ describe('FirmataBoard', () => {
         });
 
         test('should execute post method of error property', () => {
-            const spy = spyOn(firmataBoard.error, 'post');
+            const spy = spyOn(firmataBoard.event, 'post');
             const error = new Error('Oops, something went wrong.');
 
             firmataBoard.emit('error', error);
 
-            expect(spy).toHaveBeenCalledWith(error);
+            expect(spy).toHaveBeenCalledWith(new BoardErrorEvent(error));
         });
 
         test('should execute post method of disconnect property', () => {
-            const spy = spyOn(firmataBoard.disconnect, 'post');
+            const spy = spyOn(firmataBoard.event, 'post');
 
             firmataBoard.emit('disconnect');
 

@@ -4,6 +4,14 @@ import { IBoard } from '../../interface';
 import { Socket } from 'net';
 import * as fb from 'firmata';
 import { dataValuesMock, discreteBoardMock } from './board.model';
+import {
+    BoardDisconnectedEvent,
+    BoardReadyEvent,
+    BoardUpdatedEvent,
+    Event,
+    FirmwareUpdatedEvent,
+} from '../../../event/base';
+import { BoardErrorEvent } from '../../../event/base/board-error.model';
 jest.mock('net');
 jest.mock('firmata');
 
@@ -21,11 +29,7 @@ export class FirmataBoard extends fb {
     static postUpdate = false;
     static postDisconnect = false;
 
-    public firmwareUpdated = new Evt<IBoardDataValues>();
-    public ready = new Evt<void>();
-    public error = new Evt<Error>();
-    public update = new Evt<IBoard>();
-    public disconnect = new Evt<void>();
+    public event = new Evt<Event>();
 
     private mockTimer: number;
 
@@ -58,27 +62,27 @@ export class FirmataBoard extends fb {
     }
 
     public async postFirmwareUpdate(): Promise<void> {
-        await this.firmwareUpdated.postOnceMatched(dataValuesMock);
+        await this.event.postOnceMatched(new FirmwareUpdatedEvent(dataValuesMock));
         FirmataBoard.postFirmwareUpdate = false;
     }
 
     public async postReady(): Promise<void> {
-        await this.ready.postOnceMatched();
+        await this.event.postOnceMatched(new BoardReadyEvent());
         FirmataBoard.postReady = false;
     }
 
     public async postError(): Promise<void> {
-        await this.error.postOnceMatched(errorMock);
+        await this.event.postOnceMatched(new BoardErrorEvent(errorMock));
         FirmataBoard.postError = false;
     }
 
     public async postUpdate(): Promise<void> {
-        await this.update.postOnceMatched(discreteBoardMock);
+        await this.event.postOnceMatched(new BoardUpdatedEvent(discreteBoardMock));
         FirmataBoard.postUpdate = false;
     }
 
     public async postDisconnect(): Promise<void> {
-        await this.disconnect.postOnceMatched();
+        await this.event.postOnceMatched(new BoardDisconnectedEvent());
         FirmataBoard.postDisconnect = false;
     }
 }

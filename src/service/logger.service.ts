@@ -48,13 +48,12 @@ export class LoggerService {
         if (bold) {
             highlightedString = Chalk.bold(text);
         }
-
         const rgb = LoggerService.getRGBFromColor(color);
 
         return Chalk.rgb(rgb.red, rgb.green, rgb.blue)(highlightedString);
     }
 
-    private static getRGBFromColor(color: string): { red: number; green: number; blue: number } {
+    private static getRGBFromColor(color?: string): { red: number; green: number; blue: number } {
         const rgb = {
             red: 0,
             green: 0,

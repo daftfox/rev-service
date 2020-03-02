@@ -12,8 +12,10 @@ import {
     InvalidArgumentError,
 } from '../../error';
 import { injectable } from 'tsyringe';
-import { IBoardDataValues } from '../interface/board-data-values.interface';
+import { IBoardDataValues } from '../';
 import { FirmataBoard, Pins, SERIAL_PORT_ID } from './firmata-board.model';
+import { BoardDisconnectedEvent, BoardUpdatedEvent, Event, FirmwareUpdatedEvent } from '../../event/base';
+import { matchFirmwareUpdatedEvent } from '../../event/matcher';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -217,7 +219,7 @@ export class Board extends Model<Board> implements IBoard {
     public attachFirmataBoard(firmataBoard: FirmataBoard): void {
         this.firmataBoard = firmataBoard;
 
-        this.firmataBoard.firmwareUpdated.attach(this.setBoardOnline);
+        this.firmataBoard.event.attach(matchFirmwareUpdatedEvent, this.setBoardOnline);
 
         this.attachAnalogPinListeners();
         this.attachDigitalPinListeners();
@@ -384,7 +386,7 @@ export class Board extends Model<Board> implements IBoard {
                 LoggerService.debug(`Heartbeat timeout.`, this.namespace);
 
                 // emit disconnect event after which the board is removed from the data model
-                this.firmataBoard.disconnect.post();
+                this.firmataBoard.event.post(new BoardDisconnectedEvent());
                 this.clearInterval(heartbeat);
                 this.clearHeartbeatTimeout();
             }, Board.disconnectTimeout);
@@ -451,7 +453,7 @@ export class Board extends Model<Board> implements IBoard {
      */
     protected emitUpdate = (): void => {
         this.lastUpdateReceived = new Date().toUTCString();
-        this.firmataBoard.update.post(this.toDiscrete());
+        this.firmataBoard.event.post(new BoardUpdatedEvent(this.toDiscrete()));
     };
 
     /**

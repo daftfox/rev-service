@@ -5,6 +5,7 @@ import { boardMock, dataValuesMock, discreteBoardMock, idsMock } from '../domain
 import { ServerError } from '../domain/error/server.error';
 import { LoggerService } from './logger.service';
 import { firmataBoardMockFactory } from '../domain/board/base/__mocks__/firmata-board.model';
+import { BoardConnectedEvent, BoardDisconnectedEvent, BoardUpdatedEvent } from '../domain/event/base';
 jest.mock('../domain/board/base/firmata-board.model');
 jest.mock('./logger.service');
 jest.mock('../dao/board.dao');
@@ -28,11 +29,11 @@ const properties = {
     addBoardToCache: 'addBoardToCache',
     persistChanges: 'persistChanges',
     initialiseBoard: 'initialiseBoard',
+    event: 'event',
 };
 
 beforeEach(() => {
     service = new BoardService();
-    spyOn(service, 'emit');
 });
 
 const addBoardToCache = () => {
@@ -115,13 +116,15 @@ describe('BoardService', () => {
         test('should add a new board to the cache', async () => {
             const createAndPersistSpy = spyOn<any>(BoardService, properties.createAndPersistNewBoard).and.callThrough();
             const initialiseCachedBoardSpy = spyOn<any>(service, properties.initialiseCachedBoard).and.callThrough();
+            const eventPostSpy = spyOn(service.event, 'post');
             const firmataBoardMock = firmataBoardMockFactory();
+            const event = new BoardConnectedEvent(discreteBoardMock, true);
 
             await service.addBoard(dataValuesMock, firmataBoardMock);
 
             expect(initialiseCachedBoardSpy).toHaveBeenCalledWith(dataValuesMock.id, firmataBoardMock);
             expect(createAndPersistSpy).toHaveBeenCalledWith(dataValuesMock, firmataBoardMock);
-            expect(service.emit).toHaveBeenCalledWith('connected', discreteBoardMock, true);
+            expect(eventPostSpy).toHaveBeenCalledWith(event);
         });
 
         test('should log a server error', async () => {
@@ -158,10 +161,12 @@ describe('BoardService', () => {
     describe('#disconnectBoard', () => {
         test('should call the board disconnect method and emit the disconnect event', () => {
             addBoardToCache();
+            const eventPostSpy = spyOn(service.event, 'post');
+            const event = new BoardDisconnectedEvent(discreteBoardMock);
             service[properties.disconnectBoard](boardMock.id);
 
             expect(boardMock.disconnect).toHaveBeenCalled();
-            expect(service[properties.emit]).toHaveBeenCalledWith('disconnected', discreteBoardMock);
+            expect(eventPostSpy).toHaveBeenCalledWith(event);
         });
     });
 
@@ -277,11 +282,13 @@ describe('BoardService', () => {
 
     describe('#persistChanges', () => {
         test('should call the BoardDAO persist method to persist the changes in a board and emit an update event', async () => {
+            const eventPostSpy = spyOn(service.event, 'post');
+            const event = new BoardUpdatedEvent(discreteBoardMock);
             const result = await service[properties.persistChanges](boardMock);
 
             expect(BoardDAO.persist).toHaveBeenCalledWith(boardMock);
             expect(result).toBeDefined();
-            expect(service[properties.emit]).toHaveBeenCalledWith('update', discreteBoardMock);
+            expect(eventPostSpy).toHaveBeenCalledWith(event);
         });
     });
 

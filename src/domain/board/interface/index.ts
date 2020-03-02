@@ -5,3 +5,4 @@ export * from './pinout.interface';
 export * from './serial-port.interface';
 export * from './extension-classes.interface';
 export * from './extension-keys.interface';
+export * from './board-data-values.interface';

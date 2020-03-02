@@ -1,36 +1,32 @@
 import * as fb from 'firmata';
 import { Socket } from 'net';
 import { Evt } from 'ts-evt';
-import { IBoard } from '../interface';
-import { IBoardDataValues } from '../interface/board-data-values.interface';
 import { AVAILABLE_EXTENSIONS_KEYS, isAvailableExtension } from '../extension';
+import { BoardDisconnectedEvent, BoardReadyEvent, Event, FirmwareUpdatedEvent } from '../../event';
+import { BoardErrorEvent } from '../../event/base/board-error.model';
 
 export { SERIAL_PORT_ID, PIN_MODE, PIN_STATE, Pins } from 'firmata';
 
 export class FirmataBoard extends fb {
-    public firmwareUpdated = new Evt<IBoardDataValues>();
-    public ready = new Evt<void>();
-    public error = new Evt<Error>();
-    public update = new Evt<IBoard>();
-    public disconnect = new Evt<void>();
+    public event = new Evt<Event>();
 
     constructor(port: Socket | string) {
         super(port);
 
         this.on('queryfirmware', () => {
-            this.firmwareUpdated.post({ id: this.parseId(), type: this.parseType() });
+            this.event.post(new FirmwareUpdatedEvent({ id: this.parseId(), type: this.parseType() }));
         });
 
         this.on('ready', () => {
-            this.ready.post();
+            this.event.post(new BoardReadyEvent());
         });
 
         this.on('error', (error: Error) => {
-            this.error.post(error);
+            this.event.post(new BoardErrorEvent(error));
         });
 
         this.on('disconnect', () => {
-            this.disconnect.post();
+            this.event.post(new BoardDisconnectedEvent());
         });
     }
 

@@ -1,21 +1,21 @@
 import { Board, FirmataBoard, IBoard } from '../domain/board';
 import { LoggerService } from './logger.service';
 import { singleton } from 'tsyringe';
-import * as events from 'events';
+import { Evt } from 'ts-evt';
 import { BoardNotFoundError } from '../domain/error';
 import { BoardDAO } from '../dao/board.dao';
 import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
 import { ServerError } from '../domain/error/server.error';
+import { BoardConnectedEvent, BoardDisconnectedEvent, BoardUpdatedEvent, Event } from '../domain/event';
 
 /**
  * @description Data model for storing and sharing {@link Board}/{@link IBoard} instances across services.
  * @namespace BoardService
  */
 @singleton()
-export class BoardService extends events.EventEmitter {
-    constructor() {
-        super();
-    }
+export class BoardService {
+    public event = new Evt<Event>();
+
     /**
      * Namespace used by the {@link LoggerService}
      *
@@ -100,7 +100,7 @@ export class BoardService extends events.EventEmitter {
                 }
             }
 
-            this.emit('connected', board.toDiscrete(), newBoard);
+            this.event.post(new BoardConnectedEvent(board.toDiscrete(), newBoard));
             resolve(board);
         });
     }
@@ -129,7 +129,7 @@ export class BoardService extends events.EventEmitter {
         );
         board.disconnect();
 
-        this.emit('disconnected', discreteBoard);
+        this.event.post(new BoardDisconnectedEvent(discreteBoard));
     }
 
     private removeFromCache(boardId: string): void {
@@ -187,7 +187,7 @@ export class BoardService extends events.EventEmitter {
         const persistedBoard = await BoardDAO.persist(board);
         const discreteBoard = board.toDiscrete();
 
-        this.emit('update', discreteBoard);
+        this.event.post(new BoardUpdatedEvent(discreteBoard));
 
         return persistedBoard;
     }

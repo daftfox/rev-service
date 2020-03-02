@@ -1,9 +1,16 @@
 import { BoardService } from './board.service';
 import { LoggerService } from './logger.service';
 import { Socket } from 'net';
-import { Board, FirmataBoard, IBoard } from '../domain/board';
+import { Board, FirmataBoard, IBoard, IBoardDataValues } from '../domain/board';
 import { container, injectable } from 'tsyringe';
-import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
+import {
+    BoardErrorEvent,
+    matchAndTransformFirmwareUpdate,
+    matchBoardDisonnectedEvent,
+    matchBoardErrorEvent,
+    matchBoardReadyEvent,
+    matchBoardUpdatedEvent,
+} from '../domain/event';
 
 export const CONNECTION_TIMEOUT = 10000;
 
@@ -46,14 +53,14 @@ export class ConnectionService {
                 type: undefined,
             };
 
-            firmataBoard.error.attach((error: Error) => {
-                LoggerService.debug(error.message);
+            firmataBoard.event.attach(matchBoardErrorEvent, (event: BoardErrorEvent) => {
+                LoggerService.debug(event.error.message);
                 reject(dataValues.id);
             });
 
-            firmataBoard.update.attach(this.handleUpdateEvent);
+            firmataBoard.event.attach(matchBoardUpdatedEvent, this.handleUpdateEvent);
 
-            firmataBoard.disconnect.attachOnce(() => {
+            firmataBoard.event.attachOnce(matchBoardDisonnectedEvent, () => {
                 this.handleDisconnectEvent(dataValues.id, reject);
             });
 
@@ -62,8 +69,8 @@ export class ConnectionService {
              * The device is deemed unsupported if a connection could not be made within that period.
              */
             try {
-                dataValues = await firmataBoard.firmwareUpdated.waitFor(CONNECTION_TIMEOUT);
-                await firmataBoard.ready.waitFor(CONNECTION_TIMEOUT);
+                dataValues = await firmataBoard.event.waitFor(matchAndTransformFirmwareUpdate, CONNECTION_TIMEOUT);
+                await firmataBoard.event.waitFor(matchBoardReadyEvent, CONNECTION_TIMEOUT);
                 resolve(await this.handleConnectionEstablished(dataValues, firmataBoard));
             } catch (error) {
                 this.handleConnectionTimeout(firmataBoard);

@@ -5,6 +5,7 @@ import { LoggerService } from './logger.service';
 import { Board, FirmataBoard } from '../domain/board/base';
 import { errorMock } from '../domain/board/base/__mocks__/firmata-board.model';
 import { container } from 'tsyringe';
+import { BoardUpdatedEvent } from '../domain/event/base';
 jest.mock('../domain/board/base/firmata-board.model');
 jest.mock('../service/board.service');
 jest.mock('./logger.service');
@@ -85,10 +86,11 @@ describe('ConnectionService', () => {
                 await service[properties.connectToBoard](socketMock);
                 expect(service[properties.handleConnectionEstablished]).toHaveBeenCalled();
                 expect(spyConnection.calls.argsFor(0)[0]).toEqual(dataValuesMock);
-                expect(spyUpdate).toHaveBeenCalledWith(discreteBoardMock);
+                expect(spyUpdate).toHaveBeenCalledWith(new BoardUpdatedEvent(discreteBoardMock));
                 done();
             } catch (error) {
-                expect(spyUpdate).toHaveBeenCalledWith(discreteBoardMock);
+                console.log(error);
+                expect(true).toEqual(false);
             }
         });
 

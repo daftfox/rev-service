@@ -1,24 +1,34 @@
 import * as events from 'events';
 import { WebSocketService } from './web-socket.service';
-import { Response, IRequestResult, MESSAGE_TOPIC, BoardResponseBody } from '../domain/web-socket-message';
-import { OK } from 'http-status-codes';
+import {
+    BoardResponseBody,
+    CommandRequestBody,
+    IRequestResult,
+    MESSAGE_TOPIC,
+    PROGRAM_REQUEST_ACTION,
+    ProgramRequestBody,
+    ProgramResponseBody,
+    Response,
+} from '../domain/web-socket-message';
+import { CREATED, NO_CONTENT, OK } from 'http-status-codes';
 import { LoggerService } from './logger.service';
-import { container } from 'tsyringe';
-import { BoardService } from './board.service';
+import { ProgramService } from './program.service';
+
 jest.mock('./logger.service');
 jest.mock('./board.service');
+jest.mock('./program.service');
+jest.mock('./configuration.service');
 
-let webSocketService: WebSocketService;
-const boardServiceMock = new BoardService();
+let service: WebSocketService;
 const responseMock = new Response(MESSAGE_TOPIC.BOARD, '1234', OK, new BoardResponseBody({ boards: [] }));
 
-const privateProperties = {
+const properties = {
     sendResponse: 'sendResponse',
     attachListeners: 'attachListeners',
     webSocketServer: 'webSocketServer',
     httpServer: 'httpServer',
-    boardModel: 'boardModel',
-    programModel: 'programModel',
+    boardService: 'boardService',
+    programService: 'programService',
     handleRequest: 'handleRequest',
     handleConnectionRequest: 'handleConnectionRequest',
     broadcastBoardUpdated: 'broadcastBoardUpdated',
@@ -31,33 +41,29 @@ const privateProperties = {
     handleProgramRequest: 'handleProgramRequest',
 };
 
-beforeAll(() => {
-    container.registerInstance(BoardService, boardServiceMock);
-});
-
 beforeEach(async () => {
-    webSocketService = new WebSocketService();
+    service = new WebSocketService();
 });
 
 afterEach(() => {
-    if (webSocketService[privateProperties.webSocketServer] && webSocketService[privateProperties.httpServer]) {
-        webSocketService.closeServer();
+    if (service[properties.webSocketServer] && service[properties.httpServer]) {
+        service.closeServer();
     }
 });
 
 describe('WebSocketService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(webSocketService).toBeDefined();
+            expect(service).toBeDefined();
         });
     });
 
     describe('#attachListeners', () => {
-        test('should attach listeners to the boardModel', () => {
-            jest.clearAllMocks();
-            webSocketService[privateProperties.attachListeners]();
+        test('should attach listeners to the boardService', () => {
+            const spy = spyOn(service[properties.boardService].event, 'attach');
+            service[properties.attachListeners]();
 
-            expect(boardServiceMock.on).toHaveBeenCalledTimes(3);
+            expect(spy).toHaveBeenCalledTimes(3);
         });
     });
 
@@ -67,8 +73,7 @@ describe('WebSocketService', () => {
                 sendUTF: jest.fn(),
             };
 
-            // @ts-ignore
-            WebSocketService.sendResponse(client, responseMock);
+            WebSocketService[properties.sendResponse](client, responseMock);
 
             expect(client.sendUTF).toHaveBeenCalledWith(responseMock.toJSON());
         });
@@ -76,9 +81,9 @@ describe('WebSocketService', () => {
 
     describe('#listen', () => {
         test('should create an http server and web socket server', () => {
-            webSocketService.listen();
-            expect(webSocketService[privateProperties.httpServer]).toBeDefined();
-            expect(webSocketService[privateProperties.webSocketServer]).toBeDefined();
+            service.listen();
+            expect(service[properties.httpServer]).toBeDefined();
+            expect(service[properties.webSocketServer]).toBeDefined();
 
             expect(LoggerService.info).toHaveBeenCalled();
         });
@@ -86,26 +91,25 @@ describe('WebSocketService', () => {
 
     describe('#closeServer', () => {
         test('should close the server', () => {
-            webSocketService[privateProperties.webSocketServer] = {
+            service[properties.webSocketServer] = {
                 shutDown: jest.fn(),
             };
-            webSocketService[privateProperties.httpServer] = {
+            service[properties.httpServer] = {
                 close: jest.fn(),
             };
 
-            webSocketService.closeServer();
+            service.closeServer();
 
-            expect(webSocketService[privateProperties.webSocketServer].shutDown).toHaveBeenCalled();
-            expect(webSocketService[privateProperties.httpServer].close).toHaveBeenCalled();
+            expect(service[properties.webSocketServer].shutDown).toHaveBeenCalled();
+            expect(service[properties.httpServer].close).toHaveBeenCalled();
         });
     });
 
     describe('#handleConnectionRequest', () => {
-        let client, request, message;
+        let client, request, message, spySendResponse;
 
         beforeAll(() => {
-            // @ts-ignore
-            WebSocketService.sendResponse = jest.fn();
+            spySendResponse = spyOn<any>(WebSocketService, 'sendResponse');
         });
 
         beforeEach(() => {
@@ -119,21 +123,20 @@ describe('WebSocketService', () => {
 
             message = { type: 'utf8', utf8Data: '{"test": "test"}' };
 
-            webSocketService[privateProperties.handleRequest] = jest.fn(() => Promise.resolve());
+            spyOn<any>(service, 'handleRequest').and.returnValue(Promise.resolve());
         });
 
         test('should send new client a list of existing boards', async () => {
             client.on = jest.fn();
-            await webSocketService[privateProperties.handleConnectionRequest](request);
-            // @ts-ignore
-            expect(WebSocketService.sendResponse).toHaveBeenCalled();
+            await service[properties.handleConnectionRequest](request);
+            expect(spySendResponse).toHaveBeenCalled();
             expect(client.on).toHaveBeenCalled();
         });
 
         test('should call handle request on new message from client', async () => {
-            await webSocketService[privateProperties.handleConnectionRequest](request);
+            await service[properties.handleConnectionRequest](request);
             client.emit('message', message);
-            expect(webSocketService[privateProperties.handleRequest]).toHaveBeenCalledWith(message);
+            expect(service[properties.handleRequest]).toHaveBeenCalledWith(message);
         });
     });
 
@@ -147,9 +150,9 @@ describe('WebSocketService', () => {
                     responseBody: { boards: [] },
                 };
 
-                webSocketService[privateProperties.handleProgramRequest] = jest.fn(() => Promise.resolve(result));
-                webSocketService[privateProperties.handleBoardRequest] = jest.fn(() => Promise.resolve(result));
-                webSocketService[privateProperties.handleCommandRequest] = jest.fn(() => Promise.resolve(result));
+                spyOn<any>(service, 'handleProgramRequest').and.returnValue(Promise.resolve(result));
+                spyOn<any>(service, 'handleBoardRequest').and.returnValue(Promise.resolve(result));
+                spyOn<any>(service, 'handleCommandRequest').and.returnValue(Promise.resolve(result));
             });
 
             test.each([
@@ -157,9 +160,9 @@ describe('WebSocketService', () => {
                 [{ type: 'utf8', utf8Data: '{"topic": "command", "body": {}}' }, 'handleCommandRequest'],
                 [{ type: 'utf8', utf8Data: '{"topic": "program", "body": {}}' }, 'handleProgramRequest'],
             ])('should call the appropriate handler method', async (_message: any, method: string) => {
-                await webSocketService[privateProperties.handleRequest](_message);
+                await service[properties.handleRequest](_message);
 
-                expect(webSocketService[method]).toHaveBeenCalledWith(JSON.parse(_message.utf8Data).body);
+                expect(service[method]).toHaveBeenCalledWith(JSON.parse(_message.utf8Data).body);
             });
 
             test('should return a web socket response when resolved', async () => {
@@ -167,20 +170,21 @@ describe('WebSocketService', () => {
                     type: 'utf8',
                     utf8Data: '{"topic": "board", "body": { "action": "get", "boardId": "test" }}',
                 };
-                const responseObject = await webSocketService[privateProperties.handleRequest](message);
+                const responseObject = await service[properties.handleRequest](message);
 
-                expect(responseObject.constructor.name).toEqual('Response');
+                expect(responseObject.constructor).toEqual(Response);
             });
         });
 
         describe('exception flows', () => {
             test('should return a bad request', async () => {
                 const message = {};
+                const error = new Error('Message in unsupported format.');
 
                 try {
-                    await webSocketService[privateProperties.handleRequest](message);
+                    await service[properties.handleRequest](message);
                 } catch (error) {
-                    expect(error).toEqual(new Error('Message in unsupported format.'));
+                    expect(error).toEqual(error);
                 }
             });
 
@@ -191,11 +195,10 @@ describe('WebSocketService', () => {
                 };
 
                 const error = new Error('beep');
-
-                webSocketService[privateProperties.handleBoardRequest] = jest.fn(() => Promise.reject(error));
+                spyOn<any>(service, 'handleBoardRequest').and.returnValue(Promise.reject(error));
 
                 try {
-                    await webSocketService[privateProperties.handleRequest](message);
+                    await service[properties.handleRequest](message);
                 } catch (error) {
                     expect(error).toEqual(error);
                 }
@@ -203,25 +206,163 @@ describe('WebSocketService', () => {
         });
     });
 
-    // describe('#handleProgramRequest', () => {
-    //     test('should execute program on board', () => {
-    //         const requestBody = new ProgramRequestBody({
-    //             action: PROGRAM_REQUEST_ACTION.EXEC,
-    //             programId: '1',
-    //             boardId: '1',
-    //             repeat: 2
-    //         });
-    //
-    //
-    //         webSocketService.handleProgramRequest();
-    //     });
-    // });
-    //
-    // describe('#handleCommandRequest', () => {
-    //     test('', () => {
-    //
-    //     });
-    // });
+    describe('#handleProgramRequest', () => {
+        const program = {
+            id: '1',
+            name: 'test',
+            deviceType: 'all',
+        };
+        const requestBody = new ProgramRequestBody({
+            action: undefined,
+            programId: '1',
+            boardId: '1',
+            repeat: 2,
+            program,
+        });
+
+        test('should execute program on board', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.EXEC;
+            const expected = {
+                responseCode: NO_CONTENT,
+                responseBody: undefined,
+            };
+
+            spyOn(service[properties.programService], 'getProgramById').and.returnValue(program);
+            const spy = spyOn(service[properties.programService], 'executeProgramOnBoard').and.returnValue(
+                Promise.resolve(),
+            );
+
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spy).toHaveBeenCalledWith(requestBody.boardId, program, requestBody.repeat);
+            expect(result).toEqual(expected);
+        });
+
+        test('should halt execution of program on board', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.HALT;
+            const expected = {
+                responseCode: NO_CONTENT,
+                responseBody: undefined,
+            };
+
+            const spy = spyOn(service[properties.programService], 'stopProgram');
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spy).toHaveBeenCalledWith(requestBody.boardId);
+            expect(result).toEqual(expected);
+        });
+
+        test('should return a specific program', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.GET;
+            const expected = {
+                responseCode: OK,
+                responseBody: new ProgramResponseBody({ programs: [program] }),
+            };
+
+            const spy = spyOn(service[properties.programService], 'getProgramById').and.returnValue(program);
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spy).toHaveBeenCalledWith(requestBody.boardId);
+            expect(result).toEqual(expected);
+        });
+
+        test('should return all programs', async () => {
+            requestBody.programId = undefined;
+            requestBody.action = PROGRAM_REQUEST_ACTION.GET;
+
+            const expected = {
+                responseCode: OK,
+                responseBody: new ProgramResponseBody({ programs: [program] }),
+            };
+
+            const spy = spyOn(service[properties.programService], 'getAllPrograms').and.returnValue([program]);
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spy).toHaveBeenCalled();
+            expect(result).toEqual(expected);
+        });
+
+        test('should add a new program to the system', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.POST;
+
+            const expected = {
+                responseCode: CREATED,
+                responseBody: new ProgramResponseBody({ programId: program.id }),
+            };
+
+            const spyCreate = spyOn(ProgramService, 'createProgram').and.returnValue(program);
+            const spyAdd = spyOn(service[properties.programService], 'addProgram').and.returnValue(
+                Promise.resolve(program.id),
+            );
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spyCreate).toHaveBeenCalledWith(program);
+            expect(spyAdd).toHaveBeenCalledWith(program);
+            expect(result).toEqual(expected);
+        });
+
+        test('should update an existing program', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.PUT;
+
+            const expected = {
+                responseCode: NO_CONTENT,
+                responseBody: undefined,
+            };
+
+            const spyUpdate = spyOn(service[properties.programService], 'updateProgram').and.returnValue(
+                Promise.resolve(),
+            );
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spyUpdate).toHaveBeenCalledWith(program);
+            expect(result).toEqual(expected);
+        });
+
+        test('should delete an existing program', async () => {
+            requestBody.action = PROGRAM_REQUEST_ACTION.DELETE;
+            requestBody.programId = program.id;
+
+            const expected = {
+                responseCode: NO_CONTENT,
+                responseBody: undefined,
+            };
+
+            const spyDelete = spyOn(service[properties.programService], 'deleteProgram').and.returnValue(
+                Promise.resolve(),
+            );
+            const result = await service[properties.handleProgramRequest](requestBody);
+
+            expect(spyDelete).toHaveBeenCalledWith(program.id);
+            expect(result).toEqual(expected);
+        });
+    });
+
+    describe('#handleCommandRequest', () => {
+        const board = {
+            id: '1',
+        };
+        const request = new CommandRequestBody({ boardId: board.id, action: 'TOGGLELED' });
+
+        test('should execute the command', async () => {
+            const expected = {
+                responseCode: NO_CONTENT,
+                responseBody: undefined,
+            };
+            const command = {
+                action: request.action,
+                parameters: undefined,
+            };
+
+            const spy = spyOn(service[properties.programService], 'executeCommandOnBoard').and.returnValue(
+                Promise.resolve(),
+            );
+
+            const result = await service[properties.handleCommandRequest](request);
+
+            expect(spy).toHaveBeenCalledWith(request.boardId, command);
+            expect(result).toEqual(expected);
+        });
+    });
     //
     // describe('#handleBoardRequest', () => {
     //

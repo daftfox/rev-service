@@ -6,11 +6,11 @@ import {
     BoardUnavailableError,
     InvalidArgumentError,
 } from '../../error';
-// import {FirmataBoard} from './firmata-board.model';
 import { firmataBoardMockFactory } from './__mocks__/firmata-board.model';
 import { prepareOptions, Sequelize } from 'sequelize-typescript';
 import { FirmataBoard, PIN_STATE, SERIAL_PORT_ID } from './firmata-board.model';
 import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
+import { BoardDisconnectedEvent, BoardUpdatedEvent } from '../../event/base';
 jest.mock('./firmata-board.model');
 
 let board: Board;
@@ -198,14 +198,14 @@ describe('Board', () => {
             ])(
                 'should run %s method and emit update when running executeAction(%p, %p)',
                 (action: string, method: string, parameters: any[]) => {
-                    spyOn(firmataBoardMock.update, 'post');
-                    spyOn<any>(board, method);
+                    const spyEvent = spyOn(firmataBoardMock.event, 'post');
+                    const spyMethod = spyOn<any>(board, method);
                     board.online = true;
 
                     board.executeAction(action, parameters);
 
-                    expect(board[method]).toHaveBeenCalledWith(...parameters);
-                    expect(board[properties.firmataBoard].update.post).toHaveBeenCalled();
+                    expect(spyMethod).toHaveBeenCalledWith(...parameters);
+                    expect(spyEvent).toHaveBeenCalled();
                 },
             );
         });
@@ -439,7 +439,7 @@ describe('Board', () => {
 
         describe('exception flows', () => {
             test('should timeout if no response is received within 10 seconds', () => {
-                const spy = spyOn(firmataBoardMock.disconnect, 'post');
+                const spy = spyOn(firmataBoardMock.event, 'post');
                 board[properties.firmataBoard].queryFirmware = jest.fn(callback =>
                     setTimeout(callback, Board[properties.disconnectTimeout] + 1000),
                 );
@@ -451,7 +451,7 @@ describe('Board', () => {
                 );
 
                 expect(board[properties.heartbeatTimeout]).toBeUndefined();
-                expect(spy).toHaveBeenCalledWith();
+                expect(spy).toHaveBeenCalledWith(new BoardDisconnectedEvent());
             });
         });
     });
@@ -505,10 +505,10 @@ describe('Board', () => {
 
     describe('#emitUpdate', () => {
         test('should emit an update event containing a discrete copy of the board instance', () => {
-            const spy = spyOn(firmataBoardMock.update, 'post');
+            const spy = spyOn(firmataBoardMock.event, 'post');
             board[properties.emitUpdate]();
 
-            expect(spy).toHaveBeenCalledWith(board.toDiscrete());
+            expect(spy).toHaveBeenCalledWith(new BoardUpdatedEvent(board.toDiscrete()));
         });
     });
 

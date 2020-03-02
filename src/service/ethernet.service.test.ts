@@ -3,90 +3,95 @@ import { EthernetService } from './index';
 import { LoggerService } from './logger.service';
 jest.mock('./logger.service');
 jest.mock('./configuration.service');
+jest.mock('net');
 
-let ethernetService: any;
+let service: EthernetService;
+
+const properties = {
+    server: 'server',
+    connectToBoard: 'connectToBoard',
+    handleDisconnected: 'handleDisconnected',
+    handleConnectionRequest: 'handleConnectionRequest',
+};
 
 beforeEach(() => {
-    ethernetService = new EthernetService();
+    service = new EthernetService();
 });
 
 afterEach(() => {
-    ethernetService.closeServer();
+    service.closeServer();
 });
 
 describe('EthernetService', () => {
     describe('constructor', () => {
         test('should be instantiated', () => {
-            expect(ethernetService).toBeDefined();
+            expect(service).toBeDefined();
         });
 
         test('should have created a Server instance', () => {
-            expect(ethernetService.server).toBeDefined();
+            expect(service[properties.server]).toBeDefined();
         });
     });
 
     describe('#listen', () => {
         test('should have logged an info message', () => {
-            ethernetService.server.listen = jest.fn();
-
-            ethernetService.listen();
+            service.listen();
 
             expect(LoggerService.info).toHaveBeenCalled();
         });
 
         test('should have created a Server instance', () => {
-            ethernetService.server.listen = jest.fn();
-            ethernetService.listen();
+            service.listen();
 
-            expect(ethernetService.server.listen).toHaveBeenCalled();
+            expect(service[properties.server].listen).toHaveBeenCalled();
         });
     });
 
     describe('#handleConnectionRequest', () => {
         test('should log a debug message and call connectToBoard', async () => {
-            ethernetService.connectToBoard = jest.fn(() => Promise.resolve({ id: 'bacon' }));
+            const spy = spyOn<any>(service, 'connectToBoard').and.returnValue(Promise.resolve({ id: 'bacon' }));
 
             const mockSocket = new Socket();
 
-            await ethernetService.handleConnectionRequest(mockSocket);
+            await service[properties.handleConnectionRequest](mockSocket);
 
             expect(LoggerService.debug).toHaveBeenCalled();
-            expect(ethernetService.connectToBoard).toHaveBeenCalled();
+            expect(spy).toHaveBeenCalled();
         });
 
         test('should execute handleDisconnected method', async () => {
-            ethernetService.handleDisconnected = jest.fn();
-            ethernetService.connectToBoard = jest.fn(() => Promise.reject({}));
+            const spyDisconnected = spyOn<any>(service, 'handleDisconnected');
+            const spyConnectToBoard = spyOn<any>(service, 'connectToBoard').and.returnValue(Promise.reject());
 
             const mockSocket = new Socket();
 
-            await ethernetService.handleConnectionRequest(mockSocket);
+            await service[properties.handleConnectionRequest](mockSocket);
 
-            expect(ethernetService.handleDisconnected).toHaveBeenCalled();
-            expect(ethernetService.connectToBoard).toHaveBeenCalled();
+            expect(spyDisconnected).toHaveBeenCalled();
+            expect(spyConnectToBoard).toHaveBeenCalled();
         });
     });
 
     describe('#closeServer', () => {
         test('should have called server.close', () => {
-            ethernetService.server.close = jest.fn();
+            const spy = spyOn(service[properties.server], 'close');
 
-            ethernetService.closeServer();
+            service.closeServer();
 
-            expect(ethernetService.server.close).toHaveBeenCalled();
+            expect(spy).toHaveBeenCalled();
         });
     });
 
     describe('#handleDisconnected', () => {
         test('should call socket.end and socket.destroy methods', () => {
             const mockSocket = new Socket();
-            mockSocket.end = jest.fn();
-            mockSocket.destroy = jest.fn();
+            const spyEnd = spyOn(mockSocket, 'end');
+            const spyDestroy = spyOn(mockSocket, 'destroy');
 
-            ethernetService.handleDisconnected(mockSocket);
+            service[properties.handleDisconnected](mockSocket);
 
-            expect(mockSocket.end).toHaveBeenCalled();
-            expect(mockSocket.destroy).toHaveBeenCalled();
+            expect(spyEnd).toHaveBeenCalled();
+            expect(spyDestroy).toHaveBeenCalled();
         });
     });
 });
