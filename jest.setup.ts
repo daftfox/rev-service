@@ -1,5 +1,5 @@
 import 'reflect-metadata';
 
 console.warn = () => {};
-console.info = () => {};
+// console.info = () => {};
 // console.log = () => {};
