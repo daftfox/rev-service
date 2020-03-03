@@ -144,8 +144,8 @@ pages:
     - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test-unit/
     - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test-e2e/
     - mv reports/coverage/lcov-report/* public/reports/$CI_COMMIT_REF_NAME/coverage/
-    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test-unit/
-    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test-e2e/
+    - mv reports/test-unit/* public/reports/$CI_COMMIT_REF_NAME/test-unit/
+    - mv reports/test-e2e/* public/reports/$CI_COMMIT_REF_NAME/test-e2e/
   artifacts:
     paths:
       - public
