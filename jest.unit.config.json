@@ -22,8 +22,8 @@
         [
             "jest-html-reporter",
             {
-                "pageTitle": "rev-service test report",
-                "outputPath": "reports/test/index.html",
+                "pageTitle": "rev-service unit test report",
+                "outputPath": "reports/test-unit/index.html",
                 "theme": "darkTheme",
                 "dateFormat": "dd-mm-yyyy HH:MM:ss"
             }

@@ -79,6 +79,9 @@ e2e-test:
       - node_modules/
       - .yarn
     policy: pull
+  artifacts:
+    paths:
+      - reports/
   script:
     - yarn test:e2e
 
@@ -135,11 +138,14 @@ pages:
     policy: pull
   dependencies:
     - unit-test
+    - e2e-test
   script:
     - mkdir -p public/reports/$CI_COMMIT_REF_NAME/coverage/
-    - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test/
+    - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test-unit/
+    - mkdir -p public/reports/$CI_COMMIT_REF_NAME/test-e2e/
     - mv reports/coverage/lcov-report/* public/reports/$CI_COMMIT_REF_NAME/coverage/
-    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test/
+    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test-unit/
+    - mv reports/test/* public/reports/$CI_COMMIT_REF_NAME/test-e2e/
   artifacts:
     paths:
       - public

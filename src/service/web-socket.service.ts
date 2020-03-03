@@ -1,5 +1,5 @@
-import * as WebSocket from 'websocket';
-import { createServer, Server } from 'http';
+import { connection, request as WebSocketRequest, IMessage, server as WebSocketServer } from 'websocket';
+import { createServer, Server as HttpServer } from 'http';
 import { LoggerService } from './logger.service';
 import { BoardService } from './board.service';
 import { Program, ICommand } from '../domain/program';
@@ -24,7 +24,7 @@ import {
 import { BAD_REQUEST, CREATED, NO_CONTENT, OK } from 'http-status-codes';
 import { container, singleton } from 'tsyringe';
 import { ConfigurationService } from './configuration.service';
-import { BoardConnectedEvent, BoardDisconnectedEvent, BoardUpdatedEvent, Event } from '../domain/event/base';
+import { BoardConnectedEvent, BoardDisconnectedEvent, BoardUpdatedEvent } from '../domain/event/base';
 import { matchBoardConnectedEvent, matchBoardDisonnectedEvent, matchBoardUpdatedEvent } from '../domain/event/matcher';
 
 /**
@@ -34,8 +34,8 @@ import { matchBoardConnectedEvent, matchBoardDisonnectedEvent, matchBoardUpdated
 @singleton()
 export class WebSocketService {
     private namespace = `web-socket`;
-    private webSocketServer: WebSocket.server;
-    private httpServer: Server;
+    private webSocketServer: WebSocketServer;
+    private httpServer: HttpServer;
     private boardService: BoardService;
     private programService: ProgramService;
     readonly port: number;
@@ -51,7 +51,7 @@ export class WebSocketService {
     /**
      * Send a response message to a specific client.
      */
-    private static sendResponse(client: WebSocket.connection, response: Response): void {
+    private static sendResponse(client: connection, response: Response): void {
         client.sendUTF(response.toJSON());
     }
 
@@ -68,7 +68,7 @@ export class WebSocketService {
      */
     public listen(): void {
         this.httpServer = createServer().listen(this.port);
-        this.webSocketServer = new WebSocket.server({
+        this.webSocketServer = new WebSocketServer({
             httpServer: this.httpServer,
         });
 
@@ -87,7 +87,7 @@ export class WebSocketService {
     /**
      * Handles new WebSocket connection requests.
      */
-    private handleConnectionRequest = async (request: WebSocket.request): Promise<void> => {
+    private handleConnectionRequest = async (request: WebSocketRequest): Promise<void> => {
         return new Promise(async (resolve, reject) => {
             const client = request.accept(undefined, request.origin);
 
@@ -105,7 +105,7 @@ export class WebSocketService {
     /**
      * Handles received WebSocket requests and routes it to the corresponding method to construct the response.
      */
-    private handleRequest = async (message: WebSocket.IMessage): Promise<Response> => {
+    private handleRequest = async (message: IMessage): Promise<Response> => {
         return new Promise(async (resolve, reject) => {
             if (message.type !== 'utf8') {
                 reject(new Error('Message in unsupported format.'));
