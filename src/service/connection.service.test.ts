@@ -126,9 +126,9 @@ describe('ConnectionService', () => {
 
     describe('#handleUpdateEvent', () => {
         test('should run updateOnlineBoard method of model when an update event was received', () => {
-            service[properties.handleUpdateEvent](dataValuesMock);
+            service[properties.handleUpdateEvent](new BoardUpdatedEvent(discreteBoardMock));
 
-            expect(service[properties.model].updateBoard).toHaveBeenCalledWith(dataValuesMock);
+            expect(service[properties.model].updateBoard).toHaveBeenCalledWith(discreteBoardMock);
         });
     });
 });

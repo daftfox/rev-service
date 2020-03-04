@@ -30,7 +30,7 @@ export class ConfigurationService {
     private static flags = Args.option('port', 'Port from which the WebSocket service will be served.', 3001)
         .option('ethernetPort', 'Port from which the ethernet service will be served.', 9000)
         .option('debug', 'Enable debug logging.', false)
-        .option('serial', 'Enable serial interface.', true)
+        .option('serial', 'Enable serial interface.', false)
         .option('ethernet', 'Enable ethernet interface.', true)
         .option('dbSchema', 'The default schema to use', 'rev')
         .option('dbHost', "The database server's address.", 'localhost')

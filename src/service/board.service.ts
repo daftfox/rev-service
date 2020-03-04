@@ -177,10 +177,9 @@ export class BoardService {
             board = BoardDAO.createBoardInstance(board.getDataValues());
             board.attachFirmataBoard(firmataBoard);
         }
+        board.update(boardUpdates);
 
-        const updatedBoard = Object.assign(board, boardUpdates);
-
-        return this.persistChanges(updatedBoard);
+        return this.persistChanges(board);
     }
 
     private async persistChanges(board: Board): Promise<Board> {

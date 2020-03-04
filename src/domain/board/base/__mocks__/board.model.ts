@@ -35,6 +35,7 @@ export class Board {
     firmataBoard = undefined;
     online = false;
     currentProgram = 'IDLE';
+    update = jest.fn();
     attachFirmataBoard = jest.fn((fb: FirmataBoard) => (this.firmataBoard = fb));
     getFirmataBoard = jest.fn(() => this.firmataBoard);
     toDiscrete = jest.fn(() => discreteBoardMock);

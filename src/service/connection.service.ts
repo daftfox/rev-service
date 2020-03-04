@@ -5,6 +5,7 @@ import { Board, FirmataBoard, IBoard, IBoardDataValues } from '../domain/board';
 import { container, injectable } from 'tsyringe';
 import {
     BoardErrorEvent,
+    BoardUpdatedEvent,
     matchAndTransformFirmwareUpdate,
     matchBoardDisonnectedEvent,
     matchBoardErrorEvent,
@@ -53,12 +54,12 @@ export class ConnectionService {
                 type: undefined,
             };
 
+            firmataBoard.event.attach(matchBoardUpdatedEvent, this.handleUpdateEvent);
+
             firmataBoard.event.attach(matchBoardErrorEvent, (event: BoardErrorEvent) => {
                 LoggerService.debug(event.error.message);
                 reject(dataValues.id);
             });
-
-            firmataBoard.event.attach(matchBoardUpdatedEvent, this.handleUpdateEvent);
 
             firmataBoard.event.attachOnce(matchBoardDisonnectedEvent, () => {
                 this.handleDisconnectEvent(dataValues.id, reject);
@@ -71,7 +72,8 @@ export class ConnectionService {
             try {
                 dataValues = await firmataBoard.event.waitFor(matchAndTransformFirmwareUpdate, CONNECTION_TIMEOUT);
                 await firmataBoard.event.waitFor(matchBoardReadyEvent, CONNECTION_TIMEOUT);
-                resolve(await this.handleConnectionEstablished(dataValues, firmataBoard));
+                const board = await this.handleConnectionEstablished(dataValues, firmataBoard);
+                resolve(board);
             } catch (error) {
                 this.handleConnectionTimeout(firmataBoard);
                 reject();
@@ -87,8 +89,8 @@ export class ConnectionService {
         reject(boardId);
     };
 
-    private handleUpdateEvent = (update: IBoard): void => {
-        this.model.updateBoard(update);
+    private handleUpdateEvent = (updateEvent: BoardUpdatedEvent): void => {
+        this.model.updateBoard(updateEvent.board);
     };
 
     private handleConnectionTimeout = (firmataBoard: FirmataBoard) => {

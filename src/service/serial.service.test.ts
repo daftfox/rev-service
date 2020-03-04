@@ -55,7 +55,7 @@ describe('SerialService', () => {
             jest.advanceTimersByTime(20000);
             jest.useRealTimers();
 
-            expect(spy).toHaveBeenCalledTimes(2);
+            expect(spy).toHaveBeenCalledTimes(20);
         });
     });
 

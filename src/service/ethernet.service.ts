@@ -44,6 +44,7 @@ export class EthernetService extends ConnectionService {
     }
 
     protected handleConnected = (board: Board): void => {
+        board.setIsSerialConnection(false);
         LoggerService.info(`Device ${LoggerService.highlight(board.id, 'blue', true)} connected.`, this.namespace);
     };
 

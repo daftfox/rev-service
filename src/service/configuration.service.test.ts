@@ -8,7 +8,7 @@ const expectedDefaultConfiguration = {
     port: 3001,
     ethernetPort: 9000,
     debug: false,
-    serial: true,
+    serial: false,
     ethernet: true,
     dbSchema: 'rev',
     dbHost: 'localhost',
@@ -22,7 +22,7 @@ const expectedDefaultConfiguration = {
     d: false,
     e: 9000,
     p: 3001,
-    s: true,
+    s: false,
 };
 
 const properties = {

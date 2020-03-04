@@ -76,12 +76,10 @@ export class SerialService extends ConnectionService {
     };
 
     private filterPorts = (ports: SerialPort.PortInfo[]): SerialPort.PortInfo[] => {
-        return (
-            ports
-                // .filter(port => port.productId !== undefined) // necessary?
-                .filter(port => this.usedPorts.indexOf(port.path) < 0)
-                .filter(port => this.unsupportedDevices.indexOf(port.path) < 0)
-        );
+        return ports
+            .filter(port => port.productId !== undefined) // necessary?
+            .filter(port => this.usedPorts.indexOf(port.path) < 0)
+            .filter(port => this.unsupportedDevices.indexOf(port.path) < 0);
     };
 
     private attemptConnectionToPorts(ports: SerialPort.PortInfo[]): Promise<void> {
