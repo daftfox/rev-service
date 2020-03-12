@@ -7,7 +7,7 @@ import {
     InvalidArgumentError,
 } from '../../error';
 import { firmataBoardMockFactory } from './__mocks__/firmata-board.model';
-import { prepareOptions, Sequelize } from 'sequelize-typescript';
+import { Sequelize } from 'sequelize-typescript';
 import { FirmataBoard, PIN_STATE, SERIAL_PORT_ID } from './firmata-board.model';
 import { AVAILABLE_EXTENSIONS_KEYS } from '../extension';
 import { BoardDisconnectedEvent, BoardUpdatedEvent } from '../../event/base';
@@ -32,9 +32,9 @@ const properties = {
     blinkInterval: 'blinkInterval',
     setPinValue: 'setPinValue',
     startHeartbeat: 'startHeartbeat',
-    heartbeatInterval: 'heartbeatInterval',
+    HEARTBEAT_INTERVAL: 'HEARTBEAT_INTERVAL',
     heartbeatTimeout: 'heartbeatTimeout',
-    disconnectTimeout: 'disconnectTimeout',
+    DISCONNECT_TIMEOUT: 'DISCONNECT_TIMEOUT',
     serialWriteBytes: 'serialWriteBytes',
     attachDigitalPinListeners: 'attachDigitalPinListeners',
     attachAnalogPinListeners: 'attachAnalogPinListeners',
@@ -419,7 +419,7 @@ describe('Board', () => {
                 const intervalSpy = spyOn(global, 'setInterval').and.callThrough();
                 board[properties.startHeartbeat]();
 
-                jest.advanceTimersByTime(Board[properties.heartbeatInterval]);
+                jest.advanceTimersByTime(Board[properties.HEARTBEAT_INTERVAL]);
 
                 expect(intervalSpy).toHaveBeenCalled();
                 expect(board[properties.heartbeatTimeout]).toBeDefined();
@@ -431,7 +431,7 @@ describe('Board', () => {
 
                 board[properties.startHeartbeat]();
 
-                jest.advanceTimersByTime(Board[properties.heartbeatInterval] * numHeartbeats);
+                jest.advanceTimersByTime(Board[properties.HEARTBEAT_INTERVAL] * numHeartbeats);
 
                 expect(board[properties.firmataBoard].queryFirmware).toHaveBeenCalledTimes(numHeartbeats);
             });
@@ -441,13 +441,13 @@ describe('Board', () => {
             test('should timeout if no response is received within 10 seconds', () => {
                 const spy = spyOn(firmataBoardMock.event, 'post');
                 board[properties.firmataBoard].queryFirmware = jest.fn(callback =>
-                    setTimeout(callback, Board[properties.disconnectTimeout] + 1000),
+                    setTimeout(callback, Board[properties.DISCONNECT_TIMEOUT] + 1000),
                 );
 
                 board[properties.startHeartbeat]();
 
                 jest.advanceTimersByTime(
-                    Board[properties.heartbeatInterval] + Board[properties.disconnectTimeout] + 100,
+                    Board[properties.HEARTBEAT_INTERVAL] + Board[properties.DISCONNECT_TIMEOUT] + 100,
                 );
 
                 expect(board[properties.heartbeatTimeout]).toBeUndefined();

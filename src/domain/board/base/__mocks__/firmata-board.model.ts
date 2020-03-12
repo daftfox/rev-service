@@ -1,6 +1,4 @@
 import { Evt } from 'ts-evt';
-import { IBoardDataValues } from '../../interface/board-data-values.interface';
-import { IBoard } from '../../interface';
 import { Socket } from 'net';
 import * as fb from 'firmata';
 import { dataValuesMock, discreteBoardMock } from './board.model';
@@ -8,10 +6,11 @@ import {
     BoardDisconnectedEvent,
     BoardReadyEvent,
     BoardUpdatedEvent,
+    BoardErrorEvent,
     Event,
     FirmwareUpdatedEvent,
 } from '../../../event/base';
-import { BoardErrorEvent } from '../../../event/base/board-error.model';
+import Timeout = NodeJS.Timeout;
 jest.mock('net');
 jest.mock('firmata');
 
@@ -21,7 +20,7 @@ export class FirmataBoard extends fb {
     constructor(port: Socket | string) {
         super(port);
 
-        this.mockTimer = setInterval(this.mockCalls);
+        this.mockTimer = setInterval(this.mockCalls, 100);
     }
     static postFirmwareUpdate = false;
     static postReady = false;
@@ -31,7 +30,7 @@ export class FirmataBoard extends fb {
 
     public event = new Evt<Event>();
 
-    private mockTimer: number;
+    private mockTimer: Timeout;
 
     public static resetMocks(): void {
         FirmataBoard.postError = false;

@@ -14,8 +14,7 @@ import {
 import { injectable } from 'tsyringe';
 import { IBoardDataValues } from '../';
 import { FirmataBoard, Pins, SERIAL_PORT_ID } from './firmata-board.model';
-import { BoardDisconnectedEvent, BoardUpdatedEvent, Event, FirmwareUpdatedEvent } from '../../event/base';
-import { matchFirmwareUpdatedEvent } from '../../event/matcher';
+import { BoardDisconnectedEvent, BoardUpdatedEvent } from '../../event/base';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
