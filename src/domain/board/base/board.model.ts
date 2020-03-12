@@ -433,31 +433,31 @@ export class Board extends Model<Board> implements IBoard {
             bytesPayload.push(value);
         }
 
-        let serialRetry: Timeout;
-        let retryCount = 0;
-        const checkForAck = (bytes: number[]) => {
-            // check if the first (and likely only) byte received is 0x06, which is an ACK
-            if (bytes[0] === 0x06) {
-                LoggerService.debug(`Received ACK for payload ${bytesPayload.join()}.`);
-                clearInterval(serialRetry);
-                this.firmataBoard.removeListener(
-                    `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`,
-                    checkForAck,
-                );
-            }
-        };
-        this.firmataBoard.serialRead(this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck);
+        // let serialRetry: Timeout;
+        // let retryCount = 0;
+        // const checkForAck = (bytes: number[]) => {
+        //     // check if the first (and likely only) byte received is 0x06, which is an ACK
+        //     if (bytes[0] === 0x06) {
+        //         LoggerService.debug(`Received ACK for payload ${bytesPayload.join()}.`);
+        //         clearInterval(serialRetry);
+        //         this.firmataBoard.removeListener(
+        //             `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`,
+        //             checkForAck,
+        //         );
+        //     }
+        // };
+        // this.firmataBoard.serialRead(this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck);
         this.firmataBoard.serialWrite(serialPort, bytesPayload);
 
-        serialRetry = setInterval(() => {
-            if (retryCount >= Board.MAX_SERIAL_WRITE_RETRY_COUNT) {
-                clearInterval(serialRetry);
-                return;
-            }
-            retryCount++;
-            LoggerService.debug(`Retrying serialWrite. Attempt #${retryCount}`, this.namespace);
-            this.firmataBoard.serialWrite(serialPort, bytesPayload);
-        }, 1000);
+        // serialRetry = setInterval(() => {
+        //     if (retryCount >= Board.MAX_SERIAL_WRITE_RETRY_COUNT) {
+        //         clearInterval(serialRetry);
+        //         return;
+        //     }
+        //     retryCount++;
+        //     LoggerService.debug(`Retrying serialWrite. Attempt #${retryCount}`, this.namespace);
+        //     this.firmataBoard.serialWrite(serialPort, bytesPayload);
+        // }, 1000);
     }
 
     /**
