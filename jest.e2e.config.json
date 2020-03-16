@@ -1,0 +1,23 @@
+{
+    "roots": ["<rootDir>/e2e"],
+    "testTimeout": 20000,
+    "transform": {
+        "^.+\\.ts?$": "ts-jest"
+    },
+    "testMatch": ["**/?(*.)e2e.ts"],
+    "moduleFileExtensions": ["ts", "js"],
+    "collectCoverage": false,
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
+    "reporters": [
+        "default",
+        [
+            "jest-html-reporter",
+            {
+                "pageTitle": "rev-service e2e test report",
+                "outputPath": "reports/test-e2e/index.html",
+                "theme": "darkTheme",
+                "dateFormat": "dd-mm-yyyy HH:MM:ss"
+            }
+        ]
+    ]
+}

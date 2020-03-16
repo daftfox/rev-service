@@ -1,7 +1,8 @@
 #! /usr/bin/env node
 
 'use strict';
-import MainController from './controller/main';
+import 'reflect-metadata';
+import { MainController } from './controller';
 const main = new MainController();
 
 main.startAllServices();

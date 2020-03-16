@@ -1,8 +1,8 @@
-import IProgram from '../../interface/program';
-import IProgramRequestBody from '../../interface/program-request-body.interface';
-import { PROGRAM_REQUEST_ACTION } from '../../enum/program-request-action.enum';
+import { IProgramRequestBody } from '../interface';
+import { PROGRAM_REQUEST_ACTION } from '../enum';
+import { IProgram } from '../../program/interface';
 
-export default class ProgramRequestBody {
+export class ProgramRequestBody implements IProgramRequestBody {
     action: PROGRAM_REQUEST_ACTION;
     program: IProgram;
     programId: string;

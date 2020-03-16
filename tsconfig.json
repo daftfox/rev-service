@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "ESNext",
         "module": "commonjs",
         "outDir": "dist",
         "sourceMap": true,
@@ -10,5 +10,5 @@
         "allowSyntheticDefaultImports": true
     },
     "include": ["src/**/*.ts"],
-    "exclude": ["**/test/*", "node_modules"]
+    "exclude": ["node_modules"]
 }

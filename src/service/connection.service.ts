@@ -1,49 +1,44 @@
-import BoardsModel from '../model/boards.model';
-import * as FirmataBoard from 'firmata';
-import LoggerService from './logger.service';
-import * as net from 'net';
-import IBoard from '../domain/interface/board';
-import Board from '../domain/board';
-import Chalk from 'chalk';
+import { BoardService } from './board.service';
+import { LoggerService } from './logger.service';
+import { Socket } from 'net';
+import { Board, FirmataBoard, IBoard, IBoardDataValues } from '../domain/board';
+import { container, injectable } from 'tsyringe';
+import {
+    BoardErrorEvent,
+    BoardUpdatedEvent,
+    matchAndTransformFirmwareUpdate,
+    matchBoardDisonnectedEvent,
+    matchBoardErrorEvent,
+    matchBoardReadyEvent,
+    matchBoardUpdatedEvent,
+} from '../domain/event';
 
-/**
- * A service that implements method(s) to connect to devices compatible with the firmata protocol.
- *
- * @namespace ConnectionService
- */
-class ConnectionService {
+export const CONNECTION_TIMEOUT = 10000;
+
+@injectable()
+export class ConnectionService {
     /**
-     * Local instance of {#link BoardsModel}.
+     * Local instance of {#link BoardService}.
      *
      * @access private
-     * @type {BoardsModel}
+     * @type {BoardService}
      */
-    protected model: BoardsModel;
+    protected model: BoardService;
 
     /**
-     * Namespace used by the local instance of {@link LoggerService}
+     * Namespace used by the {@link LoggerService}
      *
      * @access protected
      * @type {string}
      */
-    protected namespace = 'ConnectionService';
-
-    /**
-     * Local instance of the {@link LoggerService} class.
-     *
-     * @access protected
-     * @type {LoggerService}
-     */
-    protected log: LoggerService;
+    protected namespace = 'connection-service';
 
     /**
      * @constructor
-     * @param {BoardsModel} model - Data model.
+     * @param {BoardService} model - Data model.
      */
-    constructor(model: BoardsModel) {
-        this.model = model;
-
-        this.log = new LoggerService(this.namespace);
+    constructor() {
+        this.model = container.resolve(BoardService);
     }
 
     /**
@@ -51,64 +46,63 @@ class ConnectionService {
      *
      * @param {net.Socket} port - An EtherPort object or serial port address
      */
-    protected async connectToBoard(port: net.Socket | string): Promise<IBoard> {
-        return new Promise<IBoard>((resolve, reject) => {
+    protected async connectToBoard(port: Socket | string): Promise<Board> {
+        return new Promise<Board>(async (resolve, reject) => {
             const firmataBoard = new FirmataBoard(port);
-            const board = new Board(undefined, undefined, firmataBoard);
+            let dataValues: IBoardDataValues = {
+                id: undefined,
+                type: undefined,
+            };
+
+            firmataBoard.event.attach(matchBoardUpdatedEvent, this.handleUpdateEvent);
+
+            firmataBoard.event.attach(matchBoardErrorEvent, (event: BoardErrorEvent) => {
+                LoggerService.debug(event.error.message);
+                reject(dataValues.id);
+            });
+
+            firmataBoard.event.attachOnce(matchBoardDisonnectedEvent, () => {
+                this.handleDisconnectEvent(dataValues.id, reject);
+            });
 
             /*
-             * Set a 10 second timeout.
+             * Wait ten seconds for a successful connection.
              * The device is deemed unsupported if a connection could not be made within that period.
              */
-            const connectionTimeout = setTimeout(() => {
-                this.handleConnectionTimeout(firmataBoard, reject);
-            }, 10000);
-
-            firmataBoard.on('ready', async () => {
-                clearTimeout(connectionTimeout);
-                await this.handleConnectionEstablished(board, resolve);
-            });
-
-            firmataBoard.on('error', e => {
-                reject(board);
-            });
-
-            firmataBoard.on('update', this.handleUpdateEvent);
-
-            firmataBoard.once('disconnect', () => {
-                this.handleDisconnectEvent(board, reject);
-            });
+            try {
+                dataValues = await firmataBoard.event.waitFor(matchAndTransformFirmwareUpdate, CONNECTION_TIMEOUT);
+                await firmataBoard.event.waitFor(matchBoardReadyEvent, CONNECTION_TIMEOUT);
+                const board = await this.handleConnectionEstablished(dataValues, firmataBoard);
+                resolve(board);
+            } catch (error) {
+                this.handleConnectionTimeout(firmataBoard);
+                reject();
+            }
         });
     }
 
-    private handleDisconnectEvent = (board: Board, reject: (board: Board) => void) => {
-        this.log.debug('Disconnect event received from board.');
-        this.log.info(`Device ${Chalk.rgb(0, 143, 255).bold(board.id)} disconnected.`);
+    private handleDisconnectEvent = (boardId: string, reject: (boardId: string) => void) => {
+        LoggerService.debug('Disconnect event received from board.', this.namespace);
+        LoggerService.info(`Device ${LoggerService.highlight(boardId, 'blue', true)} disconnected.`, this.namespace);
 
-        this.model.disconnectBoard(board.id);
-        reject(board);
+        this.model.disconnectBoard(boardId);
+        reject(boardId);
     };
 
-    private handleUpdateEvent = (update: IBoard) => {
-        this.model.updateBoard(update);
+    private handleUpdateEvent = (updateEvent: BoardUpdatedEvent): void => {
+        this.model.updateBoard(updateEvent.board);
     };
 
-    private handleConnectionTimeout = (firmataBoard: FirmataBoard, reject: () => void) => {
-        this.log.warn('Timeout while connecting to device.');
+    private handleConnectionTimeout = (firmataBoard: FirmataBoard) => {
+        LoggerService.warn('Timeout while connecting to device.', this.namespace);
 
         firmataBoard.removeAllListeners();
-        reject();
     };
 
-    private handleConnectionEstablished = async (board: Board, resolve: () => void): Promise<IBoard> => {
-        /*
-         * The type and ID are defined by the name of the Arduino sketch file.
-         * For now the following devices have a tailor made class:
-         * - Major Tom ( MajorTom_<unique_identifier>.ino )
-         */
-        resolve();
-        return this.model.addBoard(board);
+    private handleConnectionEstablished = async (
+        dataValues: IBoardDataValues,
+        firmataBoard: FirmataBoard,
+    ): Promise<Board> => {
+        return this.model.addBoard(dataValues, firmataBoard);
     };
 }
-
-export default ConnectionService;

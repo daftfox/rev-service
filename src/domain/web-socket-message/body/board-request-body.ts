@@ -1,8 +1,8 @@
-import IBoard from '../../interface/board';
-import { BOARD_REQUEST_ACTION } from '../../enum/board-request-action.enum';
-import IBoardRequestBody from '../../interface/board-request-body.interface';
+import { IBoard } from '../../board';
+import { BOARD_REQUEST_ACTION } from '../enum';
+import { IBoardRequestBody } from '../interface';
 
-export default class BoardRequestBody implements IBoardRequestBody {
+export class BoardRequestBody implements IBoardRequestBody {
     action: BOARD_REQUEST_ACTION;
     boardId: string;
     board: IBoard;
