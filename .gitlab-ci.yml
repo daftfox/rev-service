@@ -32,9 +32,9 @@ install_dependencies:
       - .yarn
   script:
     - yarn
-  only:
-    changes:
-      - yarn.lock
+#  only:
+#    changes:
+#      - yarn.lock
 
 build:
   stage: build
