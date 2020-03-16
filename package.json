@@ -1,5 +1,5 @@
 {
-    "name": "rev-service",
+    "name": "@rev-control/service",
     "version": "0.0.5-8",
     "description": "A webservice for controlling and monitoring micro-controllers",
     "keywords": [
