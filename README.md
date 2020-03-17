@@ -7,7 +7,7 @@
 
 ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/daftfox/rev-service?style=for-the-badge)
 
-[![npm](https://img.shields.io/npm/v/rev-service?color=success&style=for-the-badge)](https://www.npmjs.com/package/rev-service)
+[![npm](https://img.shields.io/npm/v/@rev-control/service?color=success&style=for-the-badge)](https://www.npmjs.com/package/@rev-control/service)
 
 [![Gitlab repository](https://img.shields.io/badge/gitlab-blue?logo=gitlab&style=for-the-badge)](https://gitlab.com/daftfox/rev-service)&nbsp;
 [![Github repository](https://img.shields.io/badge/github-blue?logo=github&style=for-the-badge)](https://github.com/daftfox/rev-service)&nbsp;
@@ -30,15 +30,15 @@ These instructions will get you a copy of the project up and running on your loc
 -   Nodejs. Tested on [11.14.0](https://nodejs.org/dist/v11.14.0/).
 -   NPM (this usually comes with the Nodejs installation).
 
-### Installing
-
-#### Using GIT
+### Development
 
 Clone the repository
 
 ```sh
 $ git clone https://github.com/daftfox/rev-service
 ```
+
+#### Using NPM
 
 Install dependencies
 
@@ -60,16 +60,26 @@ You should now be able to execute the rev service by running:
 $ npm start
 ```
 
-If you want to execute the rev service from other directories, run the following command in the root
-of the project directory to make a symbolic link to rev in your global `node_modules`:
+#### Using Yarn
+
+Install dependencies
 
 ```sh
-$ npm link
+$ cd rev-service
+$ yarn
 ```
 
-#### Using NPM
+```sh
+$ yarn add sqlite3
+```
 
-Install the package
+```sh
+$ yarn start
+```
+
+#### Installation
+
+Install the package from the npmjs artifactory
 
 ```sh
 $ npm install -g @rev-control/service

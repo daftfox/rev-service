@@ -29,8 +29,8 @@
         "dist/**/*"
     ],
     "scripts": {
-        "test:sequential": "npm test:unit && npm test:e2e",
-        "test:concurrent": "npm test:unit & npm test:e2e",
+        "test:sequential": "npm run test:unit && npm run test:e2e",
+        "test:concurrent": "npm run test:unit & npm run test:e2e",
         "test:unit": "jest --config=./jest.unit.config.json",
         "test:e2e": "jest --config=./jest.e2e.config.json",
         "start": "node ./dist/index.js",
