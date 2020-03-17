@@ -33,6 +33,7 @@ export const matchFirmwareUpdatedEvent = (event: Event): event is FirmwareUpdate
     return event instanceof FirmwareUpdatedEvent;
 };
 
-export const matchAndTransformFirmwareUpdate = (event: Event): [IBoardDataValues] => {
-    if (matchFirmwareUpdatedEvent(event)) return [event.dataValues];
-};
+export const matchAndTransformFirmwareUpdate = (event: Event): [IBoardDataValues] | null => 
+    !matchFirmwareUpdatedEvent(event) ? null : [ event.dataValues ]
+    ;
+
