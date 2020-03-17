@@ -127,7 +127,7 @@ publish:
     - build
   script:
     - yarn config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
-    - yarn publish
+    - yarn publish --access public --non-interactive
 
 pages:
   stage: deploy
