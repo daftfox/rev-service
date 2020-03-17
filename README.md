@@ -72,13 +72,13 @@ $ npm link
 Install the package
 
 ```sh
-$ npm install -g rev-service
+$ npm install -g @rev-control/service
 ```
 
 After which you should be able to execute the rev service anywhere by running the following command:
 
 ```sh
-$ rev [options]
+$ rev-service [options]
 ```
 
 ### Options
