@@ -1,4 +1,4 @@
-import { Evt } from 'ts-evt';
+import { Evt } from 'evt';
 import { Socket } from 'net';
 import * as fb from 'firmata';
 import { dataValuesMock, discreteBoardMock } from './board.model';
@@ -61,27 +61,27 @@ export class FirmataBoard extends fb {
     }
 
     public async postFirmwareUpdate(): Promise<void> {
-        await this.event.postOnceMatched(new FirmwareUpdatedEvent(dataValuesMock));
+        await this.event.postAsyncOnceHandled(new FirmwareUpdatedEvent(dataValuesMock));
         FirmataBoard.postFirmwareUpdate = false;
     }
 
     public async postReady(): Promise<void> {
-        await this.event.postOnceMatched(new BoardReadyEvent());
+        await this.event.postAsyncOnceHandled(new BoardReadyEvent());
         FirmataBoard.postReady = false;
     }
 
     public async postError(): Promise<void> {
-        await this.event.postOnceMatched(new BoardErrorEvent(errorMock));
+        await this.event.postAsyncOnceHandled(new BoardErrorEvent(errorMock));
         FirmataBoard.postError = false;
     }
 
     public async postUpdate(): Promise<void> {
-        await this.event.postOnceMatched(new BoardUpdatedEvent(discreteBoardMock));
+        await this.event.postAsyncOnceHandled(new BoardUpdatedEvent(discreteBoardMock));
         FirmataBoard.postUpdate = false;
     }
 
     public async postDisconnect(): Promise<void> {
-        await this.event.postOnceMatched(new BoardDisconnectedEvent());
+        await this.event.postAsyncOnceHandled(new BoardDisconnectedEvent());
         FirmataBoard.postDisconnect = false;
     }
 }

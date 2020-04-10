@@ -1,4 +1,4 @@
-import { Evt } from 'ts-evt';
+import { Evt } from 'evt';
 import { Event } from '../../domain/event/base';
 
 export class BoardService {

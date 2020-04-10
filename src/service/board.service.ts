@@ -1,7 +1,7 @@
 import { Board, FirmataBoard, IBoard } from '../domain/board';
 import { LoggerService } from './logger.service';
 import { singleton } from 'tsyringe';
-import { Evt } from 'ts-evt';
+import { Evt } from 'evt';
 import { BoardNotFoundError } from '../domain/error';
 import { BoardDAO } from '../dao/board.dao';
 import { IBoardDataValues } from '../domain/board/interface/board-data-values.interface';
