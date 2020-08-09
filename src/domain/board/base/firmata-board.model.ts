@@ -3,6 +3,7 @@ import { Socket } from 'net';
 import { Evt } from 'ts-evt';
 import { AVAILABLE_EXTENSIONS_KEYS, isAvailableExtension } from '../extension';
 import { BoardDisconnectedEvent, BoardReadyEvent, Event, FirmwareUpdatedEvent, BoardErrorEvent } from '../../event';
+import {LoggerService} from "../../../service/logger.service";
 
 export { SERIAL_PORT_ID, PIN_MODE, PIN_STATE, Pins } from 'firmata';
 

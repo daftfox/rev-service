@@ -73,6 +73,7 @@ export class ConnectionService {
                 dataValues = await firmataBoard.event.waitFor(matchAndTransformFirmwareUpdate, CONNECTION_TIMEOUT);
                 await firmataBoard.event.waitFor(matchBoardReadyEvent, CONNECTION_TIMEOUT);
                 const board = await this.handleConnectionEstablished(dataValues, firmataBoard);
+                firmataBoard.event.attach(matchBoardUpdatedEvent, this.handleUpdateEvent);
                 resolve(board);
             } catch (error) {
                 this.handleConnectionTimeout(firmataBoard);
@@ -89,8 +90,8 @@ export class ConnectionService {
         reject(boardId);
     };
 
-    private handleUpdateEvent = (updateEvent: BoardUpdatedEvent): void => {
-        this.model.updateBoard(updateEvent.board);
+    private handleUpdateEvent = (update: IBoard): void => {
+        // this.model.updateBoard(update);
     };
 
     private handleConnectionTimeout = (firmataBoard: FirmataBoard) => {

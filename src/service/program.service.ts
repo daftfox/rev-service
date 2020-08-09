@@ -59,7 +59,7 @@ export class ProgramService {
     /**
      * Add a new program.
      */
-    public addProgram(program: Program): Promise<string> {
+    public addProgram(program: Program): Promise<Program> {
         LoggerService.debug(
             `Adding new program ${LoggerService.highlight(program.name, 'blue', true)} to list of available programs.`,
             this.namespace,
@@ -92,7 +92,7 @@ export class ProgramService {
     /**
      * Update program.
      */
-    public async updateProgram(programUpdates: IProgram): Promise<void> {
+    public async updateProgram(programUpdates: IProgram): Promise<Program> {
         const program = await this.getProgramById(programUpdates.id);
 
         return program.update(programUpdates);

@@ -14,7 +14,8 @@ import {
 import { injectable } from 'tsyringe';
 import { IBoardDataValues } from '../';
 import { FirmataBoard, Pins, SERIAL_PORT_ID } from './firmata-board.model';
-import { BoardDisconnectedEvent, BoardUpdatedEvent } from '../../event/base';
+import { BoardDisconnectedEvent, BoardUpdatedEvent, Event, FirmwareUpdatedEvent } from '../../event/base';
+import { matchFirmwareUpdatedEvent } from '../../event/matcher';
 
 /**
  * Generic representation of devices compatible with the firmata protocol
@@ -33,9 +34,8 @@ export class Board extends Model<Board> implements IBoard {
      * device. If the device doesn't respond within 2 seconds after receiving a heartbeat request, it is deemed online
      * and removed from the data model until it attempts reconnecting.
      */
-    private static readonly HEARTBEAT_INTERVAL = 10000;
-    private static readonly DISCONNECT_TIMEOUT = 10000;
-    private static readonly MAX_SERIAL_WRITE_RETRY_COUNT = 5;
+    private static readonly heartbeatInterval = 5000;
+    private static readonly disconnectTimeout = 2000;
 
     /**
      * The unique identifier by which the board will be known to the outside world. The ID is defined by the filename
@@ -273,12 +273,7 @@ export class Board extends Model<Board> implements IBoard {
             throw new BoardIncompatibleError(`'${action}' is not a valid action for this board.`);
         }
 
-        LoggerService.debug(
-            `Executing method ${LoggerService.highlight(action, 'green', true)}${
-                parameters ? ` with parameters ${parameters.join(', ')}` : ''
-            }.`,
-            this.namespace,
-        );
+        LoggerService.debug(`Executing method ${LoggerService.highlight(action, 'green', true)}.`, this.namespace);
 
         const method = this.availableActions[action].method;
 
@@ -393,15 +388,16 @@ export class Board extends Model<Board> implements IBoard {
                 this.firmataBoard.event.post(new BoardDisconnectedEvent());
                 this.clearInterval(heartbeat);
                 this.clearHeartbeatTimeout();
-            }, Board.DISCONNECT_TIMEOUT);
+            }, Board.disconnectTimeout);
 
             this.timeouts.push(this.heartbeatTimeout);
 
             // we utilize the queryFirmware method to emulate a heartbeat
             // this method executes the supplied callback method to indicate
             // it has received a reply from the physical board
+            console.log('boop');
             this.firmataBoard.queryFirmware(this.clearHeartbeatTimeout);
-        }, Board.HEARTBEAT_INTERVAL);
+        }, Board.heartbeatInterval);
 
         this.intervals.push(heartbeat);
     }
@@ -433,31 +429,23 @@ export class Board extends Model<Board> implements IBoard {
             bytesPayload.push(value);
         }
 
-        // let serialRetry: Timeout;
-        // let retryCount = 0;
-        // const checkForAck = (bytes: number[]) => {
+        // fixme
+        // const checkForAck = ( bytes: number[] ) => {
         //     // check if the first (and likely only) byte received is 0x06, which is an ACK
-        //     if (bytes[0] === 0x06) {
-        //         LoggerService.debug(`Received ACK for payload ${bytesPayload.join()}.`);
-        //         clearInterval(serialRetry);
-        //         this.firmataBoard.removeListener(
-        //             `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`,
-        //             checkForAck,
-        //         );
+        //     if ( bytes[0] === 6 ) {
+        //         console.log(bytes[0]);
+        //         clearInterval( this.serialRetry );
+        //         this.firmataBoard.removeListener( `serial-data-${this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0}`, checkForAck );
         //     }
         // };
-        // this.firmataBoard.serialRead(this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck);
+        // this.firmataBoard.serialRead( this.firmataBoard.SERIAL_PORT_IDs.SW_SERIAL0, -1, checkForAck );
+
         this.firmataBoard.serialWrite(serialPort, bytesPayload);
 
-        // serialRetry = setInterval(() => {
-        //     if (retryCount >= Board.MAX_SERIAL_WRITE_RETRY_COUNT) {
-        //         clearInterval(serialRetry);
-        //         return;
-        //     }
-        //     retryCount++;
-        //     LoggerService.debug(`Retrying serialWrite. Attempt #${retryCount}`, this.namespace);
-        //     this.firmataBoard.serialWrite(serialPort, bytesPayload);
-        // }, 1000);
+        // fixme
+        // this.serialRetry = setInterval( () => {
+        //     this.firmataBoard.serialWrite( serialPort, bytesPayload );
+        // }, 2000);
     }
 
     /**

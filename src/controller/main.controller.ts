@@ -18,6 +18,7 @@ export class MainController {
 
         process.on('uncaughtException', (error: Error) => {
             LoggerService.stack(error, this.namespace);
+            console.trace(error);
         });
 
         LoggerService.info('Starting rev-service', this.namespace);

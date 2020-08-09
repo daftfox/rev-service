@@ -121,13 +121,14 @@ export class BoardService {
      */
     public disconnectBoard(boardId: string): void {
         const board = this.getBoardById(boardId);
+
+        board.disconnect();
         const discreteBoard = board.toDiscrete();
 
         LoggerService.debug(
             `Disconnecting board with id ${LoggerService.highlight(discreteBoard.id, 'blue', true)}.`,
             this.namespace,
         );
-        board.disconnect();
 
         this.event.post(new BoardDisconnectedEvent(discreteBoard));
     }

@@ -38,7 +38,7 @@ export class DatabaseService {
         return DatabaseService.database.close();
     }
 
-    public synchronise(): Promise<void> {
+    public synchronise(): Promise<Sequelize> {
         LoggerService.debug('Synchronising database.', this.namespace);
 
         return DatabaseService.database.sync();

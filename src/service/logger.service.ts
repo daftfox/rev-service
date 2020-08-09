@@ -114,7 +114,7 @@ export class LoggerService {
 
     /**
      * @access public
-     * @param {Error} error
+     * @param {Error|string} error
      */
     public static error(error: Error | string, namespace?: string): void {
         console.error(
@@ -130,7 +130,7 @@ export class LoggerService {
      * @param {Error} error
      */
     public static stack(error: Error, namespace?: string): void {
-        console.log(
+        console.trace(
             `${Chalk.black.bgRed('ERROR')} ${LoggerService.formatMessage(LoggerService.formatStack(error), namespace)}`,
         );
     }
